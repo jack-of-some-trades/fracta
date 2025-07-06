@@ -13,7 +13,7 @@ import { createStore } from "solid-js/store";
 //#region --------------------- Context Manager --------------------- //
 
 type OverlayContextProps = {
-    attachOverlay: (id:string, el:JSX.Element, ShowDisplay?:Signal<boolean>, autohide?:boolean|null) => void,
+    attachOverlay: (id:string, el:JSX.Element | (() => JSX.Element), ShowDisplay?:Signal<boolean>, autohide?:boolean|null) => void,
     detachOverlay: (id:string) => void,
     getDivReference:(id:string) => undefined | HTMLDivElement,
     setDivReference:(id:string, el:HTMLDivElement) => void,
@@ -45,7 +45,9 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
     //#region ------------------- Overlay Context Functions ------------------- //
 
     /** Place a menu in the overlay manager
-     * @param menu : JSX.Element, This should, at the topmost level, be an <OverlayDiv/>
+     * @param el : JSX.Element, This should, at the topmost level, be an <OverlayDiv/>, 
+     *          can be a callable that returns the desired object. This may be necessary if the
+     *          Element needs to be created at runtime, instead of on initialization
      * @param ShowDisplay : Optional Signal<bool>. Allows the Mounting object to make and thus
      *          have control over the display's Visibility.
      * @param autohide : bool, if true the menu will be automatically hidden when a click outside
@@ -53,7 +55,7 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
      */
     function attachOverlay(
         id:string, 
-        el:JSX.Element, 
+        el:JSX.Element | (() => JSX.Element), 
         ShowDisplay: Signal<boolean> | undefined = undefined,
         autohide:boolean|null=true,
     ){
@@ -61,10 +63,15 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
             setOverlays(Array.from(overlays.filter((obj)=>obj.id !== id)))
             //ID Present, Remove First to proc reactivity of object elements
 
-        setOverlays([...overlays, {id:id, el:el, hide:autohide}])
-
         if (ShowDisplay === undefined) ShowDisplay = createSignal(false)
         displayMap.set(id, ShowDisplay)
+
+        // Create the Element, if its a function, after the displayMap has been set
+        // so the OverlayDiv's internal 'OnMount' can function appropriately
+        if (typeof el === 'function')
+            el = el()
+
+        setOverlays([...overlays, {id:id, el:el, hide:autohide}])
     }
     function detachOverlay(id:string){
         divMap.delete(id)
@@ -154,7 +161,8 @@ export enum location_reference {
  *        capable of moving the menu around. Must be given a setLocation function
  * @param setLocation : Optional setter<Point> used by the drag handle logic.
  * @param bounding_client_id : QuerySelector String for an Element that will be used as a bounding client reference. 
- *        Movement of the overlay div will be limited such that the DOMRect of this reference client cannot go offscreen
+ *        Movement of the overlay div will be limited such that the DOMRect of this reference client cannot go offscreen.
+ *        By Default, The entire OverlayDiv will be used as the bounding client
  */
 export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
     id:string

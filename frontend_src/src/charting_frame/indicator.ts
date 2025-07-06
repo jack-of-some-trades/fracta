@@ -191,17 +191,18 @@ export class indicator implements ReorderableSet {
         const [options, setOptions] = createStore<object>(options_in)
         this.setOptions = setOptions
         this.menu_struct = menu_struct
-        this.menu_id = `${this._frame.id}_${this._id}_options`
+        let menu_id = `${this._frame.id}_${this._id}_options`
+        this.menu_id = menu_id
 
         //See EoF for Explanation of this second AttachOverlay Call.
-        OverlayCTX().attachOverlay(this.menu_id, undefined, menuVisibility)
         OverlayCTX().attachOverlay(
             this.menu_id,
-            IndicatorOpts({
-                id: this.menu_id,
+            // Must be a Callable so IndicatorOpts gets generated during the AttachOverlay Call
+            () => IndicatorOpts({
+                id: menu_id,
                 parent_ind: this,
                 options: options,
-                menu_struct: this.menu_struct,
+                menu_struct: menu_struct,
                 close_menu: () => menuVisibility[1](false),
 
                 container_id: this._frame.id.substring(0,6),
@@ -214,20 +215,3 @@ export class indicator implements ReorderableSet {
 
     //#endregion
 }
-
-
-/**Ok, so this is stupid. im not a huge fan, but it somewhat cleanly fixes a bug.
- * 
- * Essentially the crux of the problem is IndicatiorOpts' OverlayDiv has an onMount function.
- * As written, this only works if the onMount() is called at some point after the AttachOverlay()
- * call is completed. 
- * 
- * This works for all other Overlays since they are created with the full document tree and are not mounted
- * until after all objects are created. In the case of IndicatorOpts, this element is created after the full 
- * tree and thus can be mounted immediately causing a bug where the overlay can never be displayed. The extra 
- * bogus call to AttachOverlay() puts the menuVisibility signal where it needs to be before IndicatorOpts is
- * ever created & mounted.
- * 
- * The problem is kinda baked into the OverlayDiv... but this fixes it without repercussions so this is likely
- * how the implementation will stay...
- */
