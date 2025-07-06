@@ -8,6 +8,7 @@ import { SetStoreFunction, createStore } from 'solid-js/store'
 import { ColorContext } from '../generic_elements/color_picker'
 import { ObjTreeContext } from '../widget_panels/object_tree'
 import { Container } from './container'
+import { ContextMenuOverlayProvider } from './context_menu'
 import { OverlayContextProvider } from './overlay_manager'
 import { TitleBar } from './titlebar'
 import { ToolBar, ToolBoxContext } from './toolbar/toolbar'
@@ -123,6 +124,7 @@ function GlobalContexts(props:JSX.HTMLAttributes<HTMLElement>){
         <ObjTreeContext>
         <PanelResizeContext widget={true}>
         <OverlayContextProvider>
+        <ContextMenuOverlayProvider/>
             {props.children}
         </OverlayContextProvider>
         </PanelResizeContext>

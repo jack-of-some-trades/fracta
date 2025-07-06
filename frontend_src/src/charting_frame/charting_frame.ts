@@ -1,7 +1,9 @@
 import * as lwc from "lightweight-charts";
 import { Accessor, createSignal, JSX, Setter } from "solid-js";
 import { ChartFrame } from "../../tsx/charting_frame/chart_elements";
+import { icons } from "../../tsx/generic_elements/icons";
 import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
+import { context_menu_item } from "../../tsx/window/context_menu";
 import { point } from "../../tsx/window/overlay_manager";
 import { applyOpacity, tf, ticker } from "../types";
 import { update_tab_func } from "../window/container";
@@ -305,6 +307,7 @@ export class pane implements ReorderableSet {
 
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
+    context_menu_struct: context_menu_item[][]
     
     constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>){
         this._pane = pane
@@ -332,6 +335,7 @@ export class pane implements ReorderableSet {
             moveTo: this.move_to_pane.bind(this),
             reorder: this.reorder_attached.bind(this),
         }
+        this.context_menu_struct = generateContextMenuStruct(this)
     }
 
     get id():string { return String(this._pane.paneIndex()) }
@@ -376,6 +380,23 @@ export class pane implements ReorderableSet {
     move_to_pane(obj: indicator | primitive_set | any){
 
     }
+}
+
+function generateContextMenuStruct(pane:pane):context_menu_item[][] {
+    return [[
+        {
+            icon: icons.menu_arrow_sn,
+            title: 'Move Pane Up',
+            onClick: () => pane.movePane(pane.paneIndex - 1),
+            show: () => pane.paneIndex !== 0,
+        }],
+        [{
+            icon: icons.menu_arrow_ns,
+            title: 'Move Pane Down',
+            onClick: () => pane.movePane(pane.paneIndex + 1),
+            show: () => pane.paneIndex !== pane.frame.panes().length - 1,
+        },
+    ]]
 }
 
 

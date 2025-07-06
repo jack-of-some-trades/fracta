@@ -5,6 +5,7 @@ import { Accessor, createEffect, createSignal, For, Index, JSX, on, onCleanup, o
 import { charting_frame, pane } from "../../src/charting_frame/charting_frame";
 import { indicator } from "../../src/charting_frame/indicator";
 import { Icon, icons, TextIcon } from "../generic_elements/icons";
+import { MenuContextListener } from "../window/context_menu";
 
 /**
  * @style_sel : querySelect string used by <Layout/> to ensure style sizing is only applied
@@ -94,6 +95,17 @@ export function ChartPaneOverlay(props:chart_pane_overlay_props){
     }))
     createEffect(on(props.frame.panes, () => requestAnimationFrame(_reposition)))
 
+    // On RightClick for this pane Show the appropriate Context Menu
+    let event_cleaner = new AbortController()
+    createEffect(on(props.pane.paneEl, () => {
+        event_cleaner.abort()
+        event_cleaner = new AbortController()
+        props.pane.paneEl()?.addEventListener(
+            'contextmenu', 
+            MenuContextListener.bind(undefined, props.pane.context_menu_struct),
+            {signal: event_cleaner.signal}
+        )
+    }))
 
     return <div class='pane_controls'>
         <ScaleToggle

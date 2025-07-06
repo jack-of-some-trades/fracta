@@ -1,0 +1,32 @@
+#context_menu_overlay {
+    padding:6px
+}
+
+#context_menu_overlay td div {
+    display: flex;
+    align-items: center;
+}
+
+#context_menu_overlay .menu_item,
+#context_menu_overlay .menu_item_shortcut {
+    font-size: small;
+    padding: 3px;
+    margin: 3px;
+}
+
+#context_menu_overlay .menu_item_shortcut {
+    color:var(--text-dark-color);
+    opacity:0.5;
+}
+
+#context_menu_overlay .section_separator {
+    outline: thin solid var(--accent-color);
+    opacity: 0.4;
+}
+
+#context_menu_overlay tr.section_separator + 
+#context_menu_overlay tr.section_separator,
+#context_menu_overlay tr:first-child,
+#context_menu_overlay tr:last-child {
+    outline: none
+}
