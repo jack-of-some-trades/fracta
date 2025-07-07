@@ -4,7 +4,7 @@
  */
 import * as lwc from "lightweight-charts";
 import { ORDERABLE, Orderable, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
-import { charting_frame, pane as charting_pane } from "../charting_frame";
+import { charting_frame, charting_pane } from "../charting_frame";
 import { indicator } from "../indicator";
 import { RoundedCandleSeriesData, RoundedCandleSeriesImpl, RoundedCandleSeriesOptions, RoundedCandleSeriesPartialOptions } from "./rounded-candles-series/rounded-candles-series";
 

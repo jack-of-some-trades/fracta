@@ -11,10 +11,8 @@ export function MenuContextListener(menuItems:context_menu_item[][], e: MouseEve
         ContextMenuCTX.display[1](true)
         // Always force the menu to reconstruct when a click occurs
         ContextMenuCTX.setMenuItems([])
-        if (menuItems.some((row) => row.some((menu_item) => menu_item.show?.() ?? true))){
-            ContextMenuCTX.setMenuItems(menuItems)
-            ContextMenuCTX.setMenuLocation({'x':e.clientX, 'y':e.clientY})
-        }
+        ContextMenuCTX.setMenuItems(menuItems)
+        ContextMenuCTX.setMenuLocation({'x':e.clientX, 'y':e.clientY})
     }
 }
 
@@ -34,7 +32,7 @@ const ContextMenuCTX = {
 }
 
 export interface context_menu_item{
-    show?: () => boolean
+    disable?: () => boolean
     icon?: icons
     title: string
     onClick: () => void
@@ -68,7 +66,7 @@ function ContextMenu(props: {id: string}){
                 <For each={subgroup}>{(item) =>
                     <ContextMenuItem {...item}/>
                 }</For>
-                <Show when={subgroup.some((menu_item) => menu_item.show?.() ?? true)}>
+                <Show when={subgroup.some((menu_item) => menu_item.disable?.() ?? true)}>
                     <tr class = 'section_separator'/>
                 </Show>
             </>
@@ -78,6 +76,7 @@ function ContextMenu(props: {id: string}){
 }
 
 function ContextMenuItem(props: context_menu_item){
+    const isDisabled = props.disable && props.disable()
 
     const handleClick = (e:MouseEvent) => {
         if (e.button !== 0) return
@@ -95,17 +94,14 @@ function ContextMenuItem(props: context_menu_item){
         if (props.shift) shortcut_text += ' + Shift'
     }
 
-    if (props.show && !props.show())
-        return undefined
-
-    return <tr class='context_menu_item' onClick={ handleClick }>
+    return <tr classList={{'context_menu_item':true, 'disabled': isDisabled}} onClick={ isDisabled ? undefined : handleClick}>
         <td> <div>
             <Icon icon = {props.icon ?? icons.blank} hover = {false}/>
         </div> </td>
         <td>
             <div>
                 <span class='text menu_item' innerText={props.title}/>
-                <Show when={shortcut_text}>
+                <Show when={shortcut_text && !isDisabled}>
                     <span class='text menu_item_shortcut' innerText={shortcut_text}/>
                 </Show>
             </div>

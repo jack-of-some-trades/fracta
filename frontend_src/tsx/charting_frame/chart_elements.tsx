@@ -2,7 +2,7 @@
  * JSX Components that are responsible for displaying, or are displayed on top of, a Charting Window.
  */
 import { Accessor, createEffect, createSignal, For, Index, JSX, on, onCleanup, onMount, Setter, Show, splitProps } from "solid-js";
-import { charting_frame, pane } from "../../src/charting_frame/charting_frame";
+import { charting_frame, charting_pane } from "../../src/charting_frame/charting_frame";
 import { indicator } from "../../src/charting_frame/indicator";
 import { Icon, icons, TextIcon } from "../generic_elements/icons";
 import { MenuContextListener } from "../window/context_menu";
@@ -42,7 +42,7 @@ export function ChartFrame(props:chart_frame_props){
  *      addressed by index
  */
 interface chart_pane_overlay_props {
-    pane: pane,
+    pane: charting_pane,
     frame: charting_frame
 }
 export function ChartPaneOverlay(props:chart_pane_overlay_props){
@@ -138,7 +138,7 @@ export function ChartPaneOverlay(props:chart_pane_overlay_props){
  * The Buttons allow the user to change between Normal, Log, %, index-to-100, and inverted scales.
  */
 interface scale_props{
-    pane: pane,
+    pane: charting_pane,
     pricescale: string,
     style: Accessor<JSX.CSSProperties>,
     axis_ref:Accessor<HTMLTableCellElement | undefined>,
@@ -220,7 +220,7 @@ function ScaleToggle(props:scale_props){
 }
 
 interface paneToolsProps{
-    pane: pane
+    pane: charting_pane
     frame: charting_frame,
     style: Accessor<JSX.CSSProperties>,
     setDivRef: Setter<HTMLDivElement | undefined>
@@ -282,7 +282,7 @@ function PaneTools(props:paneToolsProps){
  * @indicators_list : SolidJS Reactive list of indicators.
  */
 export interface legend_props {
-    pane: pane,
+    pane: charting_pane,
     style: Accessor<JSX.CSSProperties>
 }
 

@@ -14,6 +14,11 @@
     margin: 3px;
 }
 
+#context_menu_overlay .context_menu_item.disabled svg, 
+#context_menu_overlay .context_menu_item.disabled span {
+    color: var(--icon-gray-color)
+}
+
 #context_menu_overlay .menu_item_shortcut {
     color:var(--text-dark-color);
     opacity:0.5;

@@ -30,19 +30,19 @@ export class charting_frame extends frame {
     element: JSX.Element
     
     _chart: lwc.IChartApi
-    default_pane: pane
+    default_pane: charting_pane
     whitespace_series: lwc.ISeriesApi<'Line'>
 
     timeframe: tf
     ticker: ticker
     series_type: Series_Type
-    pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, pane>()
+    pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
     attached = new Map<string, (indicator | primitive_set)>()
 
     private objTreeBranch:treeBranchInterface
 
-    panes: Accessor<pane[]>
-    private setPanes: Setter<pane[]>
+    panes: Accessor<charting_pane[]>
+    private setPanes: Setter<charting_pane[]>
 
     constructor(id: string, tab_update_func: update_tab_func) {
         super(id, tab_update_func)
@@ -51,7 +51,7 @@ export class charting_frame extends frame {
         this.frameRuler = frameRuler
 
         // Need a Reactive Panes Signal to Populate the Object Tree with.
-        const sig = createSignal<pane[]>([])
+        const sig = createSignal<charting_pane[]>([])
         this.panes = sig[0]; this.setPanes = sig[1]
 
         // The following 3 variables are actually properties of a frame's primary Series(Indicator) obj.
@@ -137,9 +137,9 @@ export class charting_frame extends frame {
         return renamed as lwc.MouseEventParams<lwc.Time>
     }
 
-    addPane(): pane {
+    addPane(): charting_pane {
         const _paneApi = this._chart.addPane()
-        const _paneWrap = new pane(this, _paneApi)
+        const _paneWrap = new charting_pane(this, _paneApi)
         this.pane_map.set(_paneApi, _paneWrap)
 
         // Must set panes onAnimationFrame since the PaneAPI Element required
@@ -193,7 +193,7 @@ export class charting_frame extends frame {
 
     fit_content() { this._chart.timeScale().fitContent() }
     autoscale_content() { this._chart.timeScale().resetTimeScale() }
-    getPaneByIndex(index: number) : pane | undefined { return this.panes().find((p) => p.paneIndex === index) }
+    getPaneByIndex(index: number) : charting_pane | undefined { return this.panes().find((p) => p.paneIndex === index) }
     update_timescale_opts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
 
     // #endregion
@@ -274,11 +274,11 @@ export class charting_frame extends frame {
 
     // #region -------------- Orderable Set Functions ------------------ // 
 
-    indicators_on_pane(pane:lwc.IPaneApi<lwc.Time>): indicator[]{
-        let wrapper = this.pane_map.get(pane)
-        if (wrapper === undefined) return []
+    indicators_on_pane(paneAPI:lwc.IPaneApi<lwc.Time>): indicator[]{
+        let pane = this.pane_map.get(paneAPI)
+        if (pane === undefined) return []
 
-        return wrapper.indicators()
+        return pane.indicators()
     }
 
     reorder_panes(from:number, to:number){
@@ -292,7 +292,7 @@ export class charting_frame extends frame {
  * Class to wrap around the IPaneAPI created by the chart. This class helps
  * manage the ability to order indicators/primitives within a pane.
  */
-export class pane implements ReorderableSet {
+export class charting_pane implements ReorderableSet {
     [ORDERABLE]:true = true;
     [ORDERABLE_SET]:true = true;
 
@@ -382,19 +382,19 @@ export class pane implements ReorderableSet {
     }
 }
 
-function generateContextMenuStruct(pane:pane):context_menu_item[][] {
+function generateContextMenuStruct(pane:charting_pane):context_menu_item[][] {
     return [[
         {
             icon: icons.menu_arrow_sn,
             title: 'Move Pane Up',
             onClick: () => pane.movePane(pane.paneIndex - 1),
-            show: () => pane.paneIndex !== 0,
-        }],
-        [{
+            disable: () => pane.paneIndex === 0,
+        },
+        {
             icon: icons.menu_arrow_ns,
             title: 'Move Pane Down',
             onClick: () => pane.movePane(pane.paneIndex + 1),
-            show: () => pane.paneIndex !== pane.frame.panes().length - 1,
+            disable: () => pane.paneIndex === pane.frame.panes().length - 1,
         },
     ]]
 }
@@ -428,11 +428,9 @@ function DEFAULT_CHART_OPTS(){
         },
         leftPriceScale: {          // ---- VisiblePriceScaleOptions ---- 
             mode: parseInt(style.getPropertyValue("--chart-scale-mode-left")) ?? 1,
-            // borderColor: style.getPropertyValue("--chart-axis-border"),
         },
         rightPriceScale: {          // ---- VisiblePriceScaleOptions ---- 
             mode: parseInt(style.getPropertyValue("--chart-scale-mode-right")) ?? 1,
-            // borderColor: style.getPropertyValue("--chart-axis-border"),
         },
         crosshair: {                // ---- Crosshair Options ---- 
             mode: parseInt(style.getPropertyValue("--chart-xhair-mode")) ?? 0,
@@ -446,7 +444,7 @@ function DEFAULT_CHART_OPTS(){
             rightBarStaysOnScroll: true,
             rightOffset: parseInt(style.getPropertyValue("--chart-right-offset")) ?? 20
         },
-        addDefaultPane: false, // Always set to False so Pane Wrapper can create the Panes.
+        addDefaultPane: false, // Always set to False so 'charting_frame.addPane' always controls pane creation.
     }
     return OPTS
 }
