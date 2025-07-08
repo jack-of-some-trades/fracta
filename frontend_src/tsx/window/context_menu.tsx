@@ -2,16 +2,21 @@ import { createSignal, For, Show } from "solid-js";
 import { Icon, icons } from "../generic_elements/icons";
 import { location_reference, OverlayCTX, OverlayDiv, point } from "./overlay_manager";
 
-
-export function MenuContextListener(menuItems:context_menu_item[][], e: MouseEvent){
+/**
+ * To Add a Context menu to a desired element, Bind this function with the desired menuItems 
+ * then add it as a listener to the 'onContextMenu' Event for the element.
+ * @param menuItems 2D Array of context_menu_item(s). The outer array denotes subgroups.
+ * @param e Mouse Event from the source Click
+ */
+export function MenuContextListener(this:context_menu_item[][], e: MouseEvent){
     if (e.button === 2){
         e.preventDefault()
         e.stopPropagation()
 
         ContextMenuCTX.display[1](true)
-        // Always force the menu to reconstruct when a click occurs
+        // Always force the menu to reconstruct when a click occurs in case 'disable' changes
         ContextMenuCTX.setMenuItems([])
-        ContextMenuCTX.setMenuItems(menuItems)
+        ContextMenuCTX.setMenuItems(this)
         ContextMenuCTX.setMenuLocation({'x':e.clientX, 'y':e.clientY})
     }
 }
@@ -39,7 +44,7 @@ export interface context_menu_item{
     alt?: boolean
     ctrl?: boolean
     shift?: boolean
-    hotkey?: string
+    hotkey?: string | RegExp
 }
 export function ContextMenuOverlayProvider() {
     const id = 'context_menu_overlay'
@@ -102,7 +107,7 @@ function ContextMenuItem(props: context_menu_item){
             <div>
                 <span class='text menu_item' innerText={props.title}/>
                 <Show when={shortcut_text && !isDisabled}>
-                    <span class='text menu_item_shortcut' innerText={shortcut_text}/>
+                    <span class='text menu_item_shortcut' innerText={String(shortcut_text)}/>
                 </Show>
             </div>
         </td>

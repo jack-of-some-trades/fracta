@@ -102,7 +102,7 @@ export function ChartPaneOverlay(props:chart_pane_overlay_props){
         event_cleaner = new AbortController()
         props.pane.paneEl()?.addEventListener(
             'contextmenu', 
-            MenuContextListener.bind(undefined, props.pane.context_menu_struct),
+            MenuContextListener.bind(props.pane.context_menu_struct),
             {signal: event_cleaner.signal}
         )
     }))

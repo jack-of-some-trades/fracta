@@ -4,6 +4,7 @@ import { ChartFrame } from "../../tsx/charting_frame/chart_elements";
 import { icons } from "../../tsx/generic_elements/icons";
 import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
 import { context_menu_item } from "../../tsx/window/context_menu";
+import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { point } from "../../tsx/window/overlay_manager";
 import { applyOpacity, tf, ticker } from "../types";
 import { update_tab_func } from "../window/container";
@@ -78,12 +79,11 @@ export class charting_frame extends frame {
             branchTitle: '',
             dropDownMode: 'auto',
             reorderables: this.panes,
-            reorder: this.reorder_panes.bind(this),
+            reorder: this.reorderPanes.bind(this),
             moveTo: ()=>{}
         }
 
         console.log(this)
-        console.log(this.panes())
         
         // The Following listeners allow smooth chart dragging while bars are actively updating.
         this.chart_el.addEventListener('mousedown', () => {
@@ -110,10 +110,12 @@ export class charting_frame extends frame {
         window.topbar.setTicker(this.ticker.symbol)
 
         ObjectTreeCTX().setMainBranch(this.objTreeBranch)
+        KeyboardCTX().attachHandler(this.id, this.default_pane.shortcuts)
     }
 
     onDeactivation() {
         ObjectTreeCTX().setMainBranch(NULL_TREE_BRANCH_INTERFACE)
+        KeyboardCTX().detachHandler(this.id)
     }
     
     // #region -------------- Lightweight Charts API Related Functions ------------------ //
@@ -281,8 +283,11 @@ export class charting_frame extends frame {
         return pane.indicators()
     }
 
-    reorder_panes(from:number, to:number){
-        console.log(`Reorder Panes: from ${from}, to: ${to}`)
+    reorderPanes(from: number, to:number) {
+        if (from < 0 || from > this.paneAPIs.length || from === to ) return
+        to = Math.max(Math.min(to, this.paneAPIs.length - 1), 0)
+        this.panes()[from]._pane.moveTo(to)
+        this.updatePaneEls()
     }
 
     // #endregion
@@ -307,6 +312,7 @@ export class charting_pane implements ReorderableSet {
 
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
+    shortcuts: keyboardShortcut[]
     context_menu_struct: context_menu_item[][]
     
     constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>){
@@ -336,6 +342,7 @@ export class charting_pane implements ReorderableSet {
             reorder: this.reorder_attached.bind(this),
         }
         this.context_menu_struct = generateContextMenuStruct(this)
+        this.shortcuts = deriveShortcuts(this.context_menu_struct)
     }
 
     get id():string { return String(this._pane.paneIndex()) }
@@ -351,9 +358,7 @@ export class charting_pane implements ReorderableSet {
 
     movePane(index: number) {
         if (index === this.paneIndex) return
-        index = Math.max(Math.min(index, this._frame.paneAPIs.length - 1), 0)
-        this._pane.moveTo(index)
-        this.frame.updatePaneEls()
+        this._frame.reorderPanes(this.paneIndex, index)
     }
 
     _attachPrimtive(primitive: PrimitiveBase){ this._pane.attachPrimitive(primitive) }
@@ -389,12 +394,16 @@ function generateContextMenuStruct(pane:charting_pane):context_menu_item[][] {
             title: 'Move Pane Up',
             onClick: () => pane.movePane(pane.paneIndex - 1),
             disable: () => pane.paneIndex === 0,
+            ctrl: true,
+            hotkey: 'ArrowUp',
         },
         {
             icon: icons.menu_arrow_ns,
             title: 'Move Pane Down',
             onClick: () => pane.movePane(pane.paneIndex + 1),
             disable: () => pane.paneIndex === pane.frame.panes().length - 1,
+            ctrl: true,
+            hotkey: 'ArrowDown',
         },
     ]]
 }

@@ -5,7 +5,7 @@ import { update_tab_func } from "./container"
 export abstract class frame {
     type:string = 'abstract'
 
-    id: string
+    _id: string
     update_tab: update_tab_func
     element: HTMLDivElement | JSX.Element | undefined
 
@@ -18,7 +18,7 @@ export abstract class frame {
     ticker: ticker | undefined = undefined
 
     constructor(id: string, tab_update_func: update_tab_func) {
-        this.id = id
+        this._id = id
         this.update_tab = tab_update_func
 
         //Used to Control Active & Target Attributes
@@ -27,6 +27,8 @@ export abstract class frame {
         const [active, setActive] = createSignal<boolean>(false)
         this.active = active; this.setActive = setActive
     }
+
+    get id(): string { return this._id }
 
     resize(){}
     onShow(){}//{console.log(`Show ${this.id}`)}
