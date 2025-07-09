@@ -170,7 +170,7 @@ function resize(width:number, height:number, layout:layout_struct, set_layout:Se
 
     // Perform initial resize to desired size. If the Desired rect were not passed,
     // each panel would query it's div for the size and it would be the old panel size.
-    if (window.active_container) window.active_container.resize(new DOMRect(0, 0, center_width, center_height))
+    if (window.activeContainer) window.activeContainer.refreshSize(new DOMRect(0, 0, center_width, center_height))
         
     let func = WidgetPanelSizeCTX().resizeFunc()
     if (func !== undefined) func(new DOMRect(0, 0, widgetPanelWidth, center_height))
@@ -180,7 +180,7 @@ function resize(width:number, height:number, layout:layout_struct, set_layout:Se
     // if (func !== undefined) func(new DOMRect(0, 0, center_width, utilPanelHeight))
 
     // After window settles, allow the window to resize itself to it's measured DOM size so it's 100% accurate
-    if (window.active_container) setTimeout(() => window.active_container.resize(), 0)
+    if (window.activeContainer) setTimeout(() => window.activeContainer.refreshSize(), 0)
 }
 
 function show_section_unbound(set_layout:SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
@@ -206,7 +206,7 @@ function show_section_unbound(set_layout:SetStoreFunction<layout_struct>, sectio
             set_layout('utilbar', 'display', 'flex')
     }
 
-    if (window.active_container) window.active_container.resize()
+    if (window.activeContainer) window.activeContainer.refreshSize()
 }
 
 function hide_section_unbound(set_layout:SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
@@ -233,7 +233,7 @@ function hide_section_unbound(set_layout:SetStoreFunction<layout_struct>, sectio
             set_layout('utilbar', 'display', 'none')
     }
 
-    if (window.active_container) window.active_container.resize()
+    if (window.activeContainer) window.activeContainer.refreshSize()
 }
 
 //#endregion

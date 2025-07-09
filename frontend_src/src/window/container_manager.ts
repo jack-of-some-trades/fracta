@@ -71,17 +71,17 @@ export class container_manager {
      */
     set_active_container(id: string) {
         const container_obj = this.containers.get(id)
-        if (container_obj === undefined || container_obj === window.active_container) return
+        if (container_obj === undefined || container_obj === window.activeContainer) return
         const tab_el = this.tab_els.get(id)
         if (tab_el) this.tab_manager.setCurrentTab(tab_el)
 
-        if (window.active_container){
-            window.active_container.onHide()     // Allow Sub-classes to inject behavior
+        if (window.activeContainer){
+            window.activeContainer.onHide()     // Allow Sub-classes to inject behavior
         }
         
-        window.active_container = container_obj
+        window.activeContainer = container_obj
         container_obj.onShow()                   // Allow Sub-classes to inject behavior
-        container_obj.resize()                   // Non-Active Containers aren't resized
+        container_obj.refreshSize()                   // Non-Active Containers aren't resized
     }
 
     /**

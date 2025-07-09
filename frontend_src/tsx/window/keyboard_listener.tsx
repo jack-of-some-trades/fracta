@@ -6,7 +6,7 @@
  */
 
 import { Accessor, createContext, createSignal, JSX, onCleanup, onMount, Setter, useContext } from "solid-js";
-import { context_menu_item } from "./context_menu";
+import { contextMenuItem } from "./context_menu";
 
 /**
  * Returns a list of Keyboard Shortcuts Ordered by general execution priority.
@@ -15,9 +15,9 @@ import { context_menu_item } from "./context_menu";
  * @param menuItems 
  * @returns Ordered List of Shortcuts to be passed to the KeyboardCTX().AttachHandlers() method
  */
-export function deriveShortcuts(menuItems:context_menu_item[][]): keyboardShortcut[] {
+export function deriveShortcuts(menuItems:contextMenuItem[][]): keyboardShortcut[] {
     const items:keyboardShortcut[] = Array.from(menuItems.flat()).filter(
-        (item: context_menu_item): item is keyboardShortcut => item.hotkey !== undefined
+        (item: contextMenuItem): item is keyboardShortcut => item.hotkey !== undefined
     )
     items.sort((a, b) => getPriority(a) - getPriority(b))
     return items
@@ -34,7 +34,7 @@ function getPriority(item: keyboardShortcut): number {
 
 // Context_Menu_Item interface, but guaranteed to have a hotkey defined
 export interface keyboardShortcut {
-    onClick: () => void
+    execute: () => void
     hotkey: string | RegExp
     alt?: boolean
     ctrl?: boolean
@@ -52,7 +52,7 @@ type KeyboardContextProps = {
     shift: Accessor<boolean>
 }
 
-const default_ctx_args:KeyboardContextProps = {
+const DEFAULT_CTX_ARGS:KeyboardContextProps = {
     attachHandler: (id:string, shortcuts: keyboardShortcut[]) => {},
     detachHandler: (id:string) => {},
     alt: () => false,
@@ -60,7 +60,7 @@ const default_ctx_args:KeyboardContextProps = {
     shift: () => false,
 }
 
-let keyboardContext = createContext<KeyboardContextProps>(default_ctx_args);
+let keyboardContext = createContext<KeyboardContextProps>(DEFAULT_CTX_ARGS);
 export function KeyboardCTX():KeyboardContextProps { return useContext<KeyboardContextProps>(keyboardContext) }
 
 
@@ -90,6 +90,8 @@ export function KeyboardListener(props: JSX.HTMLAttributes<HTMLElement>){
         shift: shift,
     }
 
+    // Overwrite so Default CTX args change. 
+    // This allows objects outside of the context children to access the above CTX_ARGS.
     keyboardContext = createContext<KeyboardContextProps>(CTX_ARGS);
     return <keyboardContext.Provider value={CTX_ARGS} children={props.children}/>
 }
@@ -102,7 +104,7 @@ function maybeFireShortcut(e:KeyboardEvent, shortcut: keyboardShortcut): boolean
 
     if (shortcut.disable?.()) return false
     if (!e.key.match(shortcut.hotkey)) return false
-    shortcut.onClick()
+    shortcut.execute()
     return true
 }
 

@@ -17,10 +17,10 @@ export function FrameViewer(){
     //Displays used in a keyed show tag so the <For/> tag updates when the container does.
     const displays = ContainerCTX().displays
     
-    const [ids, setIds] = createSignal(Array.from(active_container.frames, (f)=>f.id))
-    createEffect(on(displays, () => setIds(Array.from(active_container.frames, (f)=>f.id))))
+    const [ids, setIds] = createSignal(Array.from(activeContainer.frames, (f)=>f.id))
+    createEffect(on(displays, () => setIds(Array.from(activeContainer.frames, (f)=>f.id))))
   
-    const getTagName = (id:string) => FRAME_NAME_MAP.get(active_container.frames.find((f)=>f.id === id)?.type ?? "") ?? ""
+    const getTagName = (id:string) => FRAME_NAME_MAP.get(activeContainer.frames.find((f)=>f.id === id)?.type ?? "") ?? ""
 
     onMount(()=>{
         WidgetPanelSizeCTX().setMinSize(MIN_WIDTH)
@@ -39,14 +39,14 @@ export function FrameViewer(){
                         tag_name:()=>getTagName(id)
                     })
                 }
-                reorder_function={active_container.reorder_frames.bind(active_container)}
+                reorder_function={activeContainer.reorderFrames.bind(activeContainer)}
             >
                 <For each={ids()}>{(tag_id)=>{
-                    let frame = active_container.frames.find((f) => f.id === tag_id)
+                    let frame = activeContainer.frames.find((f) => f.id === tag_id)
                     return <SelectableItemTag 
                         tag_id={()=>tag_id}
                         tag_name={() => getTagName(tag_id)}
-                        onClick={()=>frame?.assign_active_frame()}
+                        onClick={()=>frame?.assignActiveFrame()}
                     >
                         <FrameDeleteBtn id={tag_id}/>
                     </SelectableItemTag>
@@ -65,8 +65,8 @@ const FRAME_NAME_MAP = new Map<string,string>([
 
 function FrameDeleteBtn(props:{id:string}){
     //Don't allow the frame to be deleted if the layout would no longer have enough supporting frames
-    if ( active_container.frames.length <= num_frames(active_container.layout) ) return
-    return <Icon icon={icons.close} onClick={() => window.api.remove_frame(active_container.id, props.id)}/>
+    if ( activeContainer.frames.length <= num_frames(activeContainer.layout) ) return
+    return <Icon icon={icons.close} onClick={() => window.api.remove_frame(activeContainer.id, props.id)}/>
 }
 
 function AbstractFrameTag(props:{frame:frame}){

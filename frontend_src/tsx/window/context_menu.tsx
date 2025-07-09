@@ -8,27 +8,26 @@ import { location_reference, OverlayCTX, OverlayDiv, point } from "./overlay_man
  * @param menuItems 2D Array of context_menu_item(s). The outer array denotes subgroups.
  * @param e Mouse Event from the source Click
  */
-export function MenuContextListener(this:context_menu_item[][], e: MouseEvent){
-    if (e.button === 2){
-        e.preventDefault()
-        e.stopPropagation()
+export function MenuContextListener(this:contextMenuItem[][], e: MouseEvent){
+    if (e.button !== 2) return
 
-        ContextMenuCTX.display[1](true)
-        // Always force the menu to reconstruct when a click occurs in case 'disable' changes
-        ContextMenuCTX.setMenuItems([])
-        ContextMenuCTX.setMenuItems(this)
-        ContextMenuCTX.setMenuLocation({'x':e.clientX, 'y':e.clientY})
-    }
+    e.preventDefault()
+    e.stopPropagation()
+    CONTEXT_MENU_CTX.display[1](true)
+    // Always force the menu to reconstruct when a click occurs in case 'disable' changes
+    CONTEXT_MENU_CTX.setMenuItems([])
+    CONTEXT_MENU_CTX.setMenuItems(this)
+    CONTEXT_MENU_CTX.setMenuLocation({'x':e.clientX, 'y':e.clientY})
 }
 
 //#region --------------------- Context Manager --------------------- //
 
 
-// Not creating a Proper context manager since the 'context' is only used locally.
-const [menuItems, setMenuItems] = createSignal<context_menu_item[][]>([])
+// Not creating a Proper context manager since the 'context' is only referenced locally.
+const [menuItems, setMenuItems] = createSignal<contextMenuItem[][]>([])
 const [menuLocation, setMenuLocation] = createSignal<point>({x:0, y:0})
 
-const ContextMenuCTX = {
+const CONTEXT_MENU_CTX = {
     display: createSignal<boolean>(false),
     menuItems: menuItems,
     setMenuItems: setMenuItems,
@@ -36,11 +35,11 @@ const ContextMenuCTX = {
     setMenuLocation: setMenuLocation,
 }
 
-export interface context_menu_item{
-    disable?: () => boolean
+export interface contextMenuItem{
+    execute: () => void
     icon?: icons
     title: string
-    onClick: () => void
+    disable?: () => boolean
     alt?: boolean
     ctrl?: boolean
     shift?: boolean
@@ -51,7 +50,7 @@ export function ContextMenuOverlayProvider() {
     OverlayCTX().attachOverlay(
         id,
         ContextMenu({id:id}),
-        ContextMenuCTX.display
+        CONTEXT_MENU_CTX.display
     )
 
     return <></>
@@ -66,37 +65,36 @@ function ContextMenu(props: {id: string}){
         location_ref = {location_reference.TOP_LEFT}
     >
         <table>
-            <For each={ContextMenuCTX.menuItems()}>{(subgroup) => 
+            <For each={CONTEXT_MENU_CTX.menuItems()}>{(subgroup) => 
             <>
                 <For each={subgroup}>{(item) =>
                     <ContextMenuItem {...item}/>
                 }</For>
-                <Show when={subgroup.some((menu_item) => menu_item.disable?.() ?? true)}>
-                    <tr class = 'section_separator'/>
-                </Show>
+                <tr class = 'section_separator'/>
             </>
             }</For>
         </table>
     </OverlayDiv>
 }
 
-function ContextMenuItem(props: context_menu_item){
+function ContextMenuItem(props: contextMenuItem){
     const isDisabled = props.disable && props.disable()
 
     const handleClick = (e:MouseEvent) => {
         if (e.button !== 0) return
 
         e.stopPropagation()
-        ContextMenuCTX.display[1](false)
-        props.onClick()
+        CONTEXT_MENU_CTX.display[1](false)
+        props.execute()
     }
     
-    let shortcut_text
+    let shortcutText
     if (props.hotkey) {
-        shortcut_text = props.hotkey
-        if (props.alt) shortcut_text += ' + Alt'
-        if (props.ctrl) shortcut_text += ' + Ctrl'
-        if (props.shift) shortcut_text += ' + Shift'
+        shortcutText = ''
+        if (props.alt) shortcutText += 'Alt + '
+        if (props.ctrl) shortcutText += 'Ctrl + '
+        if (props.shift) shortcutText += 'Shift + '
+        shortcutText += String(props.hotkey)
     }
 
     return <tr classList={{'context_menu_item':true, 'disabled': isDisabled}} onClick={ isDisabled ? undefined : handleClick}>
@@ -106,8 +104,8 @@ function ContextMenuItem(props: context_menu_item){
         <td>
             <div>
                 <span class='text menu_item' innerText={props.title}/>
-                <Show when={shortcut_text && !isDisabled}>
-                    <span class='text menu_item_shortcut' innerText={String(shortcut_text)}/>
+                <Show when={shortcutText}>
+                    <span class='text menu_item_shortcut' innerText={String(shortcutText)}/>
                 </Show>
             </div>
         </td>

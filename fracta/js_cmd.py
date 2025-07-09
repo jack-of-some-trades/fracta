@@ -229,7 +229,7 @@ def update_whitespace_data(frame_id: str, data: object, curr_time: object) -> st
 
 
 def autoscale_time_axis(frame_id: str):
-    return f"{frame_id}.autoscale_content();"
+    return f"{frame_id}.autoscaleContent();"
 
 
 # endregion

@@ -121,12 +121,12 @@ export function SymbolSearchMenu(props:search_menu_props){
     })
 
     function fetch(symbol:ticker){
-        if (window.active_frame?.timeframe)
+        if (window.activeFrame?.timeframe)
             window.api.data_request(
-                window.active_container?.id,
-                window.active_frame?.id,
+                window.activeContainer?.id,
+                window.activeFrame?.id,
                 symbol,
-                window.active_frame?.timeframe.toString()
+                window.activeFrame?.timeframe.toString()
             )
         props.setDisplay(false)
     }

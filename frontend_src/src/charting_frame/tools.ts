@@ -18,7 +18,7 @@ export function onToolSelect(
     createToolFunc:(e:MouseEvent)=>void
 ){
     //Return if no active window or the tool has already been selected
-    if (window.active_container === undefined || creationSignal[0]()) return
+    if (window.activeContainer === undefined || creationSignal[0]()) return
 
     for(const [, value] of TOOL_CREATION_MAP.entries()){
         //abort all other tools if any are active
@@ -26,7 +26,7 @@ export function onToolSelect(
     }
 
     //Tell all Charts in the visible window to listen for a click event
-    window.active_container.frames.forEach((frame) => {
+    window.activeContainer.frames.forEach((frame) => {
         if(!frame.hasOwnProperty('panes')) return
 
         //@ts-ignore - already ensured panes exist on the frame

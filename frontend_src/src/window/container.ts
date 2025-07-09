@@ -3,9 +3,9 @@ import { ContainerCTX } from "../../tsx/window/container"
 import { layout_display } from "../../tsx/window/layouts"
 import { charting_frame } from "../charting_frame/charting_frame"
 import { frame } from "./frame"
-import { Container_Layouts, flex_frame, layout_switch, num_frames, Orientation, resize_sections } from "./layouts"
+import { Container_Layouts, flex_frame as flexFrame, layout_switch, num_frames, Orientation, resize_sections } from "./layouts"
 
-export type update_tab_func = (
+export type updateTabFunc = (
     title?: string,
     price?: string,
     favicon?: string
@@ -29,20 +29,20 @@ export class container{
 
     frames: frame[] = []
     display: layout_display[] = []
-    flex_frames: flex_frame[] = []
+    flexFrames: flexFrame[] = []
 
     divRect: Accessor<DOMRect>
     setStyle: Setter<string>
     setDisplay: Setter<layout_display[]>
 
-    update_tab: update_tab_func
+    updateTab: updateTabFunc
 
     constructor(
         id:string, 
-        update_tab_func:update_tab_func
+        updateFunc:updateTabFunc
     ) {
         this.id = id
-        this.update_tab = update_tab_func
+        this.updateTab = updateFunc
 
         this.divRect = ContainerCTX().getSize
         this.setStyle = ContainerCTX().setStyle
@@ -60,28 +60,28 @@ export class container{
     /**
      * Resize all the child Elements based on the size of the container's Div. 
      */
-    resize(container_rect?:DOMRect) {
+    refreshSize(container_rect?:DOMRect) {
         // Calculate the new sizes of all the frames
-        resize_sections(container_rect? ()=>container_rect : this.divRect, this.flex_frames)
+        resize_sections(container_rect? ()=>container_rect : this.divRect, this.flexFrames)
 
         // Put all the resizing info into a style tag. Long-story short, putting this info into
         // a reactive 'style' tag for each JSX.Element div is a damn pain.
-        let style = "", frame_num = 0
-        this.flex_frames.forEach((frame, i)=>{
+        let style = ""
+        this.flexFrames.forEach((frame, i) => {
             style += `
             div.frame:nth-child(${i+2})${frame.style}`
         })
         this.setStyle(style)
-        this.resize_frames()
+        this.refreshFrameSizes()
     }
 
-    private resize_frames(){
+    private refreshFrameSizes(){
         // Resize all contents of each *visible* Frames. 
-        // This is on a 1ms Timeout to ensure whatever Style Change Invoked the resize takes effect first
-        setTimeout(()=>{
+        // This is in an animation frame to ensure whatever Style Change Invoked the resize takes effect first
+        requestAnimationFrame(()=>{
             for (let i = 0; i < num_frames(this.layout); i++)
-                this.frames[i].resize()
-        }, 1)
+                this.frames[i].refreshSize()
+        })
     }
 
     /**
@@ -94,7 +94,7 @@ export class container{
         //Logging an error instead of throwing one because when thrown nothing is displayed in the console.
         if (type == 1) console.error('Cannot Create an instance of an Abstract Frame')
 
-        let new_frame = new FrameTypes[type](new_id, this.update_tab)
+        let new_frame = new FrameTypes[type](new_id, this.updateTab)
         this.frames.push(new_frame)
         return new_frame
     }
@@ -107,7 +107,7 @@ export class container{
     protected remove_frame(frame_id:string){
         let frame_index = this.frames.findIndex((f) => f.id === frame_id)
         if (frame_index === -1) return
-        this.reorder_frames(frame_index, this.frames.length - 1)
+        this.reorderFrames(frame_index, this.frames.length - 1)
 
         //@ts-ignore
         this.frames[this.frames.length - 1] = undefined
@@ -123,7 +123,7 @@ export class container{
      */
     protected set_layout(layout: Container_Layouts) {
         // ------------ Create Layout Template ------------
-        this.flex_frames = layout_switch(layout, this.divRect, this.resize.bind(this))
+        this.flexFrames = layout_switch(layout, this.divRect, this.refreshSize.bind(this))
         let layout_displays:layout_display[] = []
 
         // ------------ Reorder the list of frames based on target Els ------------ //
@@ -133,11 +133,11 @@ export class container{
 
         // ------------ Set mouseDown in each flex_frame that holds a display ------------
         let frame_ind = 0
-        this.flex_frames.forEach((flex_frame) => {
+        this.flexFrames.forEach((flex_frame) => {
             if (flex_frame.orientation === Orientation.null) { // Frame Object
                 if (frame_ind < this.frames.length) {
                     let frame = this.frames[frame_ind]
-                    flex_frame.mouseDown = frame.assign_active_frame.bind(frame)
+                    flex_frame.mouseDown = frame.assignActiveFrame.bind(frame)
 
                     layout_displays.push({
                         orientation:flex_frame.orientation, 
@@ -168,13 +168,13 @@ export class container{
         this.display = layout_displays
 
         //Calculate the flex_frame rect sizes, and set them to the Display Signal
-        this.resize()
+        this.refreshSize()
 
         //If succsessful, update container variable and UI
         window.topbar.setLayout(layout)
     }
 
-    reorder_frames(from:number, to:number){
+    reorderFrames(from:number, to:number){
         this.frames.splice(to, 0, ...this.frames.splice(from, 1))
 
         //Construct new layout_displays for the moved frames
@@ -183,7 +183,7 @@ export class container{
             let frame = this.frames[i]
             this.display[i*2] = {
                 orientation:Orientation.null, 
-                mouseDown:frame.assign_active_frame.bind(frame),
+                mouseDown:frame.assignActiveFrame.bind(frame),
                 element:frame.element,
                 el_active:frame.active, 
                 el_target:frame.target
@@ -193,6 +193,6 @@ export class container{
         //Layout <for/> is keyed to the array, not the elements. The first call ensures the display is re-rendered
         this.setDisplay([])
         this.setDisplay(this.display)
-        this.resize_frames()
+        this.refreshFrameSizes()
     }
 }

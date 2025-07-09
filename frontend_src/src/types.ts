@@ -11,10 +11,10 @@ export interface ticker {
     attrs?: Object
 }
 
-const interval_list: interval[] = ["s", "m", "h", "D", "W", "M", "Y"]
-const interval_val_map = { "s": 1, "m": 60, "h": 3600, "D": 86400, "W": 604800, "M": 2629743, "Y": 31556926, "E": -1 }
+const intervalList: interval[] = ["s", "m", "h", "D", "W", "M", "Y"]
+const intervalValMap = { "s": 1, "m": 60, "h": 3600, "D": 86400, "W": 604800, "M": 2629743, "Y": 31556926, "E": -1 }
 export type interval = "s" | "m" | "h" | "D" | "W" | "M" | "Y" | "E"
-export const interval_map = { "s": "Second", "m": "Minute", "h": "Hour", "D": "Day", "W": "Week", "M": "Month", "Y": "Year", "E": "Error" }
+export const intervalMap = { "s": "Second", "m": "Minute", "h": "Hour", "D": "Day", "W": "Week", "M": "Month", "Y": "Year", "E": "Error" }
 /**
  * An object that represents a given timeframe
  */
@@ -30,9 +30,9 @@ export class tf {
     /**
      * Create a Timeframe Object from a string
      */
-    static from_str(str_in: string): tf {
+    static fromStr(str_in: string): tf {
         let interval_str = str_in.charAt(str_in.length - 1)
-        if (!interval_list.includes(interval_str as interval))
+        if (!intervalList.includes(interval_str as interval))
             return new tf(-1, 'E') //Signal an error
 
         let mult_str = str_in.split(interval_str)[0]
@@ -47,24 +47,24 @@ export class tf {
      * The value given is rounded down to the nearest integer multiple timeframe. e.g. (tf.from_value(new tf(1, 'D').toValue() - 1) === new tf(23, 'h'))
      * @param val The number of seconds within the given timeframe.
      */
-    static from_value(val: number): tf {
-        for (let i = interval_list.length - 1; i >= 0; i--) {
-            let mult = (val / interval_val_map[interval_list[i]])
+    static fromValue(val: number): tf {
+        for (let i = intervalList.length - 1; i >= 0; i--) {
+            let mult = (val / intervalValMap[intervalList[i]])
             if (mult >= 1) {
                 //Highest Tf interval found
-                return new tf(Math.round(mult), interval_list[i])
+                return new tf(Math.round(mult), intervalList[i])
             }
         }
 
         return new tf(-1, 'E') //Signal an error
     }
 
-    static is_equal(a:tf, b:tf):boolean { return a.toValue() === b.toValue()}
+    static isEqual(a:tf, b:tf):boolean { return a.toValue() === b.toValue()}
 
     //Trim_unit can be set to True when displaying the timeframe. Should be set to false when transmitting the TF as a string.
     toString(trim_unit:boolean = false): string { return `${(trim_unit && this.multiplier === 1)? '' : this.multiplier}${this.period}` }
-    toLabel(): string { return `${this.multiplier} ${interval_map[this.period]}${(this.multiplier > 1) ? 's' : ''}` }
-    toValue(): number { return this.multiplier * interval_val_map[this.period] }
+    toLabel(): string { return `${this.multiplier} ${intervalMap[this.period]}${(this.multiplier > 1) ? 's' : ''}` }
+    toValue(): number { return this.multiplier * intervalValMap[this.period] }
 }
 
 //#endregion
@@ -78,10 +78,10 @@ const ID_LEN = 4
 /**
  * Generate a unique ID of Random characters that is not present in the given list.
  * @param prefix Optional prefix to affix at the start of the id
- * @param id_list List of ID's to check for collisions against
+ * @param IDs List of ID's to check for collisions against
  * @returns The new ID. The ID is *not* automatically appended to the id_list
  */
-export function makeid(id_list: string[], prefix: string = ''): string {
+export function makeId(IDs: string[], prefix: string = ''): string {
     let result = prefix;
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const charactersLength = characters.length;
@@ -90,9 +90,9 @@ export function makeid(id_list: string[], prefix: string = ''): string {
         result += characters.charAt(Math.floor(Math.random() * charactersLength));
         counter += 1;
     }
-    if (id_list.includes(result))
+    if (IDs.includes(result))
         //Generate again if there's a collision
-        return makeid(id_list, prefix)
+        return makeId(IDs, prefix)
     else {
         return result;
     }

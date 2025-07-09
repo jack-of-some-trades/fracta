@@ -3,11 +3,11 @@ import { Accessor, createSignal, JSX, Setter } from "solid-js";
 import { ChartFrame } from "../../tsx/charting_frame/chart_elements";
 import { icons } from "../../tsx/generic_elements/icons";
 import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
-import { context_menu_item } from "../../tsx/window/context_menu";
+import { contextMenuItem } from "../../tsx/window/context_menu";
 import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { point } from "../../tsx/window/overlay_manager";
 import { applyOpacity, tf, ticker } from "../types";
-import { update_tab_func } from "../window/container";
+import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
 import { indicator, isIndicator } from "./indicator";
 import { PrimitiveBase } from "./primitive-plugins/primitive-base";
@@ -33,19 +33,19 @@ export class charting_frame extends frame {
     _chart: lwc.IChartApi
     default_pane: charting_pane
     whitespace_series: lwc.ISeriesApi<'Line'>
+    pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
+    attached = new Map<string, (indicator | primitive_set)>()
 
     timeframe: tf
     ticker: ticker
     series_type: Series_Type
-    pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
-    attached = new Map<string, (indicator | primitive_set)>()
 
     private objTreeBranch:treeBranchInterface
 
     panes: Accessor<charting_pane[]>
     private setPanes: Setter<charting_pane[]>
 
-    constructor(id: string, tab_update_func: update_tab_func) {
+    constructor(id: string, tab_update_func: updateTabFunc) {
         super(id, tab_update_func)
         
         const [frameRuler, setFrameRulerRef] = createSignal<HTMLDivElement>(document.createElement('div'))
@@ -87,14 +87,14 @@ export class charting_frame extends frame {
         
         // The Following listeners allow smooth chart dragging while bars are actively updating.
         this.chart_el.addEventListener('mousedown', () => {
-            this.update_timescale_opts({
+            this.updateTimescaleOpts({
                 'shiftVisibleRangeOnNewBar': false,
                 'allowShiftVisibleRangeOnWhitespaceReplacement': false,
                 'rightBarStaysOnScroll': false
             })
         })
         window.document.addEventListener('mouseup', () => {
-            this.update_timescale_opts({
+            this.updateTimescaleOpts({
                 'shiftVisibleRangeOnNewBar': true,
                 'allowShiftVisibleRangeOnWhitespaceReplacement': true,
                 'rightBarStaysOnScroll': true
@@ -104,11 +104,12 @@ export class charting_frame extends frame {
 
     onActivation() {
         //Update Window Elements
-        this.update_tab(this.ticker.symbol)
+        this.updateTab(this.ticker.symbol)
         window.topbar.setSeries(this.series_type)
         window.topbar.setTimeframe(this.timeframe)
         window.topbar.setTicker(this.ticker.symbol)
 
+        // Connect To Widget Panel and Keyboard Listener
         ObjectTreeCTX().setMainBranch(this.objTreeBranch)
         KeyboardCTX().attachHandler(this.id, this.default_pane.shortcuts)
     }
@@ -125,6 +126,36 @@ export class charting_frame extends frame {
     get chart_el() : HTMLDivElement {return this._chart.chartElement()}
     get paneAPIs() : lwc.IPaneApi<lwc.Time>[] {return this._chart.panes()}
 
+    refreshSize(){ this._chart.resize(
+        Math.max(this.frameRuler().clientWidth, 0), 
+        Math.max(this.frameRuler().clientHeight, 0), 
+        false
+    )}
+    
+    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
+    fullUpdate() { this._chart.Wf.ts.Bh() }
+    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
+    lightUpdate() { this._chart.Wf.ts.ar() }
+
+    getPaneByIndex(index: number) : charting_pane | undefined { 
+        return this.panes().find((p) => p.paneIndex === index) 
+    }
+    updatePaneEls() { 
+        this.panes().forEach(pane => pane.updatePaneEl()) 
+        this.setPanes(this.panes().sort((a, b) => a.paneIndex - b.paneIndex))
+    }
+
+    addPane(): charting_pane {
+        const _paneApi = this._chart.addPane()
+        const _paneWrap = new charting_pane(this, _paneApi)
+        this.pane_map.set(_paneApi, _paneWrap)
+
+        // Must set panes onAnimationFrame since the PaneAPI Element required
+        // for rendering the <PaneOverlay/> is created in an animation cycle
+        requestAnimationFrame( () => this.setPanes([...this.panes(), _paneWrap]) )
+        return _paneWrap
+    }
+
     _getMouseEventParams(
         index : lwc.Logical | null, 
         pt : point | null, 
@@ -138,20 +169,9 @@ export class charting_frame extends frame {
         )
         return renamed as lwc.MouseEventParams<lwc.Time>
     }
-
-    addPane(): charting_pane {
-        const _paneApi = this._chart.addPane()
-        const _paneWrap = new charting_pane(this, _paneApi)
-        this.pane_map.set(_paneApi, _paneWrap)
-
-        // Must set panes onAnimationFrame since the PaneAPI Element required
-        // for rendering the <PaneOverlay/> is created in an animation cycle
-        requestAnimationFrame( () => this.setPanes([...this.panes(), _paneWrap]) )
-        return _paneWrap
-    }
     
     //** Takes a normal MouseEvent and Returns the Lightweight-Charts Mouse Event. */
-    make_event_params(e: MouseEvent): lwc.MouseEventParams<lwc.Time> {
+    makeEventParams(e: MouseEvent): lwc.MouseEventParams<lwc.Time> {
         let index = this._chart.timeScale().coordinateToLogical(e.offsetX)
         let sourceEvent:lwc.TouchMouseEventData = {
             clientX: e.clientX as lwc.Coordinate,
@@ -177,33 +197,17 @@ export class charting_frame extends frame {
         return this._getMouseEventParams(index, pt, sourceEvent)
     }
     
-    resize(){ this._chart.resize(
-        Math.max(this.frameRuler().clientWidth, 0), 
-        Math.max(this.frameRuler().clientHeight, 0), 
-        false
-    )}
 
-    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
-    fullUpdate() { this._chart.Wf.ts.Bh() }
-    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
-    lightUpdate() { this._chart.Wf.ts.ar() }
-
-    updatePaneEls() { 
-        this.panes().forEach(pane => pane.updatePaneEl()) 
-        this.setPanes(this.panes().sort((a, b) => a.paneIndex - b.paneIndex))
-    }
-
-    fit_content() { this._chart.timeScale().fitContent() }
-    autoscale_content() { this._chart.timeScale().resetTimeScale() }
-    getPaneByIndex(index: number) : charting_pane | undefined { return this.panes().find((p) => p.paneIndex === index) }
-    update_timescale_opts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
+    fitContent() { this._chart.timeScale().fitContent() }
+    autoscaleContent() { this._chart.timeScale().resetTimeScale() }
+    updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
 
     // #endregion
     
     // #region -------------- Python API Functions ------------------ //
 
     //Functions marked as protected are done so it indicate the original intent
-    //only encompassed being called from python, not from within JS.
+    //only encompassed being called from python, not from within JS. uses snake_case for this reason.
     
     protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data:lwc.SingleValueData | undefined) {
         this.whitespace_series.setData(data)
@@ -226,14 +230,14 @@ export class charting_frame extends frame {
 
     protected set_ticker(new_ticker: ticker) {
         this.ticker = new_ticker
-        this.update_tab(this.ticker.symbol)
-        if (this == window.active_frame)
+        this.updateTab(this.ticker.symbol)
+        if (this == window.activeFrame)
             window.topbar.setTicker(this.ticker.symbol)
     }
 
     protected set_timeframe(new_tf_str: string) {
-        this.timeframe = tf.from_str(new_tf_str)
-        if (this == window.active_frame)
+        this.timeframe = tf.fromStr(new_tf_str)
+        if (this == window.activeFrame)
             window.topbar.setTimeframe(this.timeframe)
 
         //Update the Timeaxis to Show/Hide relevant timestamp
@@ -245,12 +249,12 @@ export class charting_frame extends frame {
             newOpts.timeVisible = true
         }
 
-        this.update_timescale_opts(newOpts)
+        this.updateTimescaleOpts(newOpts)
     }
 
     protected set_series_type(new_type: Series_Type) {
         this.series_type = new_type
-        if (this == window.active_frame)
+        if (this == window.activeFrame)
             window.topbar.setSeries(this.series_type)
     }
 
@@ -276,7 +280,7 @@ export class charting_frame extends frame {
 
     // #region -------------- Orderable Set Functions ------------------ // 
 
-    indicators_on_pane(paneAPI:lwc.IPaneApi<lwc.Time>): indicator[]{
+    indicatorsOnPane(paneAPI:lwc.IPaneApi<lwc.Time>): indicator[]{
         let pane = this.pane_map.get(paneAPI)
         if (pane === undefined) return []
 
@@ -313,7 +317,7 @@ export class charting_pane implements ReorderableSet {
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
     shortcuts: keyboardShortcut[]
-    context_menu_struct: context_menu_item[][]
+    ctxMenuStruct: contextMenuItem[][]
     
     constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>){
         this._pane = pane
@@ -338,11 +342,11 @@ export class charting_pane implements ReorderableSet {
             branchTitle: this.name,
             dropDownMode: 'always',
             reorderables: this.attached,
-            moveTo: this.move_to_pane.bind(this),
-            reorder: this.reorder_attached.bind(this),
+            moveTo: this.moveToPane.bind(this),
+            reorder: this.reorderAttached.bind(this),
         }
-        this.context_menu_struct = generateContextMenuStruct(this)
-        this.shortcuts = deriveShortcuts(this.context_menu_struct)
+        this.ctxMenuStruct = generateContextMenuStruct(this)
+        this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
     }
 
     get id():string { return String(this._pane.paneIndex()) }
@@ -378,21 +382,21 @@ export class charting_pane implements ReorderableSet {
         this.setAttached([...this.attached().filter(_obj => _obj !== obj)])
     }
 
-    reorder_attached(from: indicator | primitive_set | any, to: indicator | primitive_set | any): void {
+    reorderAttached(from: indicator | primitive_set | any, to: indicator | primitive_set | any): void {
         console.log(`Reorder Indicators: from: ${from}, to: ${to}`)
     }
 
-    move_to_pane(obj: indicator | primitive_set | any){
+    moveToPane(obj: indicator | primitive_set | any){
 
     }
 }
 
-function generateContextMenuStruct(pane:charting_pane):context_menu_item[][] {
+function generateContextMenuStruct(pane:charting_pane):contextMenuItem[][] {
     return [[
         {
             icon: icons.menu_arrow_sn,
             title: 'Move Pane Up',
-            onClick: () => pane.movePane(pane.paneIndex - 1),
+            execute: () => pane.movePane(pane.paneIndex - 1),
             disable: () => pane.paneIndex === 0,
             ctrl: true,
             hotkey: 'ArrowUp',
@@ -400,7 +404,7 @@ function generateContextMenuStruct(pane:charting_pane):context_menu_item[][] {
         {
             icon: icons.menu_arrow_ns,
             title: 'Move Pane Down',
-            onClick: () => pane.movePane(pane.paneIndex + 1),
+            execute: () => pane.movePane(pane.paneIndex + 1),
             disable: () => pane.paneIndex === pane.frame.panes().length - 1,
             ctrl: true,
             hotkey: 'ArrowDown',

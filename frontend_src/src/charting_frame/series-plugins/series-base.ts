@@ -129,26 +129,26 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     private _indicator: indicator
 
     private _id: string
-    s_type: Series_Type
+    sType: Series_Type
     _name: string | undefined
 
     _markers: Map<string, lwc.SeriesMarker<lwc.Time>> | undefined
-    _markers_plugin: lwc.ISeriesMarkersPluginApi<lwc.Time> | undefined
+    _markersPlugin: lwc.ISeriesMarkersPluginApi<lwc.Time> | undefined
     _pricelines: Map<string, lwc.IPriceLine> | undefined
 
     leafProps: treeLeafInterface
 
     constructor(
         id: string,
-        display_name: string | undefined,
-        s_type: Series_Type,
+        displayName: string | undefined,
+        sType: Series_Type,
         _indicator: indicator
     ){
         this._id = id
-        this.s_type = s_type
+        this.sType = sType
         this._indicator = _indicator
-        this._name = display_name
-        this._series = this._create_series(s_type)
+        this._name = displayName
+        this._series = this._createSeries(sType)
 
         console.log(this)
         this.leafProps = {
@@ -158,7 +158,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         }
     }
     
-    private _create_series(series_type: Series_Type): lwc.ISeriesApi<lwc.SeriesType> {
+    private _createSeries(series_type: Series_Type): lwc.ISeriesApi<lwc.SeriesType> {
         let _lwc_type = SERIES_TYPE_MAP.get(series_type)
         if (_lwc_type) return this.pane._addSeries(_lwc_type)
 
@@ -175,7 +175,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     get id() : string {return this._id}
     get indicator(): indicator {return this._indicator}
     get index(): number {return this._series.seriesOrder()}
-    get name() : string { return this._name? this._name : SERIES_NAME_MAP.get(this.s_type) ?? ''}
+    get name() : string { return this._name? this._name : SERIES_NAME_MAP.get(this.sType) ?? ''}
     get pane() : charting_pane { return this._indicator.pane }
     get frame() : charting_frame { return this._indicator.frame }
     get chart() : lwc.IChartApi { return this._indicator.frame._chart }
@@ -188,19 +188,19 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         return this._markers
     } 
 
-    get markers_plugin(): lwc.ISeriesMarkersPluginApi<lwc.Time>{
-        if (this._markers_plugin === undefined)
-            this._markers_plugin = lwc.createSeriesMarkers(this._series, [])
+    get markersPlugin(): lwc.ISeriesMarkersPluginApi<lwc.Time>{
+        if (this._markersPlugin === undefined)
+            this._markersPlugin = lwc.createSeriesMarkers(this._series, [])
 
-        return this._markers_plugin
+        return this._markersPlugin
     } 
 
-    set_markers_options(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>){
-        this.markers_plugin.applyOptions?.(opts)
-    }
-    
     private _updateMarkersPlugin(){
-        this.markers_plugin.setMarkers(Array.from(this.markers.values()))
+        this.markersPlugin.setMarkers(Array.from(this.markers.values()))
+    }
+
+    setMarkersOptions(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>){
+        this.markersPlugin.applyOptions?.(opts)
     }
     
     setMarkers(markers:{[key:string]: lwc.SeriesMarker<lwc.Time>}){
@@ -272,16 +272,16 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
 
 
     /* Changes the type of series that is displayed. Data must be given since the DataType may change */
-    change_series_type(series_type:Series_Type, data:SeriesData[]){
-        if (series_type === this.s_type) return
+    protected change_series_type(series_type:Series_Type, data:SeriesData[]){
+        if (series_type === this.sType) return
 
         const current_zindex = this._series.seriesOrder()
         const current_range = this.chart.timeScale().getVisibleRange()
         
         this.remove()
-        this._series = this._create_series(series_type)
+        this._series = this._createSeries(series_type)
         this._series.setData(data) // Type Checking presumed to have been done in python
-        this.s_type = series_type
+        this.sType = series_type
 
         //Reset the draw order to what is was before the change.
         this._series.setSeriesOrder(current_zindex)

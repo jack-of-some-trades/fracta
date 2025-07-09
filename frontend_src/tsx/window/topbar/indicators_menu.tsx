@@ -175,10 +175,10 @@ function IndicatorCard(props: indicator_details & {'activePkgKey':string, 'setDi
 }
 
 function send_indicator_request(pkg_key:string, ind_key:string){
-    if (window.active_container == undefined || window.active_frame == undefined)
+    if (window.activeContainer == undefined || window.activeFrame == undefined)
         return
     window.api.indicator_request(
-        window.active_container.id, window.active_frame.id, pkg_key, ind_key
+        window.activeContainer.id, window.activeFrame.id, pkg_key, ind_key
     )
 }
 //#endregion

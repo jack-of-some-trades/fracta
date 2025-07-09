@@ -37,7 +37,7 @@ export function SeriesStyleEditor(props:series_style_editor_props){
     let form = document.createElement('form')
     const [options, setOptions] = createSignal(props.series.options())
 
-    let s_type = props.series.s_type
+    let s_type = props.series.sType
     const LineType = s_type === s.Series_Type.LINE || s_type === s.Series_Type.AREA || s_type === s.Series_Type.BASELINE
 
     //Boolean Signals to Show / Hide the Niche Series Settings, undefined => don't include that section
@@ -70,19 +70,19 @@ export function SeriesStyleEditor(props:series_style_editor_props){
                     signals={signals}
                 />
                 <Switch>
-                    <Match when={props.series.s_type===s.Series_Type.LINE}>
+                    <Match when={props.series.sType===s.Series_Type.LINE}>
                         <LineEditor opts={options() as LineSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.AREA}>
+                    <Match when={props.series.sType===s.Series_Type.AREA}>
                         <AreaEditor opts={options() as AreaSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.HISTOGRAM}>
+                    <Match when={props.series.sType===s.Series_Type.HISTOGRAM}>
                         <HistogramEditor opts={options() as HistogramSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.BASELINE}>
+                    <Match when={props.series.sType===s.Series_Type.BASELINE}>
                         <BaseLineEditor opts={options() as BaselineSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.BAR}>
+                    <Match when={props.series.sType===s.Series_Type.BAR}>
                         <BarEditor opts={options() as BarSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.CANDLESTICK}>
+                    <Match when={props.series.sType===s.Series_Type.CANDLESTICK}>
                         <CandleEditor opts={options() as CandlestickSeriesOptions} {...editor_props}/></Match>
-                    <Match when={props.series.s_type===s.Series_Type.ROUNDED_CANDLE}>
+                    <Match when={props.series.sType===s.Series_Type.ROUNDED_CANDLE}>
                         <RndCandleEditor opts={options() as RoundedCandleSeriesOptions} {...editor_props}/></Match>
                 </Switch>
                 <SeriesCommon 

@@ -4,7 +4,7 @@
 
 import { createSignal, For, Show, splitProps } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
-import { interval, interval_map, tf } from "../../../src/types";
+import { interval, intervalMap, tf } from "../../../src/types";
 import { icons, TextIcon } from "../../generic_elements/icons";
 import { MenuItem, MenuSection, ShowMenuButton } from "../../generic_elements/simple_menu";
 import { location_reference, overlay_div_props, OverlayCTX, OverlayDiv, point } from "../overlay_manager";
@@ -46,7 +46,7 @@ export function TimeframeSwitcher(){
     const [TimeframeOpts, setTimeframeOpts] = createStore(default_timeframe_select_opts)
 
     const ordered_favorites = () => {
-        return Array.from(TimeframeOpts.favorites, (tf_str)=>tf.from_str(tf_str)).sort((a,b) => a.toValue() - b.toValue())
+        return Array.from(TimeframeOpts.favorites, (tf_str)=>tf.fromStr(tf_str)).sort((a,b) => a.toValue() - b.toValue())
     }
     const updateLocation = () => {
         setMenuLocation({
@@ -60,11 +60,11 @@ export function TimeframeSwitcher(){
 
     // Tell Python when the timeframe changes
     function onSel(timeframe:tf){
-        if (window.active_frame?.ticker !== undefined)
+        if (window.activeFrame?.ticker !== undefined)
             window.api.data_request( 
-                window.active_container?.id ?? '',
-                window.active_frame?.id ?? '',
-                window.active_frame?.ticker ?? '',
+                window.activeContainer?.id ?? '',
+                window.activeFrame?.id ?? '',
+                window.activeFrame?.ticker ?? '',
                 timeframe.toString()
             ) 
     }
@@ -85,7 +85,7 @@ export function TimeframeSwitcher(){
     return (
         <div class='topbar_container' ref={el}>
             {/* Additional Icon to show selected TF when it's not in the favorites list*/}
-            <Show when={!tf.is_equal(selectedTF(), new tf(1,'E')) && !TimeframeOpts.favorites.includes(selectedTF().toString()) }>
+            <Show when={!tf.isEqual(selectedTF(), new tf(1,'E')) && !TimeframeOpts.favorites.includes(selectedTF().toString()) }>
                 <TextIcon 
                     text={selectedTF().toString(selectedTF().toValue() >= 86400)} 
                     classList={{timeframe_btn:true}}
@@ -98,7 +98,7 @@ export function TimeframeSwitcher(){
                 <TextIcon 
                     text={fav.toString(fav.toValue() >= 86400)}
                     classList={{timeframe_btn:true}}
-                    activated={tf.is_equal(selectedTF(), fav)}
+                    activated={tf.isEqual(selectedTF(), fav)}
                     onClick={() => onSel(fav)}
                 />
             }</For>
@@ -148,7 +148,7 @@ export function TimeframeMenu(props:TimeframeMenu_Props){
         <For each={Object.keys(props.opts.menu_listings) as interval[]}>{(tf_period) =>
 
             <MenuSection 
-                label={interval_map[tf_period] + 's'} 
+                label={intervalMap[tf_period] + 's'} 
                 showByDefault={default_display.get(tf_period)??false} >
 
                 <For each={accessor(tf_period)}>{(tf_mult)=>{

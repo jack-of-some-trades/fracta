@@ -1,12 +1,12 @@
 
 /**
  * Currently these functions only set the cursor of the charting div since that is
- * accessable through css relatively easily. Ideally this functionality would be
+ * accessible through css relatively easily. Ideally this functionality would be
  * expanded to loop through all of the charts created and show/hide the crosshairs
- * that are part of the HTML5 Canvas.
+ * extensions that are drawn on the HTML5 Canvas by lightweight-charts.
  */
 
-const tv_chart_css_rule = (()=>{
+const tv_chart_css_rule = (() => {
     for (const sheet of Array.from(document.styleSheets))
         if (sheet.href !== null && sheet.href.endsWith('.css'))
             for (const rule of Array.from(sheet.cssRules))

@@ -24,8 +24,8 @@ declare global {
         setTicker : (_:string) => void,
     }
 
-    var active_frame: frame | undefined
-    var active_container: container
+    var activeFrame: frame | undefined
+    var activeContainer: container
     // Technically Frame & Container can refer to deleted objects if they were the active 
     // elements when they were removed. Beyond delaying some garbage collection,
     // I don't think the dead references are an issue so the behavior will stay for now.
@@ -43,6 +43,9 @@ declare module "solid-js" {
     }
 }
 
+// Global Workspace Vars used by Injected JS Commands
+var _ind = undefined
+var _ser = undefined
 // Define The global Python <--> Js api interface.
 window.api = new py_api();
 //Enums that will be used by Python need to be placed into the Global Scope
@@ -54,13 +57,5 @@ window.topbar = {
     setLayout : (_:Container_Layouts) => {},
     setTicker : (_:string) => {},
 }
-// Global Workspace Var used by Injected JS Commands
-var _ind = undefined
-var _ser = undefined
-
 
 render(Wrapper, document.body)
-
-// //Final Resize before returning to python
-// window.wrapper.resize()
-// window.loaded = true

@@ -30,8 +30,8 @@ export class indicator implements ReorderableSet {
     setLabelHtml: Setter<string | undefined>
 
     outputs:{[key:string]:string}
-    menu_id: string | undefined
-    menu_struct: object | undefined
+    menuId: string | undefined
+    menuStruct: object | undefined
     setOptions: SetStoreFunction<object> | undefined
 
     visibilitySignal: Signal<boolean>
@@ -177,9 +177,9 @@ export class indicator implements ReorderableSet {
     }
 
     //TODO : Make it so that a Style Settings Menu will still be generated without needing 
-    //to call the function below, or even require a menu_struct/Indicator Options Class
+    //to call the function below, or even require a menu_struct/Indicator Options Class.
     protected set_menu_struct(menu_struct:object, options_in:object){
-        if (this.menu_id !== undefined) {
+        if (this.menuId !== undefined) {
             if (this.setOptions) this.setOptions(options_in)
             return //Menu has already been created.
         }
@@ -190,16 +190,15 @@ export class indicator implements ReorderableSet {
 
         const [options, setOptions] = createStore<object>(options_in)
         this.setOptions = setOptions
-        this.menu_struct = menu_struct
-        let menu_id = `${this._frame.id}_${this._id}_options`
-        this.menu_id = menu_id
+        this.menuStruct = menu_struct
+        let menuId = `${this._frame.id}_${this._id}_options`
+        this.menuId = menuId
 
-        //See EoF for Explanation of this second AttachOverlay Call.
         OverlayCTX().attachOverlay(
-            this.menu_id,
+            this.menuId,
             // Must be a Callable so IndicatorOpts gets generated during the AttachOverlay Call
             () => IndicatorOpts({
-                id: menu_id,
+                id: menuId,
                 parent_ind: this,
                 options: options,
                 menu_struct: menu_struct,

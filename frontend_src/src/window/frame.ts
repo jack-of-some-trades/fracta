@@ -1,12 +1,12 @@
 import { Accessor, createSignal, JSX, Setter } from "solid-js"
 import { tf, ticker } from "../types"
-import { update_tab_func } from "./container"
+import { updateTabFunc } from "./container"
 
 export abstract class frame {
     type:string = 'abstract'
 
     _id: string
-    update_tab: update_tab_func
+    updateTab: updateTabFunc
     element: HTMLDivElement | JSX.Element | undefined
 
     active: Accessor<boolean>
@@ -17,9 +17,9 @@ export abstract class frame {
     timeframe: tf | undefined = undefined
     ticker: ticker | undefined = undefined
 
-    constructor(id: string, tab_update_func: update_tab_func) {
+    constructor(id: string, updateFunc: updateTabFunc) {
         this._id = id
-        this.update_tab = tab_update_func
+        this.updateTab = updateFunc
 
         //Used to Control Active & Target Attributes
         const [target, setTarget] = createSignal<boolean>(false)
@@ -30,7 +30,7 @@ export abstract class frame {
 
     get id(): string { return this._id }
 
-    resize(){}
+    refreshSize(){}
     onShow(){}//{console.log(`Show ${this.id}`)}
     onHide(){}//{console.log(`Hide ${this.id}`)}
     onActivation(){}//{console.log(`Activate ${this.id}`)}
@@ -39,16 +39,16 @@ export abstract class frame {
     /**
      * Update Global 'active_frame' reference to this instance. 
      */
-    assign_active_frame() {
-        if (window.active_frame === this) return
+    assignActiveFrame() {
+        if (window.activeFrame === this) return
         //Deactivate old Window
-        if (window.active_frame){
-            window.active_frame.setActive(false)
-            window.active_frame.onDeactivation()
+        if (window.activeFrame){
+            window.activeFrame.setActive(false)
+            window.activeFrame.onDeactivation()
         }
 
         //Activate new Window
-        window.active_frame = this
+        window.activeFrame = this
         this.setActive(true)
         this.onActivation()
     }

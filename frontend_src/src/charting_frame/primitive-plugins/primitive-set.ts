@@ -60,7 +60,7 @@ export class primitive_set implements ReorderableSet {
             branchTitle: 'Primitve Set',
             dropDownMode: 'auto',
             reorderables: this.primitives,
-            reorder: this.reorder_primitives.bind(this),
+            reorder: this.reorderPrimitives.bind(this),
             moveTo: ()=>{}
         }
     }
@@ -88,7 +88,7 @@ export class primitive_set implements ReorderableSet {
         this.setPrimitives(this.primitives().filter((prim) => prim.id !== primitive._id))
     }
 
-    reorder_primitives(from:number, to:number){ 
+    reorderPrimitives(from:number, to:number){ 
         this._primitiveWrapperArray.splice(to, 0, ...this._primitiveWrapperArray.splice(from, 1))
         //Set the Reactive Primitive array to what is stored internally to the lightweight charts series.
         this.setPrimitives(this._primitives)

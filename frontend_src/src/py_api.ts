@@ -2,7 +2,7 @@
 
 import { indicator_pkg } from "../tsx/window/topbar/indicators_menu";
 import { Series_Type } from "./charting_frame/series-plugins/series-base";
-import { makeid, ticker } from "./types";
+import { makeId, ticker } from "./types";
 import { Container_Layouts, num_frames } from "./window/layouts";
 
 
@@ -21,11 +21,11 @@ export class py_api {
     exec_py = (kwargs:object) => console.log(`Exec_Py given kwargs: ${kwargs}`)
     
     // @ts-ignore                                    
-    add_container = () => window.container_manager.add_container(makeid(Array.from(container_manager.containers.keys()), 'c_'));
+    add_container = () => window.container_manager.add_container(makeId(Array.from(container_manager.containers.keys()), 'c_'));
     // @ts-ignore
     remove_container = (id: string) => window.container_manager.remove_container(id);
     // @ts-ignore
-    remove_frame = (container_id: string, frame_id:string) => active_container.remove_frame(frame_id)
+    remove_frame = (container_id: string, frame_id:string) => activeContainer.remove_frame(frame_id)
     reorder_containers = (from: number, to: number) => {
         console.log(`reorder containers from: ${from} to: ${to} `)
     }
@@ -39,7 +39,7 @@ export class py_api {
         //Make the neccessary frames
         for(let i = container.frames.length; i<num_frames(container.layout); i++)
             //@ts-ignore
-            container.add_frame(makeid(Array.from(container.frames, frame=>frame.id), `${container_id}_f_`))
+            container.add_frame(makeId(Array.from(container.frames, frame=>frame.id), `${container_id}_f_`))
 
         //change the layout 
         //@ts-ignore

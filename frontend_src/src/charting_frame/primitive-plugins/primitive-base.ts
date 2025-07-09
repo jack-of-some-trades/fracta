@@ -47,9 +47,6 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     _type: string = "null"
     _options: primitiveOptions
 
-    //Optional Element to populate the Object Tree Listing with.
-    obj_tree_el: Element | undefined
-
     private _requestUpdate?: () => void;
     protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
 
@@ -125,8 +122,8 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     // lexical 'this' scope (due to the use of the arrow function)
     // and to ensure its reference stays the same, so we can unsubscribe later.
     private _fireDataUpdated = (scope: DataChangedScope) => { if (this.onDataUpdate) { this.onDataUpdate(scope); }}
-    private _fireMouseDown = (e: MouseEvent) => { if (this.onMouseDown && this._frame) this.onMouseDown(this._frame.make_event_params(e)); }
-    private _fireMouseUp = (e: MouseEvent) => {  if (this.onMouseUp && this._frame) this.onMouseUp(this._frame.make_event_params(e)); }
+    private _fireMouseDown = (e: MouseEvent) => { if (this.onMouseDown && this._frame) this.onMouseDown(this._frame.makeEventParams(e)); }
+    private _fireMouseUp = (e: MouseEvent) => {  if (this.onMouseUp && this._frame) this.onMouseUp(this._frame.makeEventParams(e)); }
     private _fireClick = (e: MouseEventParams<Time>) => { if (this.onClick) { this.onClick(e); }}
     private _fireDblClick = (e: MouseEventParams<Time>) => { if (this.onDblClick) { this.onDblClick(e); }}
     private _fireCrosshairMove = (e: MouseEventParams<Time>) => { if (this.onCrosshairMove) { this.onCrosshairMove(e); }}

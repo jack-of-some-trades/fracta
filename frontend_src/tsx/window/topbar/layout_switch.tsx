@@ -72,7 +72,7 @@ export function LayoutSwitcher(){
     // Tell Python when the Layout changes
     function onSel(layout:Container_Layouts){
         window.api.layout_change(
-            window.active_container?.id ?? '',
+            window.activeContainer?.id ?? '',
             layout
         )
     }
