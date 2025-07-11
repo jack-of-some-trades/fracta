@@ -13,7 +13,7 @@ import { TimeframeSwitcher } from "./timeframe_switch"
 export function TopBar(props:JSX.HTMLAttributes<HTMLDivElement>){
     return <div class='layout_main layout_flex' {...props}>
         {/**** left Aligned ****/}
-        <div class='topbar' style={{"justify-content":"flex-start"}}>
+        <div class='topbar'>
             <SymbolSearchBox/>
             <div class='topbar_separator'/>
             <TimeframeSwitcher/>
@@ -25,7 +25,7 @@ export function TopBar(props:JSX.HTMLAttributes<HTMLDivElement>){
         </div>
 
         {/**** Right Aligned ****/}
-        <div class='topbar' style={{"justify-content":"flex-end"}}>
+        <div class='topbar'>
             <div class='topbar_separator'/>
             <LayoutSwitcher/>
         </div>

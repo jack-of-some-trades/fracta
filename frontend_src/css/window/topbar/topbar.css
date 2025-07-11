@@ -8,8 +8,15 @@
     border-radius: 5px;
 }
 
-.topbar {
+.topbar:first-child {
+    justify-content: flex-start;
     flex: 1 1 100px;
+}
+
+.topbar:last-child {
+    justify-content: flex-end;
+    width: fit-content;
+    flex:none;
 }
 
 .topbar_container {
