@@ -10,7 +10,7 @@ import { toolbar_menu_props, ToolBarMenuButton } from "./toolbar_menu"
 export function ToolBar(props:JSX.HTMLAttributes<HTMLDivElement>){
     return <div class='layout_main layout_flex flex_col' {...props}>
         {/**** Top Aligned ****/}
-        <div class='toolbar' style={{"justify-content":"flex-start"}}>
+        <div class='toolbar'>
             <ToolBarMenuButton {...crosshair_menu_props}/>
             <ToolBarMenuButton {...trend_menu_props}/>
             <ToolBarMenuButton {...fib_menu_props}/>
@@ -19,7 +19,7 @@ export function ToolBar(props:JSX.HTMLAttributes<HTMLDivElement>){
         </div>
 
         {/**** Bottom Aligned ****/}
-        <div class='toolbar' style={{"justify-content":"flex-end"}}>
+        <div class='toolbar'>
             <div class='toolbar_separator'/>
             <ToolBoxToggle/>
         </div>

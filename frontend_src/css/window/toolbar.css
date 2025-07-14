@@ -1,12 +1,22 @@
 
 /* ********** ToolBar Layout ********** */ 
 .toolbar {
-    flex: 1 1;
     display: flex;
     overflow: hidden;
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: center;
+}
+
+.toolbar:first-child {
+    justify-content: flex-start;
+    flex: 1 1;
+}
+
+.toolbar:last-child {
+    justify-content: flex-end;
+    height: fit-content;
+    flex:none;
 }
 
 .toolbar_separator {
