@@ -48,48 +48,48 @@ interface chart_pane_overlay_props {
 export function ChartPaneOverlay(props:chart_pane_overlay_props){
     const [toolsRef, setToolsRef] = createSignal<HTMLDivElement>()
     const [leftAxis, setLeftAxis] = createSignal<HTMLTableCellElement>()
-    const [rightAxis , setRightAxis] = createSignal<HTMLTableCellElement>()
+    const [rightAxis, setRightAxis] = createSignal<HTMLTableCellElement>()
 
     const [toolsStyle, setToolsStyle] = createSignal<JSX.CSSProperties>({})
     const [legendStyle, setLegendStyle] = createSignal<JSX.CSSProperties>({})
     const [leftScaleStyle, setLeftScaleStyle] = createSignal<JSX.CSSProperties>({})
     const [rightScaleStyle, setRightScaleStyle] = createSignal<JSX.CSSProperties>({})
 
-    let sub_el = (sel: string) => {
-        return props.pane.paneEl()?.querySelector(sel) as HTMLTableCellElement
-    }
-
     const _reposition = () => {
-        let cell_ref = sub_el("td:nth-child(2)")
-        setLegendStyle({
-            top:`${cell_ref.offsetTop + 8}px`,
-            left:`${cell_ref.offsetLeft + 8}px`
-        })
-        setToolsStyle({
-            top:`${cell_ref.offsetTop + 2}px`,
-            left:`${cell_ref.offsetLeft + cell_ref.offsetWidth - 8 - (toolsRef()?.offsetWidth ?? 0)}px`
-        })
-        cell_ref = sub_el("td:nth-child(1)")
-        setLeftScaleStyle({
-            top:`${cell_ref.offsetTop + 12}px`,
-            left:`${cell_ref.offsetLeft + (cell_ref.offsetWidth/2 - 14)}px`
-        })
-        cell_ref = sub_el("td:nth-child(3)")
-        setRightScaleStyle({
-            top:`${cell_ref.offsetTop + 12}px`,
-            left:`${cell_ref.offsetLeft + (cell_ref.offsetWidth/2 - 14)}px`
-        })
+        let cell_ref
+        if (cell_ref = props.pane._chartEl){
+            setLegendStyle({
+                top:`${cell_ref.offsetTop + 8}px`,
+                left:`${cell_ref.offsetLeft + 8}px`
+            })
+            setToolsStyle({
+                top:`${cell_ref.offsetTop + 2}px`,
+                left:`${cell_ref.offsetLeft + cell_ref.offsetWidth - 8 - (toolsRef()?.offsetWidth ?? 0)}px`
+            })
+        }
+
+        if (cell_ref = props.pane._leftAxisEl) 
+            setLeftScaleStyle({
+                top:`${cell_ref.offsetTop + 12}px`,
+                left:`${cell_ref.offsetLeft + (cell_ref.offsetWidth/2 - 14)}px`
+            })
+
+        if (cell_ref = props.pane._rightAxisEl)
+            setRightScaleStyle({
+                top:`${cell_ref.offsetTop + 12}px`,
+                left:`${cell_ref.offsetLeft + (cell_ref.offsetWidth/2 - 14)}px`
+            })
     }
 
     const watcher = new MutationObserver(_reposition)
     onCleanup(watcher.disconnect)
     createEffect(on(props.pane.paneEl, ()=>{
         watcher.disconnect()
-        const el = sub_el("td:nth-child(2)")
+        const el = props.pane._chartEl
         if (el) watcher.observe(el, {attributeFilter:['style']})
 
-        setLeftAxis(sub_el("td:nth-child(1)"))
-        setRightAxis(sub_el("td:nth-child(3)"))
+        setLeftAxis(props.pane._leftAxisEl)
+        setRightAxis(props.pane._rightAxisEl)
 
         requestAnimationFrame(_reposition)
     }))

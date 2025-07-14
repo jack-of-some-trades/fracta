@@ -6,6 +6,7 @@
  */
 
 import { Accessor, createContext, createSignal, JSX, onCleanup, onMount, Setter, useContext } from "solid-js";
+import { makeId } from "../../src/types";
 import { contextMenuItem } from "./context_menu";
 
 /**
@@ -47,6 +48,7 @@ export interface keyboardShortcut {
 type KeyboardContextProps = {
     attachHandler: (id:string, shortcuts: keyboardShortcut[]) => void
     detachHandler: (id:string) => void
+    attachAnonymousHandler(shortcuts: keyboardShortcut[]): string 
     alt: Accessor<boolean>
     ctrl: Accessor<boolean>
     shift: Accessor<boolean>
@@ -55,6 +57,7 @@ type KeyboardContextProps = {
 const DEFAULT_CTX_ARGS:KeyboardContextProps = {
     attachHandler: (id:string, shortcuts: keyboardShortcut[]) => {},
     detachHandler: (id:string) => {},
+    attachAnonymousHandler: (shortcuts: keyboardShortcut[]) => '',
     alt: () => false,
     ctrl: () => false,
     shift: () => false,
@@ -82,9 +85,16 @@ export function KeyboardListener(props: JSX.HTMLAttributes<HTMLElement>){
         window.removeEventListener('keydown', boundKeyDown)
     })
 
+    function anonymousHandler(shortcuts: keyboardShortcut[]): string {
+        const new_id = makeId([...HANDLERS.keys()], 'anon_')
+        HANDLERS.set(new_id, shortcuts)
+        return new_id
+    }
+
     const CTX_ARGS = {
         attachHandler: HANDLERS.set.bind(HANDLERS),
         detachHandler: HANDLERS.delete.bind(HANDLERS),
+        attachAnonymousHandler: anonymousHandler,
         alt: alt,
         ctrl: ctrl,
         shift: shift,

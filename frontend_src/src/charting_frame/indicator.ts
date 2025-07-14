@@ -5,7 +5,7 @@ import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeaf
 import { OverlayCTX } from "../../tsx/window/overlay_manager";
 import { charting_frame, charting_pane } from "./charting_frame";
 import { PrimitiveBase } from "./primitive-plugins/primitive-base";
-import { primitive_set } from "./primitive-plugins/primitive-set";
+import { PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { primitives } from "./primitive-plugins/primitives";
 import * as s from "./series-plugins/series-base";
 
@@ -20,9 +20,9 @@ export class indicator implements ReorderableSet {
     [ORDERABLE]: true = true;
     [ORDERABLE_SET]: true = true;
 
-    _id: string
-    type: string
-    _name: string
+    private _id: string
+    private _type: string
+    private _name: string
     private _pane: charting_pane
     private _frame: charting_frame
 
@@ -38,8 +38,8 @@ export class indicator implements ReorderableSet {
     menuVisibility: Accessor<boolean> | undefined
     setMenuVisibility: Setter<boolean> | undefined
     
-    attached: Accessor<(s.SeriesBase_T | primitive_set)[]>
-    private setAttached: Setter<(s.SeriesBase_T | primitive_set)[]>
+    attached: Accessor<(s.SeriesBase_T | PrimitiveSet)[]>
+    private setAttached: Setter<(s.SeriesBase_T | PrimitiveSet)[]>
 
     series = new Map<string, s.SeriesBase_T>()
     private primitives = new Map<string, PrimitiveBase>()
@@ -56,7 +56,7 @@ export class indicator implements ReorderableSet {
         frame: charting_frame
     ){
         this._id = id
-        this.type = type
+        this._type = type
         this._name = display_name
         this._pane = frame.default_pane
         this._frame = frame
@@ -64,7 +64,7 @@ export class indicator implements ReorderableSet {
 
         this.visibilitySignal = createSignal<boolean>(true)
 
-        const orderables = createSignal<(s.SeriesBase_T | primitive_set)[]>([])
+        const orderables = createSignal<(s.SeriesBase_T | PrimitiveSet)[]>([])
         this.attached = orderables[0]; this.setAttached = orderables[1]
         
         const labelHtml = createSignal<string | undefined>(undefined)
@@ -98,7 +98,7 @@ export class indicator implements ReorderableSet {
             ser.remove()
         })
         this.primitives.forEach((prim, key) => {
-            this.pane._detachPrimitive(prim)
+            this.pane.paneApi.detachPrimitive(prim)
         })
         this.pane.detach(this)// ???
     }
@@ -126,6 +126,7 @@ export class indicator implements ReorderableSet {
     get id(): string { return this._id }
     get index(): number { return 0 }
     get length(): number { return 0 }
+    get type(): string { return this._type }
     get pane(): charting_pane { return this._pane }
     get frame(): charting_frame { return this._frame }
     get name(): string { return this._name ? this._name : this.type }

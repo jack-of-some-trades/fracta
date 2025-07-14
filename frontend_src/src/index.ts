@@ -37,6 +37,7 @@ declare module "solid-js" {
     namespace JSX {
         interface ExplicitAttributes{
             active: string
+            selected: string
             target: string
             type: string
         }

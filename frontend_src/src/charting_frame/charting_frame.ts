@@ -11,7 +11,7 @@ import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
 import { indicator, isIndicator } from "./indicator";
 import { PrimitiveBase } from "./primitive-plugins/primitive-base";
-import { isPrimitiveSet, primitive_set } from "./primitive-plugins/primitive-set";
+import { isPrimitiveSet, PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { Series_Type, SeriesApi, SeriesDefinitions } from "./series-plugins/series-base";
 
 
@@ -33,8 +33,11 @@ export class charting_frame extends frame {
     _chart: lwc.IChartApi
     default_pane: charting_pane
     whitespace_series: lwc.ISeriesApi<'Line'>
+    primitiveData: Accessor<lwc.SingleValueData>
+    private setPrimitiveData: Setter<lwc.SingleValueData>
+
     pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
-    attached = new Map<string, (indicator | primitive_set)>()
+    attached = new Map<string, (indicator | PrimitiveSet)>()
 
     timeframe: tf
     ticker: ticker
@@ -52,8 +55,11 @@ export class charting_frame extends frame {
         this.frameRuler = frameRuler
 
         // Need a Reactive Panes Signal to Populate the Object Tree with.
-        const sig = createSignal<charting_pane[]>([])
-        this.panes = sig[0]; this.setPanes = sig[1]
+        const sig1 = createSignal<charting_pane[]>([])
+        this.panes = sig1[0]; this.setPanes = sig1[1]
+        // Use Reactive Signal & Effects to Keep Primitive Series' Data Updated
+        const sig2 = createSignal<lwc.SingleValueData>({time:'1970-01-01', value:0})
+        this.primitiveData = sig2[0]; this.setPrimitiveData = sig2[1]
 
         // The following 3 variables are actually properties of a frame's primary Series(Indicator) obj.
         // While these really should be owned by that Series indicator and not a frame, this is how the 
@@ -196,7 +202,6 @@ export class charting_frame extends frame {
         //TODO : Update this to make hoveredSeries hit registration better. See Comment at EoF.
         return this._getMouseEventParams(index, pt, sourceEvent)
     }
-    
 
     fitContent() { this._chart.timeScale().fitContent() }
     autoscaleContent() { this._chart.timeScale().resetTimeScale() }
@@ -211,21 +216,12 @@ export class charting_frame extends frame {
     
     protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data:lwc.SingleValueData | undefined) {
         this.whitespace_series.setData(data)
-        this._update_primitive_sets(primitive_data)
+        this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
     }
     
     protected update_whitespace_data(data: lwc.WhitespaceData, primitive_data:lwc.SingleValueData | undefined) {
         this.whitespace_series.update(data)
-        this._update_primitive_sets(primitive_data)
-    }
-
-    private _update_primitive_sets(primitive_data:lwc.SingleValueData | undefined){
-        if (primitive_data === undefined) primitive_data = {time:'1970-01-01', value:0}
-        this.attached.forEach(
-            (obj) => {
-                if (isPrimitiveSet(obj)) obj.setData(primitive_data)
-            }
-        )
+        this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
     }
 
     protected set_ticker(new_ticker: ticker) {
@@ -311,8 +307,9 @@ export class charting_pane implements ReorderableSet {
     paneEl: Accessor<HTMLTableCellElement | undefined>
     private setPaneEl: Setter<HTMLTableCellElement | undefined>
 
-    attached: Accessor<(indicator | primitive_set)[]>
-    setAttached: Setter<(indicator | primitive_set)[]>
+    series_primitives: PrimitiveSet | undefined
+    attached: Accessor<(indicator | PrimitiveSet)[]>
+    setAttached: Setter<(indicator | PrimitiveSet)[]>
 
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
@@ -323,13 +320,16 @@ export class charting_pane implements ReorderableSet {
         this._pane = pane
         this._frame = frame
 
+        this.series_primitives = new PrimitiveSet(this)
+
         const sig1 = createSignal<HTMLTableCellElement>()
         this.paneEl = sig1[0]; this.setPaneEl = sig1[1]
+
         // The Pane's DOM Element is created in an animation frame so this delays
         // setting the signal until after the element has been created.
         this.updatePaneEl()
 
-        const sig2 = createSignal<(indicator | primitive_set)[]>([])
+        const sig2 = createSignal<(indicator | PrimitiveSet)[]>([])
         this.attached = sig2[0]; this.setAttached = sig2[1]
 
         this.leafProps = {
@@ -357,6 +357,18 @@ export class charting_pane implements ReorderableSet {
     get _paneEl(): HTMLTableCellElement | undefined {
         if (this._pane.getHTMLElement()) return this._pane.getHTMLElement() as HTMLTableCellElement
     }
+    get _leftAxisEl(): HTMLTableCellElement | undefined {
+        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(1)")
+        if (_el) return _el as HTMLTableCellElement
+    }
+    get _chartEl(): HTMLTableCellElement | undefined {
+        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(2)")
+        if (_el) return _el as HTMLTableCellElement
+    }
+    get _rightAxisEl(): HTMLTableCellElement | undefined {
+        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(3)")
+        if (_el) return _el as HTMLTableCellElement
+    }
 
     updatePaneEl(){ requestAnimationFrame(() => this.setPaneEl(this._paneEl)) }
 
@@ -365,28 +377,31 @@ export class charting_pane implements ReorderableSet {
         this._frame.reorderPanes(this.paneIndex, index)
     }
 
-    _attachPrimtive(primitive: PrimitiveBase){ this._pane.attachPrimitive(primitive) }
-    _detachPrimitive(primitive: PrimitiveBase){ this._pane.detachPrimitive(primitive) }
+    // TODO: Expand this functionality to match primitive base if pane Primitives become more readily used.
+    _attachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.attachPrimitive(primitive) }
+    _detachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.detachPrimitive(primitive) }
+    _attachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.attachPrimitive(primitive) }
+    _detachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.detachPrimitive(primitive) }
     _addSeries(type: SeriesDefinitions): SeriesApi { return this._pane.addSeries(type) }
     _addCustomSeries(impl: lwc.ICustomSeriesPaneView): SeriesApi { return this._pane.addCustomSeries(impl) }
     _priceScale(scale: string): lwc.IPriceScaleApi { return this._pane.priceScale(scale) }
 
     indicators(): indicator[] { return this.attached().filter((obj) => isIndicator(obj))}
-    primitiveSets(): primitive_set[] { return this.attached().filter((obj) => isPrimitiveSet(obj))}
+    primitiveSets(): PrimitiveSet[] { return this.attached().filter((obj) => isPrimitiveSet(obj))}
 
-    attach(obj: indicator | primitive_set){
+    attach(obj: indicator | PrimitiveSet){
         this.setAttached([...this.attached(), obj])
     }
     
-    detach(obj: indicator | primitive_set){
+    detach(obj: indicator | PrimitiveSet){
         this.setAttached([...this.attached().filter(_obj => _obj !== obj)])
     }
 
-    reorderAttached(from: indicator | primitive_set | any, to: indicator | primitive_set | any): void {
+    reorderAttached(from: indicator | PrimitiveSet | any, to: indicator | PrimitiveSet | any): void {
         console.log(`Reorder Indicators: from: ${from}, to: ${to}`)
     }
 
-    moveToPane(obj: indicator | primitive_set | any){
+    moveToPane(obj: indicator | PrimitiveSet | any){
 
     }
 }

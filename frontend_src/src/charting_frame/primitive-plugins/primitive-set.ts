@@ -1,7 +1,7 @@
-import { IPaneApi, ISeriesApi, LineSeries, SingleValueData, Time } from "lightweight-charts"
-import { Accessor, createSignal, Setter } from "solid-js"
+import { ISeriesApi, LineSeries } from "lightweight-charts"
+import { Accessor, createEffect, createSignal, Setter } from "solid-js"
 import { DropDownModes, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../../tsx/widget_panels/object_tree"
-import { charting_frame } from "../charting_frame"
+import { charting_frame, charting_pane } from "../charting_frame"
 import { PrimitiveBase } from "./primitive-base"
 
 
@@ -19,12 +19,12 @@ import { PrimitiveBase } from "./primitive-base"
  */
 
 const PRIMITIVE_SET = Symbol('PrimitiveSet');
-export function isPrimitiveSet(obj: unknown): obj is primitive_set {
+export function isPrimitiveSet(obj: unknown): obj is PrimitiveSet {
     return ( obj !== null && typeof obj === 'object' && PRIMITIVE_SET in obj )
 }
 
-export class primitive_set implements ReorderableSet {
-    [ORDERABLE]: true = true;
+export class PrimitiveSet implements ReorderableSet {
+    [ORDERABLE]:true = true;
     [ORDERABLE_SET]:true = true;
     [PRIMITIVE_SET]:true = true;
     dropDownMode: DropDownModes = 'auto'
@@ -32,6 +32,7 @@ export class primitive_set implements ReorderableSet {
     private _id: string
     private _name: string | undefined
     private _series: ISeriesApi<'Line'>
+    private _pane: charting_pane
     private _frame: charting_frame
 
     primitives: Accessor<PrimitiveBase[]>
@@ -40,15 +41,26 @@ export class primitive_set implements ReorderableSet {
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
 
-    constructor(frame:charting_frame) {
-        this._frame = frame
-        this._series = frame.chart.addSeries(LineSeries, {color:'transparent'}, 0)
+    constructor(pane:charting_pane) {
+        this._pane = pane
+        this._frame = pane.frame
+        this._series = this._pane.paneApi.addSeries(
+            LineSeries, 
+            {
+                color:'transparent', 
+                autoscaleInfoProvider: () => null
+            }
+        )
 
         this._id = ''
         this._name = undefined
 
         const sig = createSignal<PrimitiveBase[]>([])
         this.primitives = sig[0]; this.setPrimitives = sig[1];
+
+        // Auto Update the underlying series data with the frame so all primitives
+        // are always visible on screen
+        createEffect(() => this._series.setData([this._frame.primitiveData()]))
 
         this.leafProps = {
             id: this.id,
@@ -57,7 +69,7 @@ export class primitive_set implements ReorderableSet {
         }
         this.branchProps = {
             id:this.id,
-            branchTitle: 'Primitve Set',
+            branchTitle: 'Primitive Set',
             dropDownMode: 'auto',
             reorderables: this.primitives,
             reorder: this.reorderPrimitives.bind(this),
@@ -68,22 +80,22 @@ export class primitive_set implements ReorderableSet {
     get id(): string { return this._id }
     get name(): string { return this._name ?? '' }
     get length(): number {return this.primitives().length}
-    get pane(): IPaneApi<Time> { return this._series.getPane() } 
-    get frame(): charting_frame { return this._frame } 
+    get pane(): charting_pane { return this._pane }
+    get frame(): charting_frame { return this._frame }
 
     //@ts-ignore: _series.Jn.kh === seriesAPI._series._primitives[] for Lightweight-Charts v5.0.8
     get _primitiveWrapperArray(): SeriesPrimitiveWrapper[] { return this._series.Jn.kh }
     //@ts-ignore: _series.Jn.kh[].ah === seriesAPI._series._primitives[].PrimitiveBase for Lightweight-Charts v5.0.8
     get _primitives(): PrimitiveBase[] { return Array.from(this._primitiveWrapperArray, (wrapper) => wrapper.ah) }
-
-    setData(primitive_data: SingleValueData){ this._series.setData([primitive_data]) }
     
     attachPrimitive(primitive: PrimitiveBase) {
+        primitive.setParent(this)
         this._series.attachPrimitive(primitive)
         this.setPrimitives([...this.primitives(), primitive])
     }
 
     detachPrimitive(primitive: PrimitiveBase) {
+        primitive.setParent(undefined)
         this._series.detachPrimitive(primitive)
         this.setPrimitives(this.primitives().filter((prim) => prim.id !== primitive._id))
     }

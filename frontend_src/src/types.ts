@@ -100,7 +100,7 @@ export function makeId(IDs: string[], prefix: string = ''): string {
 
 /**
  * Simple Binary Search
- * @param arr Array of any time
+ * @param arr Array of any type
  * @param el Element to Search for
  * @param compare_fn Comparison Function that should return a number.
  * @returns Index of the found element, or when negative, the index where the element should be inserted at.

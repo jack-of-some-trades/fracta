@@ -1,88 +1,69 @@
 /**
  * Event Listener functions that are invoked by the toolbar and the toolbox that allow
- * the user to seamlessly create a TrendLine via Mouse input .
+ * the user to seamlessly create a TrendLine via Mouse input.
  */
 
 import { ITimeScaleApi, MouseEventParams, Time } from "lightweight-charts"
-import { createEffect, createSignal } from "solid-js"
-import { onToolSelect } from "../../tools"
+import { icons } from "../../../../tsx/generic_elements/icons"
+import { charting_pane } from "../../charting_frame"
+import { PrimitiveBase } from "../primitive-base"
+import { finalizeToolCreation, PrimitiveTool } from "../tool_ui_support"
 import { TrendLine } from "./trend-line"
 
-//variable to only allow creation of one trendline at a time
-//This is created outside of a render tree, but that's ok since there will only ever be one.
-export const creatingTrendLine = createSignal(false)
-let creationControl = new AbortController()
-let mouse_move_abort = new AbortController()
 
-
-//Abort creation if something sets the Signal to False. This should cause a complete clean-up.
-//This function should be defined by every tool. It is the only way that pressing escape before
-//A tool is created will actually cause tool creation to be aborted.
-createEffect(()=>{
-    if (!creatingTrendLine[0]()) {
-        creationControl.abort()
-        mouse_move_abort.abort()
-
-        //create a fresh controller for the next time the tool is selected.
-        creationControl = new AbortController()
-    }
-})
-
-//Define the TrendLine instance of the 'abstract' onToolSelect function
-export function trendline_user_interface(){
-    onToolSelect(creatingTrendLine, creationControl, createTrendLine)
+export const TrendLineTool: PrimitiveTool = {
+    icon: icons.trend_line,
+    label: 'TrendLine',
+    create: createTrendLine,
+    cleanup: cleanUpTrendLineTool,
 }
 
-function createTrendLine(e:MouseEvent){
-    //Clean-up Line Creation listeners and Create the Line
-    if (active_pane === undefined) {
-        // TODO: This no longer functions since having migrated to lwc v5
-        creatingTrendLine[1](false)
-        return
-    }
-    creationControl.abort() //Signal to not create another line
+let mouseMoveController = new AbortController()
+function cleanUpTrendLineTool(){ mouseMoveController.abort() }
 
+function createTrendLine(pane: charting_pane, e:MouseEvent): PrimitiveBase | Error {
     const new_line = new TrendLine('', {p1:null, p2:null})
-    active_pane.attach_primitive(new_line)
+    pane._attachSeriesPrimitive(new_line)
 
     //Set First TrendLine point where this click originated
     let p = new_line.series.coordinateToPrice(e.offsetY)
     let t = new_line.chart.timeScale().coordinateToTime(e.offsetX)
     
     if (t === null || p === null){
-        console.error('Failed to create TrendLine, Price or Time invalid')
-        new_line._frame?.remove_primitive(new_line._id)
-        creatingTrendLine[1](false)
-        return
+        new_line.remove()
+        return new Error('Failed to create TrendLine, Price or Time invalid')
     }
+    // Set both the points to the current value so it is displayed
     new_line.updateData({p1:{time:t, value:p}, p2:{time:t, value:p}})
+
+    //Add Clean-up Logic for the remaining Event Listener
+    mouseMoveController = new AbortController()
 
     //Setup Listeners to update the second TrendLine point
     const timescale = new_line.chart.timeScale()
     const bound_update_ref = updateSecondPoint.bind(new_line, timescale)
     new_line.chart.subscribeCrosshairMove(bound_update_ref)
 
-    //Add Clean-up Logic for the MouseMove Event Listener
-    mouse_move_abort = new AbortController()
-    
-    document.addEventListener('keydown', (e:KeyboardEvent)=>{ 
-        if (e.key !== "Escape") return //Escape Key Listener
-        
+    mouseMoveController.signal.addEventListener('abort', () => {
         new_line.chart.unsubscribeCrosshairMove(bound_update_ref)
-        new_line._frame?.remove_primitive(new_line._id)
-        creatingTrendLine[1](false)
-    }, {signal:mouse_move_abort.signal})
+    }, {once: true})
 
-    
-    setTimeout(() => {
-        new_line.chart.chartElement().addEventListener('click', (e:MouseEvent)=>{
-            if (e.button !== 0) return //Left mouseBtn listener
+    // mount 'click' listener on 'click' event so the second point is only confirmed w/ a second click.
+    document.addEventListener('click', () => {
+        new_line.chart.chartElement().addEventListener(
+            'click', confirmSecondPoint, {signal:mouseMoveController.signal}
+        )
+    }, {once: true})
 
-            new_line.chart.unsubscribeCrosshairMove(bound_update_ref)
-            creatingTrendLine[1](false)
-        }, {signal:mouse_move_abort.signal})
-    }, 100)
-    // on a Timeout so it's not triggered by the same event that triggered this function
+    return new_line
+}
+
+function confirmSecondPoint(e:MouseEvent){
+    if (e.button !== 0) return //Left mouseBtn listener
+
+    cleanUpTrendLineTool()
+    finalizeToolCreation()
+    //All primitive tools need to call finalize once they are done.
 }
 
 

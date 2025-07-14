@@ -57,7 +57,7 @@ export function IndicatorOpts(props:indicator_option_props){
             bounding_client_id={`#${props.id}>.title_box`}
         >
             <div class="title_box">
-                <h2>{props.parent_ind.type + " • " + props.parent_ind._name + (props.parent_ind._name !== '' ? " • " : '' )  + "Options"}</h2>
+                <h2>{props.parent_ind.type + " • " + props.parent_ind.name + (props.parent_ind.name !== '' ? " • " : '' )  + "Options"}</h2>
                 <Icon icon={icons.close} force_reload={true} onClick={props.close_menu}/>
             </div>
 
@@ -150,7 +150,7 @@ function onSubmit(c_id:string, f_id:string, ind:indicator, e:Event){
         )
         //One of the few times a change in JS is directly applied to the JS object
         ind.applyOptions(packaged_input)
-        window.api.set_indicator_options( c_id, f_id, ind._id, packaged_input)
+        window.api.set_indicator_options( c_id, f_id, ind.id, packaged_input)
     }
 }
 

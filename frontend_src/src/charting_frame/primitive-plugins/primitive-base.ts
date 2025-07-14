@@ -17,11 +17,18 @@ import { ORDERABLE, Orderable, treeLeafInterface } from '../../../tsx/widget_pan
 import { binarySearch } from '../../types';
 import { charting_frame } from '../charting_frame';
 import { ensureDefined } from '../helpers/assertions';
+import { SeriesBase_T } from '../series-plugins/series-base';
+import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 
 export interface primitiveOptions {
     visible: boolean
     tangible: boolean
     autoscale: boolean
+}
+
+const PRIMITIVE = Symbol('SeriesPrimitive')
+export function isPrimitive(obj: unknown): obj is PrimitiveBase { 
+    return ( obj !== null && typeof obj === 'object' && PRIMITIVE in obj )
 }
 
 /**
@@ -36,8 +43,10 @@ export interface primitiveOptions {
  * Docs: https://tradingview.github.io/lightweight-charts/docs/plugins/series-primitives
  */
 export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable {
-    [ORDERABLE]:true = true
-    _frame: charting_frame | undefined
+    [PRIMITIVE]:true = true;
+    [ORDERABLE]:true = true;
+    private _frame: charting_frame | undefined
+    private _parent: PrimitiveSet | SeriesBase_T | undefined
     protected _chart: IChartApi | undefined
     protected _series: ISeriesApi<keyof SeriesOptionsMap> | undefined
     leafProps: treeLeafInterface
@@ -74,7 +83,14 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     get name(): string {return this._name ?? this._type}
     get chart(): IChartApi { return ensureDefined(this._chart); }
     get series(): ISeriesApi<keyof SeriesOptionsMap> { return ensureDefined(this._series); }
+    setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
     options(): primitiveOptions {return structuredClone(this._options)}
+
+    remove() {
+        if(isPrimitiveSet(this._parent)){
+            this._parent.detachPrimitive(this)
+        }
+    }
 
     applyOptions(opts:Partial<primitiveOptions> | undefined){
         if (opts !== undefined)

@@ -2,8 +2,8 @@
  * ToolBox Overlay Menu and Menu-Open Button.
  */
 
-import { createSignal, For, onMount, Setter, splitProps } from "solid-js";
-import { TOOL_CREATION_MAP, TOOL_FUNC_MAP } from "../../../src/charting_frame/tools";
+import { createSignal, For, onMount, Setter, Show, splitProps } from "solid-js";
+import { activePrimitiveTool, selectTool, TOOL_MAP } from "../../../src/charting_frame/primitive-plugins/tool_ui_support";
 import { Icon, icons } from "../../generic_elements/icons";
 import { MenuItem, ShowMenuButton } from "../../generic_elements/simple_menu";
 import { location_reference, overlay_div_props, OverlayCTX, OverlayDiv, point } from "../overlay_manager";
@@ -46,12 +46,15 @@ export function ToolBarMenuButton(props:toolbar_menu_props){
         />
     )
 
+    
+
     return (
         <div ref={el} class='toolbar_container'>
             <Icon
                 icon={displayIcon()}
-                attr:active={TOOL_CREATION_MAP.get(displayIcon())?.[0]() ? "" : undefined}
-                onClick={TOOL_FUNC_MAP.get(displayIcon())}
+                attr:active={activePrimitiveTool() == displayIcon() ? "" : undefined}
+                attr:selected={TOOL_MAP.get(displayIcon())?.selected?.() ? "" : undefined}
+                onClick={() => selectTool(displayIcon())}
                 classList={{toolbar_icon_btn:true}}
             />
             <ShowMenuButton 
@@ -77,22 +80,20 @@ interface toolbar_overlay_props extends Omit<overlay_div_props, "location_ref"> 
  */
 function ToolBarOverlay(props:toolbar_overlay_props){
     let setDisplay: Setter<boolean>
-    const tools = ToolBoxCTX().tools
-    const setTools = ToolBoxCTX().setTools
+    const favTools = ToolBoxCTX().tools
+    const setFavTools = ToolBoxCTX().setTools
     const [,overlayDivProps] = splitProps(props, ["tools", "setIcon"])
 
     
     function addFavorite(tool:icons){
-        if (!tools().includes(tool)) setTools([...tools(), tool])
+        if (!favTools().includes(tool)) setFavTools([...favTools(), tool])
     }
     function removeFavorite(tool:icons){
-        if (tools().includes(tool)) setTools(tools().filter((fav) => fav != tool))
+        if (favTools().includes(tool)) setFavTools(favTools().filter((fav) => fav != tool))
     }
     function onSel(tool:icons){
+        selectTool(tool)
         props.setIcon(tool)
-        const tool_func = TOOL_FUNC_MAP.get(tool)
-        if (tool_func) tool_func()
-        else console.log("invalid tool")
         setDisplay(false)
     }
 
@@ -104,20 +105,21 @@ function ToolBarOverlay(props:toolbar_overlay_props){
             location_ref={location_reference.TOP_LEFT}
         >
             <For each={props.tools}>{(tools_sublist) => <>
-
                 <div class='menu_section_titlebox'/>
                 <For each={tools_sublist}>{(tool)=>
-                    <MenuItem
-                        expand={true}
-                        icon={tool}
-                        label={TOOL_LABEL_MAP.get(tool)??""}
-                        onSel={()=>onSel(tool)}
+                    <Show when={TOOL_MAP.has(tool)}>
+                        <MenuItem
+                            expand={true}
+                            icon={tool}
+                            label={TOOL_MAP.get(tool)?.label??""}
+                            onSel={() => onSel(tool)}
 
-                        star={tools().includes(tool)}
-                        starAct={() => addFavorite(tool)}
-                        starDeact={() => removeFavorite(tool)}
-                        starStyle={{width:'20px', height:'20px'}}
-                    />
+                            star={favTools().includes(tool)}
+                            starAct={() => addFavorite(tool)}
+                            starDeact={() => removeFavorite(tool)}
+                            starStyle={{width:'20px', height:'20px'}}
+                        />
+                    </Show>
                 }</For>
             </>
             }</For>
