@@ -159,7 +159,7 @@ export function TimeframeMenu(props:TimeframeMenu_Props){
                         label={_tf_obj.toLabel()}
                         onSel={() => props.onSel(_tf_obj)}
 
-                        star={props.opts.favorites.includes(_tf_str)}
+                        star={() => props.opts.favorites.includes(_tf_str)}
                         starAct={() => addFavorite(_tf_str)}
                         starDeact={() => removeFavorite(_tf_str)}
                     />}

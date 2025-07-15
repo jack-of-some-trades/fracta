@@ -85,7 +85,7 @@ export function SeriesSwitcher(){
                 <Icon 
                     icon={series_icon_map[selectedSeries() as Series_Type]}
                     classList={{topbar_icon_btn:true}}
-                    activated={true}
+                    active={true}
                 />
             </Show>
 
@@ -94,7 +94,7 @@ export function SeriesSwitcher(){
                 <Icon 
                     icon={series_icon_map[fav]}
                     classList={{topbar_icon_btn:true}}
-                    activated={selectedSeries() === fav}
+                    active={selectedSeries() === fav}
                     onClick={() => onSel(fav)}
                 />
             }</For>
@@ -169,7 +169,7 @@ export function SeriesMenu(props:SeriesMenu_Props){
                         label={series_label_map[type]}
                         onSel={() => props.onSel(type)}
 
-                        star={props.opts.favorites.includes(type)}
+                        star={() => props.opts.favorites.includes(type)}
                         starAct={() => addFavorite(type)}
                         starDeact={() => removeFavorite(type)}
                     />

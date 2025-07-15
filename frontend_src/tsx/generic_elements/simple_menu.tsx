@@ -1,7 +1,7 @@
 /**
  * Generic Components for creating Menu Sections, Selectable Items, and Favorite-able Items
  */
-import { createSignal, JSX, mergeProps, onMount, Show, splitProps } from "solid-js";
+import { Accessor, createSignal, JSX, mergeProps, onMount, Show, splitProps } from "solid-js";
 import { OverlayCTX } from "../window/overlay_manager";
 import { Icon, icons } from "./icons";
 
@@ -90,7 +90,7 @@ interface menu_item_props extends JSX.HTMLAttributes<HTMLDivElement> {
 
     expand?: boolean
 
-    star?: boolean | undefined,
+    star?: Accessor<boolean> | undefined,
     starAct?: CallableFunction,
     starDeact?: CallableFunction,
     starStyle?: JSX.CSSProperties,
@@ -102,12 +102,11 @@ const menuItemPropNames:menu_item_keys[] = [
 ] 
 
 export function MenuItem(props:menu_item_props){
-    const [showStar, setShowStar] = createSignal(false)
     props.classList = mergeProps(props.classList, {menu_item:true})
     if (props.expand === undefined) props.expand = false
     const [menuProps, divProps] = splitProps(props, menuItemPropNames)
 
-    return <div {...divProps} onmouseenter={()=>setShowStar(true)} onMouseLeave={()=>setShowStar(false)}>
+    return <div {...divProps}>
         {/* Selectable Portion of Menu Item, Allow it to expand if desired */}
         <span 
             class="menu_selectable" 
@@ -121,8 +120,7 @@ export function MenuItem(props:menu_item_props){
         {/* Star/'Favoritable' Portion of Menu Item */}
         <Show when={menuProps.star !== undefined}>
             <MenuItemStar 
-                visible={showStar()}
-                selected={menuProps.star??false} 
+                selected={menuProps.star?.()} 
                 starAct={menuProps.starAct} 
                 starDeact={menuProps.starDeact}
                 style={props.starStyle??{}}
@@ -134,27 +132,23 @@ export function MenuItem(props:menu_item_props){
 //  ***************  Menu Item Star  *************** //
 
 interface star_props extends JSX.HTMLAttributes<SVGSVGElement>{
-    visible: boolean,
-    selected: boolean,
+    selected: boolean | undefined,
     style: JSX.CSSProperties,
     starAct?: CallableFunction,
     starDeact?: CallableFunction,
 }
 
 function MenuItemStar(props:star_props){
-    const [selected, setSelected] = createSignal(props.selected)
-
     function toggleState() {
-        setSelected(!selected())
-        if (selected() && props.starAct) props.starAct()
+        if (!props.selected && props.starAct) props.starAct()
         else if (props.starDeact) props.starDeact()
     }
 
     return <Icon 
         class='menu_item_star'
         onClick={(e) => {if (e.button === 0) toggleState()}}
-        icon={selected()? icons.star_filled : icons.star}
-        style={{color:selected()? 'var(--second-accent-color)': (props.visible)? undefined : '#0000', ...props.style}}
+        icon={props.selected? icons.star_filled : icons.star}
+        style={props.style}
     />
 
 }

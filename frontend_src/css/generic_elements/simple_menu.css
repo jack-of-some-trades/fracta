@@ -62,4 +62,15 @@
     border-radius: 5px;
     width: 18px;
     height: 18px;
+    color: #0000 ;
+}
+
+/* Only show unselected star when parent is hovered. */
+.menu_item:hover .menu_item_star {
+    color: var(--icon-color)
+}
+
+/* Always show when star-filled is being used */
+.menu_item .menu_item_star#star_filled {
+    color: var(--second-accent-color)
 }

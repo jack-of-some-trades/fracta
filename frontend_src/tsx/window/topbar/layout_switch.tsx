@@ -96,7 +96,7 @@ export function LayoutSwitcher(){
                 <Icon 
                     icon={layout_icon_map[selectedLayout()]}
                     classList={{topbar_icon_btn:true}}
-                    activated={true}
+                    active={true}
                 />
             </Show>
 
@@ -105,7 +105,7 @@ export function LayoutSwitcher(){
                 <Icon 
                     icon={layout_icon_map[fav]}
                     classList={{topbar_icon_btn:true}}
-                    activated={selectedLayout() === fav}
+                    active={selectedLayout() === fav}
                     onClick={() => onSel(fav)}
                 />
             }</For>
@@ -180,7 +180,7 @@ export function LayoutMenu(props:LayoutMenu_Props){
                         icon={layout_icon_map[type]}
                         onSel={() => props.onSel(type)}
 
-                        star={props.opts.favorites.includes(type)}
+                        star={() => props.opts.favorites.includes(type)}
                         starAct={() => addFavorite(type)}
                         starDeact={() => removeFavorite(type)}
                     />
