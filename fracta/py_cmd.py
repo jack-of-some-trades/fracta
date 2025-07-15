@@ -5,6 +5,9 @@ All Functions have been rolled-up into WIN_CMD_ROLODEX that Maps {PY_CMD: Functi
 
 from enum import IntEnum, auto
 import logging
+from typing import Callable
+
+from fracta.types import TF, Ticker
 
 from . import py_window as win
 
@@ -15,8 +18,6 @@ log = logging.getLogger("fracta_log")
 
 class PY_CMD(IntEnum):
     "Enumeration of the various commands that javascript can send to python"
-
-    PY_EXEC = auto()
 
     ADD_CONTAINER = auto()
     REMOVE_CONTAINER = auto()
@@ -43,16 +44,25 @@ class PY_CMD(IntEnum):
 
 
 def symbol_search(window: "win.Window", *args):
+    # Should be done by keyword since the Emitter Protocol Signature allows either
+    # individual args or packing filtering info into **kwargs
     window.events.symbol_search(
         symbol=args[0],
-        confirmed=args[1],
-        sources=args[2],
-        exchanges=args[3],
-        asset_classes=args[4],
+        sources=args[1],
+        exchanges=args[2],
+        asset_classes=args[3],
+        confirmed=args[4],
     )
 
 
-def request_timeseries(window: "win.Window", c_id, f_id, ticker, tf):
+def timeseries_request(window: "win.Window", c_id, f_id, ticker, tf):
+    try:
+        ticker = Ticker.from_dict(ticker)
+        tf = TF.fromStr(tf)
+    except ValueError as e:
+        log.warning(e)
+        return
+
     frame = window.get_container(c_id).frames[f_id]
     if isinstance(frame, win.ChartingFrame):
         frame.timeseries.request_timeseries(ticker=ticker, timeframe=tf)
@@ -60,10 +70,10 @@ def request_timeseries(window: "win.Window", c_id, f_id, ticker, tf):
         log.warning("Can only request a Timeseries when a Charting Window is selected.")
 
 
-def request_indicator(window: "win.Window", c_id, f_id, ind_pkg, ind_name):
+def indicator_request(window: "win.Window", c_id, f_id, ind_pkg, ind_type):
     frame = window.get_container(c_id).frames[f_id]
     if isinstance(frame, win.ChartingFrame):
-        frame.request_indicator(ind_pkg, ind_name)
+        frame.request_indicator(ind_pkg, ind_type)
 
 
 def layout_change(window: "win.Window", c_id, layout):
@@ -77,13 +87,13 @@ def series_change(window: "win.Window", c_id, f_id, _type):
         frame.timeseries.change_series_type(_type, True)
 
 
-def set_indicator_opts(window: "win.Window", c_id, f_id, i_id, opts):
+def set_indicator_options(window: "win.Window", c_id, f_id, i_id, opts):
     frame = window.get_container(c_id).frames[f_id]
     if isinstance(frame, win.ChartingFrame):
         frame.indicators[i_id].__update_options__(opts)
 
 
-def update_series_opts(window: "win.Window", c_id, f_id, i_id, s_id, opts):
+def update_series_options(window: "win.Window", c_id, f_id, i_id, s_id, opts):
     frame = window.get_container(c_id).frames[f_id]
     if isinstance(frame, win.ChartingFrame):
         frame.indicators[i_id]._series[s_id].__sync_options__(opts)
@@ -107,21 +117,16 @@ def reorder_containers(window: "win.Window", _from, _to):
     window.containers.insert(_to, window.containers.pop(_from))
 
 
-def rtn_kwargs_from_window(window: "win.Window", kwargs: dict):
-    window.events.window_callback(kwargs)
-
-
-WIN_CMD_ROLODEX = {
-    PY_CMD.PY_EXEC: rtn_kwargs_from_window,
-    PY_CMD.SYMBOL_SEARCH: symbol_search,
-    PY_CMD.TIMESERIES_REQUEST: request_timeseries,
-    PY_CMD.INDICATOR_REQUEST: request_indicator,
-    PY_CMD.LAYOUT_CHANGE: layout_change,
-    PY_CMD.SERIES_CHANGE: series_change,
-    PY_CMD.SET_INDICATOR_OPTS: set_indicator_opts,
-    PY_CMD.UPDATE_SERIES_OPTS: update_series_opts,
+WIN_CMD_ROLODEX: dict[PY_CMD, Callable] = {
     PY_CMD.ADD_CONTAINER: add_container,
     PY_CMD.REMOVE_CONTAINER: remove_container,
     PY_CMD.REMOVE_FRAME: remove_frame,
     PY_CMD.REORDER_CONTAINERS: reorder_containers,
+    PY_CMD.LAYOUT_CHANGE: layout_change,
+    PY_CMD.SERIES_CHANGE: series_change,
+    PY_CMD.SYMBOL_SEARCH: symbol_search,
+    PY_CMD.TIMESERIES_REQUEST: timeseries_request,
+    PY_CMD.INDICATOR_REQUEST: indicator_request,
+    PY_CMD.SET_INDICATOR_OPTS: set_indicator_options,
+    PY_CMD.UPDATE_SERIES_OPTS: update_series_options,
 }

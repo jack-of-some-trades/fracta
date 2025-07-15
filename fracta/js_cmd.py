@@ -51,6 +51,7 @@ class JS_CMD(IntEnum):
 
     # Window Commands
     JS_CODE = auto()
+    RESOLVE_PROMISE = auto()
     LOAD_CSS = auto()
     ADD_CONTAINER = auto()
     REMOVE_CONTAINER = auto()
@@ -130,6 +131,10 @@ def js_code(*scripts: str) -> str:
     for script in scripts:
         cmd += script + ";"
     return cmd
+
+
+def resolve_promise(promise_key: str, data: dict) -> str:
+    return f"api.resolve_promise({promise_key}, {dump(data)});"
 
 
 def add_container(_id: str) -> str:
@@ -419,6 +424,7 @@ def lambda_none(*_) -> None:
 VIEW_CMD_ROLODEX: dict[JS_CMD, Callable[..., str | None]] = {
     # ---- Window Commands ----
     JS_CMD.JS_CODE: js_code,
+    JS_CMD.RESOLVE_PROMISE: resolve_promise,
     JS_CMD.ADD_CONTAINER: add_container,
     JS_CMD.REMOVE_CONTAINER: remove_container,
     JS_CMD.REMOVE_REFERENCE: remove_reference,

@@ -15,7 +15,7 @@ from .events import Events
 from .js_cmd import JS_CMD
 from .py_cmd import WIN_CMD_ROLODEX
 from .js_window import PyWv, MpHooks, PyWebViewOptions
-from .types import JS_Color, Ticker, TF
+from .types import JS_Color, TF
 
 if TYPE_CHECKING:
     from .charting.series_dtypes import SeriesType

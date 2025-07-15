@@ -45,10 +45,10 @@ class Symbol_search_sync_2(Protocol):
     def __call__(
         self,
         symbol: str,
-        confirmed: bool,
         sources: list[str],
         exchanges: list[str],
         asset_classes: list[str],
+        confirmed: bool,
     ) -> Optional[list[Ticker]]: ...
 class Symbol_search_async_1(Protocol):
     async def __call__(self, symbol: str, **kwargs) -> Optional[list[Ticker]]: ...
@@ -56,10 +56,10 @@ class Symbol_search_async_2(Protocol):
     async def __call__(
         self,
         symbol: str,
-        confirmed: bool,
         sources: list[str],
         exchanges: list[str],
         asset_classes: list[str],
+        confirmed: bool,
     ) -> Optional[list[Ticker]]: ...
 
 

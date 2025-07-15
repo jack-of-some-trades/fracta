@@ -61,7 +61,7 @@ export function TimeframeSwitcher(){
     // Tell Python when the timeframe changes
     function onSel(timeframe:tf){
         if (window.activeFrame?.ticker !== undefined)
-            window.api.data_request( 
+            window.api.timeseries_request( 
                 window.activeContainer?.id ?? '',
                 window.activeFrame?.id ?? '',
                 window.activeFrame?.ticker ?? '',

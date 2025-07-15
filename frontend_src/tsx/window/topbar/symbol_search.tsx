@@ -122,7 +122,7 @@ export function SymbolSearchMenu(props:search_menu_props){
 
     function fetch(symbol:ticker){
         if (window.activeFrame?.timeframe)
-            window.api.data_request(
+            window.api.timeseries_request(
                 window.activeContainer?.id,
                 window.activeFrame?.id,
                 symbol,
