@@ -41,13 +41,13 @@ export function TitleBar(props:title_bar_props) {
                 style={{padding:'1px 3px'}}
                 onClick={() => { window.api.add_container() }}/>
             <div class="titlebar_separator"/>
-            <ToggleBtn icon={icons.panel_left} classList={{layout_btn:true}} activated={true} 
+            <ToggleBtn icon={icons.panel_left} classList={{layout_btn:true}} active={true} 
                 onAct={()=>{props.show_section(LAYOUT_SECTIONS.TOOL_BAR)}} 
                 onDeact={()=>{props.hide_section(LAYOUT_SECTIONS.TOOL_BAR)}}/>
             <ToggleBtn icon={icons.panel_right} classList={{layout_btn:true}}
                 onAct={()=>{props.show_section(LAYOUT_SECTIONS.WIDGET_BAR)}} 
                 onDeact={()=>{props.hide_section(LAYOUT_SECTIONS.WIDGET_BAR)}}/>
-            <ToggleBtn icon={icons.panel_top} classList={{layout_btn:true}} activated={true} 
+            <ToggleBtn icon={icons.panel_top} classList={{layout_btn:true}} active={true} 
                 onAct={()=>{props.show_section(LAYOUT_SECTIONS.TOP_BAR)}} 
                 onDeact={()=>{props.hide_section(LAYOUT_SECTIONS.TOP_BAR)}}/>
             <ToggleBtn icon={icons.panel_bottom} classList={{layout_btn:true}}
@@ -77,19 +77,19 @@ export function TitleBar(props:title_bar_props) {
 interface togglebtn_props extends icon_props{
     onAct?:()=>void,
     onDeact?:()=>void,
-    activated?:boolean,
+    active?:boolean,
 }
 
 const default_togglebtn:togglebtn_props = {
     icon:'',
-    activated: false,
+    active: false,
     onAct:()=>{console.log('Button Activated!')},
     onDeact:()=>{console.log('Button Deactivated!')},
 }
 
 function ToggleBtn(props:togglebtn_props) {
     const merged = mergeProps(default_togglebtn, props)
-    const [activated, setActivated] = createSignal(merged.activated)
+    const [activated, setActivated] = createSignal(merged.active)
     const [, iconProps] = splitProps(merged, ['onAct', 'onDeact'])
 
     iconProps.onClick = () => {
@@ -102,7 +102,7 @@ function ToggleBtn(props:togglebtn_props) {
     if (activated() && merged.onAct) merged.onAct()
     else if (!activated() && merged.onDeact) merged.onDeact()
 
-    return <Icon {...iconProps} activated={activated()}/>
+    return <Icon {...iconProps} active={activated()}/>
 }
 
 //#endregion

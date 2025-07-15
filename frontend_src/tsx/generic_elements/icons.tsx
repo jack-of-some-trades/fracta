@@ -22,7 +22,8 @@ const [SVG_DOC] = createResource(async () => await fetch('./svg-defs.svg').then(
 export interface icon_props extends JSX.SvgSVGAttributes<SVGSVGElement> {
     icon: string,
     hover?:boolean,
-    activated?: boolean
+    selected?: boolean
+    active?: boolean
     force_reload?: boolean
     when?: Accessor<boolean>
 }
@@ -30,7 +31,8 @@ export interface icon_props extends JSX.SvgSVGAttributes<SVGSVGElement> {
 const DEFAULT_PROPS:icon_props = {
     icon: "close_small",
     hover:true,
-    activated: undefined,
+    active: undefined,
+    selected: undefined,
     force_reload: false,
     when: undefined,
 }
@@ -43,9 +45,9 @@ export function Icon(props:icon_props){
     //reactive Signal in a classList that feeds props.classList. tl:dw Don't use Signals in classlist,
     //use reactive attributes instead. Reactive classList signals cannot be merged.
 
-    const [iconProps, svgProps] = splitProps(merged, ["icon", 'hover', 'activated', "force_reload", "when"]);
+    const [iconProps, svgProps] = splitProps(merged, ["icon", 'hover', 'active', 'selected', "force_reload", "when"]);
     //propKeys is the list of keys set by the user (and this function).
-    let propKeys = (Object.keys({...svgProps, "class":'', "active":''}))
+    let propKeys = (Object.keys({...svgProps, "class":'', "active":'', "selected":''}))
 
     //When SVG_DOC is loaded or icon is changed, Copy reference SVG into Window
     function update(){
@@ -78,11 +80,11 @@ export function Icon(props:icon_props){
     if (iconProps.when){
         createEffect(on(iconProps.when, update))
         return <Show when={iconProps.when()}>
-            <svg ref={icon_el} {...svgProps} attr:active={iconProps.activated? '': undefined} />
+            <svg ref={icon_el} {...svgProps} attr:active={iconProps.active? '': undefined} attr:selected={iconProps.selected? '': undefined} />
         </Show>
     }
     else
-        return <svg ref={icon_el} {...svgProps} attr:active={iconProps.activated? '': undefined} />
+        return <svg ref={icon_el} {...svgProps} attr:active={iconProps.active? '': undefined} attr:selected={iconProps.selected? '': undefined} />
 }
 
 export interface text_icon_props extends JSX.HTMLAttributes<HTMLDivElement> {

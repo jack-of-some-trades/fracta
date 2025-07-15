@@ -32,6 +32,16 @@
     color: var(--second-accent-color);
 }
 
+.icon[selected] {
+    color: var(--icon-dark-color);
+    background-color: var(--accent-color);
+}
+
+.icon[selected]:hover {
+    color: var(--accent-color);
+    background-color: var(--icon-hover-color);
+}
+
 /*      Text Classes     */
 
 .text, .icon_text,

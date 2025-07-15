@@ -27,12 +27,12 @@ export function WidgetBar(props:widget_bar_props){
 
 function WidgetIcon(props:{icon:icons} & JSX.SvgSVGAttributes<SVGSVGElement> ){
     return (
-        <Icon 
+        <Icon
             width={34} height={34}
-            classList={{icon:false, widget_bar_icon:true}}
+            classList={{widget_bar_icon:true}}
             style={{margin:'4px', padding:'2px'}}
             onClick={() => setSelectedWidget(selectedWidget() !== props.icon? props.icon : undefined)} 
-            attr:active={selectedWidget() === props.icon? "": undefined}
+            selected={selectedWidget() === props.icon}
             {...props}
         />
     )

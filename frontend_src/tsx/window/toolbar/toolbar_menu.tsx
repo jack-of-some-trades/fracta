@@ -114,7 +114,7 @@ function ToolBarOverlay(props:toolbar_overlay_props){
                             label={TOOL_MAP.get(tool)?.label??""}
                             onSel={() => onSel(tool)}
 
-                            star={favTools().includes(tool)}
+                            star={() => favTools().includes(tool)}
                             starAct={() => addFavorite(tool)}
                             starDeact={() => removeFavorite(tool)}
                             starStyle={{width:'20px', height:'20px'}}

@@ -6,18 +6,6 @@
     color: var(--icon-color);
     background-color: var(--icon-background-color);
 }
-.widget_bar_icon[active]{
-    color: var(--icon-dark-color);
-    background-color: var(--accent-color)
-}
-.widget_bar_icon:hover{
-    color: var(--icon-color);
-    background-color: var(--icon-hover-color);
-}
-.widget_bar_icon:hover[active]{
-    color: var(--accent-color);
-}
-
 
 /* ------- Widget Panel Resize Element ------- */
 
