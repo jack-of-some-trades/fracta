@@ -46,14 +46,13 @@ export function ToolBarMenuButton(props:toolbar_menu_props){
         />
     )
 
-    
-
     return (
         <div ref={el} class='toolbar_container'>
             <Icon
                 icon={displayIcon()}
-                attr:active={activePrimitiveTool() == displayIcon() ? "" : undefined}
-                attr:selected={TOOL_MAP.get(displayIcon())?.selected?.() ? "" : undefined}
+                active={activePrimitiveTool()?.icon == displayIcon()}
+                // @ts-ignore
+                selected={TOOL_MAP.get(displayIcon())?.selected?.()}
                 onClick={() => selectTool(displayIcon())}
                 classList={{toolbar_icon_btn:true}}
             />
@@ -126,29 +125,3 @@ function ToolBarOverlay(props:toolbar_overlay_props){
         </OverlayDiv>
     )
 }
-
-const TOOL_LABEL_MAP = new Map<icons, string>([
-    [icons.cursor_cross, "Cross"],
-    [icons.cursor_dot, "Dot"],
-    [icons.cursor_arrow, "Arrow"],
-    [icons.cursor_erase, "Erase"],
-
-    [icons.trend_line, "Trend Line"],
-    [icons.horiz_ray, "Horiz. Ray"],
-    [icons.horiz_line, "Horiz. Line"],
-    [icons.vert_line, "Vert. Line"],
-    [icons.polyline, "Polyline"],
-    [icons.channel_parallel, "Parallel Channel"], 
-    [icons.channel_disjoint, "Disjoint Channel"],
-    
-    [icons.fib_retrace, "Fib. Retrace"], 
-    [icons.fib_extend, "Fib. Extention"],
-
-    [icons.range_price, "Price Range"], 
-    [icons.range_date, "Date Range"], 
-    [icons.range_price_date, "Price & Date Range"],
-    // [icons., ""],
-])
-
-
-

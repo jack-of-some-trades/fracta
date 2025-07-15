@@ -2,7 +2,7 @@
  * ToolBar Component (and sub-components) that are displayed along the Left hand side of the screen.
  */
 import { Accessor, createContext, createEffect, createSignal, For, JSX, on, Setter, useContext } from "solid-js"
-import { activePrimitiveTool, selectTool as selectPrimitiveTool, TOOL_MAP } from "../../../src/charting_frame/primitive-plugins/tool_ui_support"
+import { activePrimitiveTool, selectTool, TOOL_MAP } from "../../../src/charting_frame/primitive-plugins/tool_ui_support"
 import { Icon, icons } from "../../generic_elements/icons"
 import { location_reference, OverlayCTX, OverlayDiv, point } from "../overlay_manager"
 import { toolbar_menu_props, ToolBarMenuButton } from "./toolbar_menu"
@@ -123,9 +123,10 @@ function ToolBoxOverlay( props:toolbox_props ){
             <For each={tools()}>{(tool)=>
                 <Icon 
                     icon={tool} 
-                    onClick={() => selectPrimitiveTool(tool)}
-                    attr:active={activePrimitiveTool() === tool ? "" : undefined}
-                    attr:selected={TOOL_MAP.get(tool)?.selected?.() ? "" : undefined}
+                    onClick={() => selectTool(tool)}
+                    active={activePrimitiveTool()?.icon === tool}
+                    // @ts-ignore - A Stupid Error, Just plain stupid.
+                    selected={TOOL_MAP.get(tool)?.selected?.()}
                 />
             }</For>
         </OverlayDiv>

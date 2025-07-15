@@ -15,13 +15,13 @@ export const TrendLineTool: PrimitiveTool = {
     icon: icons.trend_line,
     label: 'TrendLine',
     create: createTrendLine,
-    cleanup: cleanUpTrendLineTool,
+    cleanup: cleanUpTrendLineTool
 }
 
 let mouseMoveController = new AbortController()
 function cleanUpTrendLineTool(){ mouseMoveController.abort() }
 
-function createTrendLine(pane: charting_pane, e:MouseEvent): PrimitiveBase | Error {
+function createTrendLine(pane: charting_pane, e:MouseEvent): PrimitiveBase | null {
     const new_line = new TrendLine('', {p1:null, p2:null})
     pane._attachSeriesPrimitive(new_line)
 
@@ -31,7 +31,8 @@ function createTrendLine(pane: charting_pane, e:MouseEvent): PrimitiveBase | Err
     
     if (t === null || p === null){
         new_line.remove()
-        return new Error('Failed to create TrendLine, Price or Time invalid')
+        console.warn('Failed to create TrendLine, Price or Time invalid')
+        return null
     }
     // Set both the points to the current value so it is displayed
     new_line.updateData({p1:{time:t, value:p}, p2:{time:t, value:p}})

@@ -2,6 +2,7 @@ import { Accessor, Setter } from "solid-js"
 import { ContainerCTX } from "../../tsx/window/container"
 import { layout_display } from "../../tsx/window/layouts"
 import { charting_frame } from "../charting_frame/charting_frame"
+import { abortToolCreation } from "../charting_frame/primitive-plugins/tool_ui_support"
 import { frame } from "./frame"
 import { Container_Layouts, flex_frame as flexFrame, layout_switch, num_frames, Orientation, resize_sections } from "./layouts"
 
@@ -54,7 +55,13 @@ export class container{
         if (this.layout !== undefined) window.topbar.setLayout(this.layout)
         for(let i = 0; i < num_frames(this.layout);i++) this.frames[i].onShow() 
     }
-    onHide(){ for(let i = 0; i < num_frames(this.layout);i++) this.frames[i].onHide() }
+    onHide(){ 
+        for(let i = 0; i < num_frames(this.layout);i++) this.frames[i].onHide() 
+        
+        // TODO: This should be a solidJS effect in tools_ui, but until the
+        // activeContainer and activeFrame are signals this is far more simple
+        abortToolCreation()
+    }
     remove(){ }
 
     /**
