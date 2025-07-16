@@ -167,6 +167,7 @@ export enum icons {
     maximize = "maximize",
     minimize = "minimize",
     restore = "restore",
+    restore_alt = "restore_alt",
     window_add = "window_add",
     options_add = "options_add",
     options_remove = "options_remove",

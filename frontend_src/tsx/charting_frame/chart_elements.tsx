@@ -2,10 +2,10 @@
  * JSX Components that are responsible for displaying, or are displayed on top of, a Charting Window.
  */
 import { Accessor, createEffect, createSignal, For, Index, JSX, on, onCleanup, onMount, Setter, Show, splitProps } from "solid-js";
-import { charting_frame, charting_pane } from "../../src/charting_frame/charting_frame";
+import { charting_frame } from "../../src/charting_frame/charting_frame";
+import { charting_pane, MIN_PANE_HEIGHT } from "../../src/charting_frame/charting_pane";
 import { indicator } from "../../src/charting_frame/indicator";
 import { Icon, icons, TextIcon } from "../generic_elements/icons";
-import { MenuContextListener } from "../window/context_menu";
 
 /**
  * @style_sel : querySelect string used by <Layout/> to ensure style sizing is only applied
@@ -46,6 +46,7 @@ interface chart_pane_overlay_props {
     frame: charting_frame
 }
 export function ChartPaneOverlay(props:chart_pane_overlay_props){
+    const [show, setShow] = createSignal<boolean>(true)
     const [toolsRef, setToolsRef] = createSignal<HTMLDivElement>()
     const [leftAxis, setLeftAxis] = createSignal<HTMLTableCellElement>()
     const [rightAxis, setRightAxis] = createSignal<HTMLTableCellElement>()
@@ -57,13 +58,27 @@ export function ChartPaneOverlay(props:chart_pane_overlay_props){
 
     const _reposition = () => {
         let cell_ref
+        if (cell_ref = props.pane._paneEl) {
+            if (cell_ref.offsetHeight <= MIN_PANE_HEIGHT){
+                cell_ref.style.opacity = '0'
+                props.pane.setMinimized(true)
+            } else {
+                cell_ref.style.opacity = '1'
+                props.pane.setMinimized(false)
+            }
+            if(show() && cell_ref.offsetHeight < MIN_PANE_HEIGHT)
+                setShow(false)
+            else if (!show() && cell_ref.offsetHeight > MIN_PANE_HEIGHT)
+                setShow(true)
+        }
+
         if (cell_ref = props.pane._chartEl){
             setLegendStyle({
-                top:`${cell_ref.offsetTop + 8}px`,
+                top:`${cell_ref.offsetTop + 3}px`,
                 left:`${cell_ref.offsetLeft + 8}px`
             })
             setToolsStyle({
-                top:`${cell_ref.offsetTop + 2}px`,
+                top:`${cell_ref.offsetTop}px`,
                 left:`${cell_ref.offsetLeft + cell_ref.offsetWidth - 8 - (toolsRef()?.offsetWidth ?? 0)}px`
             })
         }
@@ -95,19 +110,8 @@ export function ChartPaneOverlay(props:chart_pane_overlay_props){
     }))
     createEffect(on(props.frame.panes, () => requestAnimationFrame(_reposition)))
 
-    // On RightClick for this pane Show the appropriate Context Menu
-    let event_cleaner = new AbortController()
-    createEffect(on(props.pane.paneEl, () => {
-        event_cleaner.abort()
-        event_cleaner = new AbortController()
-        props.pane.paneEl()?.addEventListener(
-            'contextmenu', 
-            MenuContextListener.bind(props.pane.ctxMenuStruct),
-            {signal: event_cleaner.signal}
-        )
-    }))
-
-    return <div class='pane_controls'>
+    // Using <Show/> introduces some bugs that display:none doesn't 
+    return <div class='pane_controls' style={{display: show() ? undefined : 'none'}}>
         <ScaleToggle
             {...props}
             pricescale = {'left'}
@@ -235,6 +239,7 @@ function PaneTools(props:paneToolsProps){
         setMoveDown(props.pane.paneIndex !== props.frame.panes().length - 1)
     }))
 
+
     // Show Tag Hides the Element when length == 0 & updates the contents every time length changes
     return <div class="pane_tools" ref={props.setDivRef} style={props.style()}>
         <Icon 
@@ -258,17 +263,32 @@ function PaneTools(props:paneToolsProps){
                 onClick={() => props.pane.movePane(props.pane.paneIndex + 1)}
                 classList={{icon_text:false, pane_tools_icon:true}}
             />
+            <Icon 
+                when={() => !props.pane.maximized()}
+                icon={icons.maximize}
+                width={12} height={16}
+                onClick={ () => props.frame.maximizePane(props.pane) }
+                classList={{icon_text:false, pane_tools_icon:true}}
+            />
+            <Icon
+                when={() => props.pane.minimized() || props.pane.maximized()}
+                icon={props.pane.minimized() ? icons.restore_alt : icons.restore}
+                width={12} height={16}
+                onClick={ () => props.frame.restorePanes() }
+                classList={{icon_text:false, pane_tools_icon:true}}
+            />
+            <Icon
+                when={() => !props.pane.minimized()}
+                icon={icons.minimize}
+                width={12} height={16}
+                onClick={ () => props.frame.minimizePane(props.pane) }
+                classList={{icon_text:false, pane_tools_icon:true}}
+            />
             <Icon
                 when={() => props.pane !== props.frame.default_pane}
                 icon={icons.close}
                 width={12} height={16} viewBox={'-4 -4 26 26'}
                 onClick={()=>console.log('delete pane')}
-                classList={{icon_text:false, pane_tools_icon:true}}
-            />
-            <Icon 
-                icon={icons.maximize}
-                width={12} height={16}
-                onClick={()=>console.log('fullframe pane')}
                 classList={{icon_text:false, pane_tools_icon:true}}
             />
         </Show>
@@ -288,16 +308,12 @@ export interface legend_props {
 
 function PaneLegend(props:legend_props){
     let legend_ref = document.createElement('div')
-    const [show, setShow] = createSignal<boolean>(props.pane.indicators()?.length !== 0)
+    const [show, setShow] = createSignal<boolean>(true)
 
-    createEffect(on(props.style, ()=>{
+    createEffect(on([props.style, show], ()=>{
         // Minimize the Indicators list if the pane is too small
         if (show() && props.pane.paneApi.getHeight() < legend_ref.offsetHeight)
             setShow(false)
-    }))
-    createEffect(on(props.pane.attached, () => {
-        // Hide the Menu if there's no longer any indicators on it.
-        if (show() && props.pane.indicators()?.length === 0) setShow(false)
     }))
 
     return <div class="pane_legend" ref={legend_ref} style={props.style()}>
@@ -313,7 +329,7 @@ function PaneLegend(props:legend_props){
                 icon={show()? icons.menu_arrow_sn : icons.menu_ext_small}
                 force_reload={true}
             />
-        </div>  
+        </div>
     </div>
 }
 

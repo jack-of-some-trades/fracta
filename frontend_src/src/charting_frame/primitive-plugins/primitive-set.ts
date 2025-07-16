@@ -1,7 +1,8 @@
 import { ISeriesApi, LineSeries } from "lightweight-charts"
 import { Accessor, createEffect, createSignal, Setter } from "solid-js"
 import { DropDownModes, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../../tsx/widget_panels/object_tree"
-import { charting_frame, charting_pane } from "../charting_frame"
+import { charting_frame } from "../charting_frame"
+import { charting_pane } from "../charting_pane"
 import { PrimitiveBase } from "./primitive-base"
 
 

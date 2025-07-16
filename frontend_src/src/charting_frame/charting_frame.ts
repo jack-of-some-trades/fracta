@@ -1,18 +1,17 @@
 import * as lwc from "lightweight-charts";
 import { Accessor, createSignal, JSX, Setter } from "solid-js";
 import { ChartFrame } from "../../tsx/charting_frame/chart_elements";
-import { icons } from "../../tsx/generic_elements/icons";
-import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
+import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, treeBranchInterface } from "../../tsx/widget_panels/object_tree";
 import { contextMenuItem } from "../../tsx/window/context_menu";
 import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { point } from "../../tsx/window/overlay_manager";
 import { applyOpacity, tf, ticker } from "../types";
 import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
+import { charting_pane } from "./charting_pane";
 import { indicator, isIndicator } from "./indicator";
-import { PrimitiveBase } from "./primitive-plugins/primitive-base";
-import { isPrimitiveSet, PrimitiveSet } from "./primitive-plugins/primitive-set";
-import { Series_Type, SeriesApi, SeriesDefinitions } from "./series-plugins/series-base";
+import { PrimitiveSet } from "./primitive-plugins/primitive-set";
+import { Series_Type } from "./series-plugins/series-base";
 
 
 export interface data_src {
@@ -43,6 +42,8 @@ export class charting_frame extends frame {
     ticker: ticker
     series_type: Series_Type
 
+    shortcuts: keyboardShortcut[]
+    ctxMenuStruct: contextMenuItem[][]
     private objTreeBranch:treeBranchInterface
 
     panes: Accessor<charting_pane[]>
@@ -89,6 +90,9 @@ export class charting_frame extends frame {
             moveTo: ()=>{}
         }
 
+        this.ctxMenuStruct = generateContextMenuStruct(this)
+        this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
+
         console.log(this)
         
         // The Following listeners allow smooth chart dragging while bars are actively updating.
@@ -117,7 +121,7 @@ export class charting_frame extends frame {
 
         // Connect To Widget Panel and Keyboard Listener
         ObjectTreeCTX().setMainBranch(this.objTreeBranch)
-        KeyboardCTX().attachHandler(this.id, this.default_pane.shortcuts)
+        KeyboardCTX().attachHandler(this.id, this.shortcuts)
     }
 
     onDeactivation() {
@@ -142,25 +146,6 @@ export class charting_frame extends frame {
     fullUpdate() { this._chart.Wf.ts.Bh() }
     //@ts-ignore Valid only for Lightweight-Charts v5.0.8
     lightUpdate() { this._chart.Wf.ts.ar() }
-
-    getPaneByIndex(index: number) : charting_pane | undefined { 
-        return this.panes().find((p) => p.paneIndex === index) 
-    }
-    updatePaneEls() { 
-        this.panes().forEach(pane => pane.updatePaneEl()) 
-        this.setPanes(this.panes().sort((a, b) => a.paneIndex - b.paneIndex))
-    }
-
-    addPane(): charting_pane {
-        const _paneApi = this._chart.addPane()
-        const _paneWrap = new charting_pane(this, _paneApi)
-        this.pane_map.set(_paneApi, _paneWrap)
-
-        // Must set panes onAnimationFrame since the PaneAPI Element required
-        // for rendering the <PaneOverlay/> is created in an animation cycle
-        requestAnimationFrame( () => this.setPanes([...this.panes(), _paneWrap]) )
-        return _paneWrap
-    }
 
     _getMouseEventParams(
         index : lwc.Logical | null, 
@@ -205,9 +190,62 @@ export class charting_frame extends frame {
 
     fitContent() { this._chart.timeScale().fitContent() }
     autoscaleContent() { this._chart.timeScale().resetTimeScale() }
+    applyChartOpts(newOpts: lwc.DeepPartial<lwc.ChartOptions>) { this._chart.applyOptions(newOpts) }
     updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
 
     // #endregion
+
+    // #region -------------- Pane Control Functions ------------------ //
+
+    getPaneByIndex(index: number) : charting_pane | undefined { 
+        return this.panes().find((p) => p.paneIndex === index) 
+    }
+
+    private _updatePaneEls() {
+        this.panes().forEach(pane => pane._updatePaneEl()) 
+        this.setPanes(this.panes().sort((a, b) => a.paneIndex - b.paneIndex))
+    }
+
+    addPane(): charting_pane {
+        const _paneApi = this._chart.addPane()
+        const _paneWrap = new charting_pane(this, _paneApi)
+        this.pane_map.set(_paneApi, _paneWrap)
+
+        // Must set panes onAnimationFrame since the PaneAPI Element required
+        // for rendering the <PaneOverlay/> is created in an animation cycle
+        requestAnimationFrame( () => {
+            this.setPanes([...this.panes(), _paneWrap]) 
+            this.panes().forEach((p) => p._updatePaneEl())
+        })
+        return _paneWrap
+    }
+
+    restorePanes(){ 
+        this.panes().forEach(pane => pane._restorePane())
+        this.applyChartOpts({layout:{panes:{enableResize:true}}})
+    }
+
+    maximizePane(pane:charting_pane){ 
+        if (this.panes().some((p) => p.maximized() || p.minimized()))
+            this.restorePanes()
+        else
+            this.panes().forEach( p => p._recordStretchFactor() )
+        this.panes().forEach( p => {
+            p == pane ? p._maximizePane() : p. _hidePane()
+        })
+        this.applyChartOpts({layout:{panes:{enableResize:false}}})
+    }
+    
+    minimizePane(pane:charting_pane){ 
+        if (this.panes().some((p) => p.maximized() || p.minimized()))
+            this.restorePanes()
+        else
+            this.panes().forEach( p => p._recordStretchFactor() ) 
+        pane._minimizePane()
+    }
+    
+    // #endregion
+
     
     // #region -------------- Python API Functions ------------------ //
 
@@ -287,142 +325,19 @@ export class charting_frame extends frame {
         if (from < 0 || from > this.paneAPIs.length || from === to ) return
         to = Math.max(Math.min(to, this.paneAPIs.length - 1), 0)
         this.panes()[from]._pane.moveTo(to)
-        this.updatePaneEls()
+        this._updatePaneEls()
     }
 
     // #endregion
 }
 
-/**
- * Class to wrap around the IPaneAPI created by the chart. This class helps
- * manage the ability to order indicators/primitives within a pane.
- */
-export class charting_pane implements ReorderableSet {
-    [ORDERABLE]:true = true;
-    [ORDERABLE_SET]:true = true;
-
-    _pane: lwc.IPaneApi<lwc.Time>
-    _frame: charting_frame
-
-    paneEl: Accessor<HTMLTableCellElement | undefined>
-    private setPaneEl: Setter<HTMLTableCellElement | undefined>
-
-    series_primitives: PrimitiveSet | undefined
-    attached: Accessor<(indicator | PrimitiveSet)[]>
-    setAttached: Setter<(indicator | PrimitiveSet)[]>
-
-    leafProps: treeLeafInterface
-    branchProps: treeBranchInterface
-    shortcuts: keyboardShortcut[]
-    ctxMenuStruct: contextMenuItem[][]
-    
-    constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>){
-        this._pane = pane
-        this._frame = frame
-
-        this.series_primitives = new PrimitiveSet(this)
-
-        const sig1 = createSignal<HTMLTableCellElement>()
-        this.paneEl = sig1[0]; this.setPaneEl = sig1[1]
-
-        // The Pane's DOM Element is created in an animation frame so this delays
-        // setting the signal until after the element has been created.
-        this.updatePaneEl()
-
-        const sig2 = createSignal<(indicator | PrimitiveSet)[]>([])
-        this.attached = sig2[0]; this.setAttached = sig2[1]
-
-        this.leafProps = {
-            obj: this,
-            id:this.id,
-            leafTitle:this.name
-        }
-        this.branchProps = {
-            id: this.id,
-            branchTitle: this.name,
-            dropDownMode: 'always',
-            reorderables: this.attached,
-            moveTo: this.moveToPane.bind(this),
-            reorder: this.reorderAttached.bind(this),
-        }
-        this.ctxMenuStruct = generateContextMenuStruct(this)
-        this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
-    }
-
-    get id():string { return String(this._pane.paneIndex()) }
-    get name(): string {return 'Pane #' + String(this.id)}
-    get frame(): charting_frame { return this._frame }
-    get paneIndex(): number { return this._pane.paneIndex() }
-    get paneApi(): lwc.IPaneApi<lwc.Time> { return this._pane }
-    get _paneEl(): HTMLTableCellElement | undefined {
-        if (this._pane.getHTMLElement()) return this._pane.getHTMLElement() as HTMLTableCellElement
-    }
-    get _leftAxisEl(): HTMLTableCellElement | undefined {
-        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(1)")
-        if (_el) return _el as HTMLTableCellElement
-    }
-    get _chartEl(): HTMLTableCellElement | undefined {
-        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(2)")
-        if (_el) return _el as HTMLTableCellElement
-    }
-    get _rightAxisEl(): HTMLTableCellElement | undefined {
-        const _el = this._pane.getHTMLElement()?.querySelector("td:nth-child(3)")
-        if (_el) return _el as HTMLTableCellElement
-    }
-
-    updatePaneEl(){ requestAnimationFrame(() => this.setPaneEl(this._paneEl)) }
-
-    movePane(index: number) {
-        if (index === this.paneIndex) return
-        this._frame.reorderPanes(this.paneIndex, index)
-    }
-
-    // TODO: Expand this functionality to match primitive base if pane Primitives become more readily used.
-    _attachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.attachPrimitive(primitive) }
-    _detachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.detachPrimitive(primitive) }
-    _attachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.attachPrimitive(primitive) }
-    _detachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.detachPrimitive(primitive) }
-    _addSeries(type: SeriesDefinitions): SeriesApi { return this._pane.addSeries(type) }
-    _addCustomSeries(impl: lwc.ICustomSeriesPaneView): SeriesApi { return this._pane.addCustomSeries(impl) }
-    _priceScale(scale: string): lwc.IPriceScaleApi { return this._pane.priceScale(scale) }
-
-    indicators(): indicator[] { return this.attached().filter((obj) => isIndicator(obj))}
-    primitiveSets(): PrimitiveSet[] { return this.attached().filter((obj) => isPrimitiveSet(obj))}
-
-    attach(obj: indicator | PrimitiveSet){
-        this.setAttached([...this.attached(), obj])
-    }
-    
-    detach(obj: indicator | PrimitiveSet){
-        this.setAttached([...this.attached().filter(_obj => _obj !== obj)])
-    }
-
-    reorderAttached(from: indicator | PrimitiveSet | any, to: indicator | PrimitiveSet | any): void {
-        console.log(`Reorder Indicators: from: ${from}, to: ${to}`)
-    }
-
-    moveToPane(obj: indicator | PrimitiveSet | any){
-
-    }
-}
-
-function generateContextMenuStruct(pane:charting_pane):contextMenuItem[][] {
+function generateContextMenuStruct(frame:charting_frame):contextMenuItem[][] {
     return [[
         {
-            icon: icons.menu_arrow_sn,
-            title: 'Move Pane Up',
-            execute: () => pane.movePane(pane.paneIndex - 1),
-            disable: () => pane.paneIndex === 0,
-            ctrl: true,
-            hotkey: 'ArrowUp',
-        },
-        {
-            icon: icons.menu_arrow_ns,
-            title: 'Move Pane Down',
-            execute: () => pane.movePane(pane.paneIndex + 1),
-            disable: () => pane.paneIndex === pane.frame.panes().length - 1,
-            ctrl: true,
-            hotkey: 'ArrowDown',
+            icon: undefined,
+            title: 'Restore Pane Heights',
+            execute: () => frame.restorePanes(),
+            disable: () => frame.panes().length < 2,
         },
     ]]
 }
@@ -439,9 +354,9 @@ function DEFAULT_CHART_OPTS(){
                 bottomColor: style.getPropertyValue("--chart-bg-color-bottom")
             },
             panes: {
+                enableResize: true,
                 separatorColor: style.getPropertyValue("--separator-color"),
                 separatorHoverColor: applyOpacity(style.getPropertyValue("--accent-color"), 0.2),
-                enableResize: true
             },
             textColor: style.getPropertyValue("--chart-text-color"),
             attributionLogo: style.getPropertyValue("--chart-tv-logo") === 'true'

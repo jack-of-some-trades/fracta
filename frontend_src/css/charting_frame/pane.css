@@ -62,6 +62,10 @@
     cursor: crosshair;
 }
 
+.tv-lightweight-charts table tr {
+    transition: opacity ease-in-out 0.2s; 
+}
+
 .pane_controls {
     display: contents;
     user-select: none;

@@ -5,7 +5,7 @@
 
 import { ITimeScaleApi, MouseEventParams, Time } from "lightweight-charts"
 import { icons } from "../../../../tsx/generic_elements/icons"
-import { charting_pane } from "../../charting_frame"
+import { charting_pane } from "../../charting_pane"
 import { PrimitiveBase } from "../primitive-base"
 import { finalizeToolCreation, PrimitiveTool } from "../tool_ui_support"
 import { TrendLine } from "./trend-line"
