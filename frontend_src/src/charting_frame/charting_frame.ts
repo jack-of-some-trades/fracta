@@ -236,14 +236,6 @@ export class charting_frame extends frame {
         this.applyChartOpts({layout:{panes:{enableResize:false}}})
     }
     
-    minimizePane(pane:charting_pane){ 
-        if (this.panes().some((p) => p.maximized() || p.minimized()))
-            this.restorePanes()
-        else
-            this.panes().forEach( p => p._recordStretchFactor() ) 
-        pane._minimizePane()
-    }
-    
     // #endregion
 
     

@@ -127,7 +127,8 @@ export class charting_pane implements ReorderableSet {
 
     _recordStretchFactor() { this.stretchFactorMemory = this.paneApi.getStretchFactor() } 
 
-    _minimizePane(){
+    _minimizePane(){ 
+        // This is a bit bugged at the moment due to how lwc renders when setting height
         this.paneApi.setHeight(MIN_PANE_HEIGHT)
         this.setMaximized(false); this.setMinimized(true);
     }

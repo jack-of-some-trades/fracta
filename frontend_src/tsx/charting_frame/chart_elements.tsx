@@ -148,7 +148,7 @@ interface scale_props{
     axis_ref:Accessor<HTMLTableCellElement | undefined>,
 }
 function ScaleToggle(props:scale_props){
-    let rendered_height = 0
+    let rendered_height = 45 // Start w/ an estimate
     let divRef = document.createElement('div')
     const _getPriceScale = () =>  props.pane._priceScale(props.pricescale)
 
@@ -277,13 +277,13 @@ function PaneTools(props:paneToolsProps){
                 onClick={ () => props.frame.restorePanes() }
                 classList={{icon_text:false, pane_tools_icon:true}}
             />
-            <Icon
+            { /* <Icon      // Bit bugged due to how lightweight charts renders as of v5.0.8 
                 when={() => !props.pane.minimized()}
                 icon={icons.minimize}
                 width={12} height={16}
                 onClick={ () => props.frame.minimizePane(props.pane) }
                 classList={{icon_text:false, pane_tools_icon:true}}
-            />
+            /> */ }
             <Icon
                 when={() => props.pane !== props.frame.default_pane}
                 icon={icons.close}
