@@ -55,7 +55,7 @@ export function IndicatorsBox(){
             id={id}
             packages={packages}
             setDisplay={displaySignal[1]}
-            location={menuLocation()}
+            location={menuLocation}
             setLocation={setMenuLocation}
             updateLocation={position_menu}
         />,

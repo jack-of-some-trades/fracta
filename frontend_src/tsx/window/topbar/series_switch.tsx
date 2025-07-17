@@ -72,7 +72,7 @@ export function SeriesSwitcher(){
             onSel={onSel}
             opts={SeriesOpts} 
             setOpts={setSeriesOpts}
-            location={menuLocation()}
+            location={menuLocation}
             updateLocation={updateLocation}
         />, 
 

@@ -152,7 +152,7 @@ export enum location_reference {
 
 /**
  * @param id : String ID of the Overlay Component. Can be used to retrieve the Visibility State
- * @param location : {x,y} Coordinate to draw the point at. Can be a reactive Signal
+ * @param location : {x,y} Coordinate to draw the point at.
  * @param updateLocation : [Optional] function that can be called to update the location parameter above,
  *        Useful when the location is referencing a Signal that cannot be reactive such as a Div's ClientBoundingBox
  * @param location_ref : Reference Corner to position the Div, e.g. TOP_RIGHT will mean the top right corner of 
@@ -166,7 +166,7 @@ export enum location_reference {
  */
 export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
     id:string
-    location: point
+    location: Accessor<point>
     location_ref: location_reference
     updateLocation?: () => void
     drag_handle?:string
@@ -184,7 +184,7 @@ export function OverlayDiv(props:overlay_div_props){
     let clientRef : HTMLElement|undefined = undefined
     let dragListenerSet = !(props.drag_handle && props.setLocation)
     props.classList = {...props.classList, overlay:true}
-    const [style, setStyle] = createSignal<JSX.CSSProperties>(initPosition(props.location_ref, props.location))
+    const [style, setStyle] = createSignal<JSX.CSSProperties>(initPosition(props.location_ref, props.location()))
     const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id"])
     
     //#region ------------------- Drag Handle Listeners ------------------- //
@@ -193,8 +193,8 @@ export function OverlayDiv(props:overlay_div_props){
         if (e.target !== document.documentElement)
             //Only Move the location if the cursor is on the screen
             if (props.setLocation) props.setLocation({
-                x:props.location.x + e.movementX, 
-                y:props.location.y + e.movementY
+                x:props.location().x + e.movementX, 
+                y:props.location().y + e.movementY
             })
     }
     const mouseup = (e:MouseEvent) => {
@@ -247,7 +247,7 @@ export function OverlayDiv(props:overlay_div_props){
         //Update Div Location when Location Changes (Preserve Reactivity of props.location)
         createEffect(() => { 
             let ref = clientRef ?? divRef
-            let pos = getBoundedPosition(props.location, ref?.getBoundingClientRect()) 
+            let pos = getBoundedPosition(props.location(), ref?.getBoundingClientRect()) 
             if (pos) setStyle(pos)
         })
 

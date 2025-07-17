@@ -48,7 +48,7 @@ export function IndicatorOpts(props:indicator_option_props){
     return (
         <OverlayDiv
             id={props.id}
-            location={location()}
+            location={location}
             setLocation={setLocation}
             classList={{indicator_opts:true}}
             location_ref={location_reference.CENTER}

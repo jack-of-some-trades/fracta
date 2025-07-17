@@ -114,8 +114,8 @@ export class charting_pane implements ReorderableSet {
             this.ctxMenuCleaner = new AbortController()
             this._paneEl?.addEventListener(
                 'contextmenu', 
-                MenuContextListener.bind(this.frame.ctxMenuStruct.concat(this.ctxMenuStruct)),
-                {signal: this.ctxMenuCleaner.signal}
+                MenuContextListener.bind(this.ctxMenuStruct),
+                {signal: this.ctxMenuCleaner.signal, capture:true}
             )
         })
     }

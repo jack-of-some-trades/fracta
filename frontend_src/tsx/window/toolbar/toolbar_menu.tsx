@@ -2,7 +2,7 @@
  * ToolBox Overlay Menu and Menu-Open Button.
  */
 
-import { createSignal, For, onMount, Setter, Show, splitProps } from "solid-js";
+import { Accessor, createSignal, For, onMount, Setter, Show, splitProps } from "solid-js";
 import { activePrimitiveTool, selectTool, TOOL_MAP } from "../../../src/charting_frame/primitive-plugins/tool_ui_support";
 import { Icon, icons } from "../../generic_elements/icons";
 import { MenuItem, ShowMenuButton } from "../../generic_elements/simple_menu";
@@ -39,7 +39,7 @@ export function ToolBarMenuButton(props:toolbar_menu_props){
         props.id,
         <ToolBarOverlay 
             id={props.id} 
-            location={location()}
+            location={location}
             updateLocation={updateLocation}
             tools={props.tools}
             setIcon={setDisplayIcon}
@@ -69,7 +69,7 @@ export function ToolBarMenuButton(props:toolbar_menu_props){
 interface toolbar_overlay_props extends Omit<overlay_div_props, "location_ref"> {
     id:string
     tools:icons[][]
-    location:point
+    location:Accessor<point>
     setIcon:Setter<icons>
 }
 /**

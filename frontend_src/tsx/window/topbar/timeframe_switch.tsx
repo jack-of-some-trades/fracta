@@ -76,7 +76,7 @@ export function TimeframeSwitcher(){
             onSel={onSel}
             opts={TimeframeOpts} 
             setOpts={setTimeframeOpts}
-            location={menuLocation()}
+            location={menuLocation}
             updateLocation={updateLocation}
         />, 
 

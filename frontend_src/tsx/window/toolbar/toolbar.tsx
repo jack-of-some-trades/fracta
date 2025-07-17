@@ -113,7 +113,7 @@ function ToolBoxOverlay( props:toolbox_props ){
     return (
         <OverlayDiv 
             id={props.id}
-            location={location()}
+            location={location}
             setLocation={setLocation}
             location_ref={location_reference.TOP_LEFT}
             drag_handle={`#${props.id}>#menu_dragable`}

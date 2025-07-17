@@ -2,7 +2,7 @@ import * as lwc from "lightweight-charts";
 import { Accessor, createSignal, JSX, Setter } from "solid-js";
 import { ChartFrame } from "../../tsx/charting_frame/chart_elements";
 import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, treeBranchInterface } from "../../tsx/widget_panels/object_tree";
-import { contextMenuItem } from "../../tsx/window/context_menu";
+import { contextMenuItem, MenuContextListener } from "../../tsx/window/context_menu";
 import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { point } from "../../tsx/window/overlay_manager";
 import { applyOpacity, tf, ticker } from "../types";
@@ -110,6 +110,11 @@ export class charting_frame extends frame {
                 'rightBarStaysOnScroll': true
             })
         })
+        this.chart_el?.addEventListener(
+            'contextmenu', 
+            MenuContextListener.bind(this.ctxMenuStruct),
+            {capture:true}
+        )
     }
 
     onActivation() {

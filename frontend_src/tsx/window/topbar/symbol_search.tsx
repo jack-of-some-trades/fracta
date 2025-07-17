@@ -68,7 +68,7 @@ export function SymbolSearchBox(){
             setFilters={setFilters}
             replace={replace()}
             setReplace={setReplace}
-            location={menuLocation()}
+            location={menuLocation}
             setLocation={setMenuLocation}
             updateLocation={position_menu}
         />,

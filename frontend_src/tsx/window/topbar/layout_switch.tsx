@@ -84,7 +84,7 @@ export function LayoutSwitcher(){
             onSel={onSel}
             opts={LayoutOpts} 
             setOpts={setLayoutOpts}
-            location={menuLocation()}
+            location={menuLocation}
             updateLocation={updateLocation}
         />, 
     )
