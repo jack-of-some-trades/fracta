@@ -1,6 +1,9 @@
 
 // #region ---------------- Classes & Interfaces ---------------- //
 
+export type MouseEventKeys = KeysOfType<HTMLElementEventMap, MouseEvent>
+export type KeysOfType<T, ValueType> = {[K in keyof T]: T[K] extends ValueType ? K : never }[keyof T];
+
 /* Represents information about a specific Ticker */
 export interface ticker {
     symbol: string

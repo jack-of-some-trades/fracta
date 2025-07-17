@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { Icon, icons } from "../generic_elements/icons";
 import { location_reference, OverlayCTX, OverlayDiv, point } from "./overlay_manager";
 
@@ -27,8 +27,6 @@ const [menuLocation, setMenuLocation] = createSignal<point>({x:0, y:0})
 function appendMenuItems(items:contextMenuItem[][]){ 
     setMenuItems([...menuItems(), ...items]) 
 }
-
-createEffect(() => console.log(menuLocation()))
 
 const CONTEXT_MENU_CTX = {
     display: createSignal<boolean>(false),

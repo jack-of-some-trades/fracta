@@ -10,9 +10,16 @@ import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
 import { charting_pane } from "./charting_pane";
 import { indicator, isIndicator } from "./indicator";
+import { isPrimitive, PrimitiveBase } from "./primitive-plugins/primitive-base";
 import { PrimitiveSet } from "./primitive-plugins/primitive-set";
-import { Series_Type } from "./series-plugins/series-base";
+import { Series_Type, SeriesBase_T } from "./series-plugins/series-base";
 
+
+type ChartingEvent<T = lwc.Time> = lwc.MouseEventParams<T> & {
+    hoveredSeriesBase: SeriesBase_T | undefined,
+    hoveredPrimitiveBase: PrimitiveBase | undefined,
+}
+type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
 
 export interface data_src {
     indicator:indicator
@@ -147,27 +154,31 @@ export class charting_frame extends frame {
         false
     )}
     
-    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
-    fullUpdate() { this._chart.Wf.ts.Bh() }
-    //@ts-ignore Valid only for Lightweight-Charts v5.0.8
-    lightUpdate() { this._chart.Wf.ts.ar() }
+    fitContent() { this._chart.timeScale().fitContent() }
+    autoscaleContent() { this._chart.timeScale().resetTimeScale() }
+    applyChartOpts(newOpts: lwc.DeepPartial<lwc.ChartOptions>) { this._chart.applyOptions(newOpts) }
+    updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
+    
+    // #endregion
 
-    _getMouseEventParams(
+    //#region -------------- Mouse Events ------------------ //
+
+    private _getMouseEventParams(
         index : lwc.Logical | null, 
         pt : point | null, 
         sourceEvent : lwc.TouchMouseEventData
     ):lwc.MouseEventParams<lwc.Time>{
         let renamed = {}
         //@ts-ignore := Chart._chartWidget._getMouseEventParamsImpl() : v5.0.8
-        Object.entries(this._chart.Df.xw(index, pt, sourceEvent)).forEach(
+        Object.entries(this._chart.Wf.xw(index, pt, sourceEvent)).forEach(
             //@ts-ignore :: Rename from Minified keys => Actual Keys
             ([k,v]) => {renamed[MouseEventKeyMap[k]] = v}
         )
         return renamed as lwc.MouseEventParams<lwc.Time>
     }
     
-    //** Takes a normal MouseEvent and Returns the Lightweight-Charts Mouse Event. */
-    makeEventParams(e: MouseEvent): lwc.MouseEventParams<lwc.Time> {
+    //** Takes a normal MouseEvent and Returns the and extended Lightweight-Charts Mouse Event. */
+    makeEventParams(e: MouseEvent): ChartingEvent {
         let index = this._chart.timeScale().coordinateToLogical(e.offsetX)
         let sourceEvent:lwc.TouchMouseEventData = {
             clientX: e.clientX as lwc.Coordinate,
@@ -189,14 +200,14 @@ export class charting_frame extends frame {
             ? { x: e.clientX - rect.left as lwc.Coordinate, y: e.clientY - rect.top as lwc.Coordinate }
             : null
 
-        //TODO : Update this to make hoveredSeries hit registration better. See Comment at EoF.
-        return this._getMouseEventParams(index, pt, sourceEvent)
-    }
+        const lwcEvent = this._getMouseEventParams(index, pt, sourceEvent)
 
-    fitContent() { this._chart.timeScale().fitContent() }
-    autoscaleContent() { this._chart.timeScale().resetTimeScale() }
-    applyChartOpts(newOpts: lwc.DeepPartial<lwc.ChartOptions>) { this._chart.applyOptions(newOpts) }
-    updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
+        return {...lwcEvent, ...{
+            //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
+            'hoveredSeriesBase': advSeriesHitTest(lwcEvent),
+            'hoveredPrimitiveBase': isPrimitive(lwcEvent.hoveredObjectId) ? lwcEvent.hoveredObjectId : undefined
+        }} 
+    }
 
     // #endregion
 
@@ -389,37 +400,32 @@ function DEFAULT_CHART_OPTS(){
     return OPTS
 }
 
-
-/** Mouse Event Params
- * 
- * The Mouse Event Parameters that are returned are largely what you'd expect aside from the hoveredSeries. This isn't the Series
- * Object that is drawn on the screen, but the series object a primitive is attached to. Rather annoying Tbh. Although, since the
- * seriesData is accurate you could, if you found a way to work out the thickness of line plots, use the series data and the
- * Y Coordinate to work back to which series your cursor is over. Would actually be beneficial to do this then overwrite
- * 'hoveredSeries' into the expected series object. Not even just the seriesAPI Object but the Series-Base object defined by this lib.
- * 
- * Hell maybe instead of baking this feature directly into the make_event_params function you make it a public function that takes
- * a Lightweight-Charts MouseEventParam object so it only gets invoked when needed to save on computation. This has the added benefit
- * that anything that wants to subscribe to a native lwc CrosshairMove, Click, or DblClick can get the hovered series as needed.
- */
-
 /** Lightweight Charts v5.0.8 Minified Mappings
  * chartingframe.chart === lwc.ChariApi Object
  * 
  * this.chart.Wf === ChartApi._chartWidget: ChartWidget
  * this.chart.Wf.ts === ChartApi._chartWidget._model: ChartModel
- * this.chart.Wf.ts.Bh() === ChartApi._chartWidget._model.fullUpdate()
- * this.chart.Wf.ts.ar() === ChartApi._chartWidget._model.lightUpdate()
  * this.chart.Wf.ts.qu[] === ChartApi._chartWidget._model._serieses[]: Series[]
  * this.chart.Wf.ts.$u[] === ChartApi._chartWidget._model._panes[]: Pane[]
- * this.chart.Df.xw() === ChartApi._chartWidget._getMouseEventParamsImpl()
+ * this.chart.Wf.xw() === ChartApi._chartWidget._getMouseEventParamsImpl()
+ * 
+ * ** Not currently used but have been useful before
+ * this.chart.Wf.ts.Bh() === ChartApi._chartWidget._model.fullUpdate() // Recreate the DOM Element?
+ * this.chart.Wf.ts.ar() === ChartApi._chartWidget._model.lightUpdate() // Redraw the canvas
  * 
  * _series.Jn.bh === seriesAPI.Series<SeriesType>.CustomPriceLines[]
  * _series.Jn.kh === seriesAPI.Series<SeriesType>.PrimitiveWrapperArray[]
  * _series.Jn.kh[].ah === seriesAPI.Series<SeriesType>.PrimitiveWrapperArray[].PrimitveObj
+ * 
+ * MouseEvent.Wt === MouseEvent.SeriesData
+ * MouseEvent.se === MouseEvent.CustomSeriesValues
  */  
 
 //** Key Map for Lightweight Charts MouseEvent Params: Valid only for Lightweight-Charts v5.0.8  */
+/**
+ * The Mouse Event Parameters that are returned are largely what you'd expect aside from the hoveredSeries. This isn't the Series
+ * Object that is drawn on the screen, but the series object a hovered primitive is attached to. 
+ */
 const MouseEventKeyMap: {[key:string]: keyof lwc.MouseEventParams} = {
     Pw: 'time',
     Re: 'logical',
@@ -429,4 +435,14 @@ const MouseEventKeyMap: {[key:string]: keyof lwc.MouseEventParams} = {
     Rw: 'seriesData', 
     Dw: 'hoveredObjectId',
     Vw: 'sourceEvent'
+}
+
+function advSeriesHitTest(params: lwc.MouseEventParams<lwc.Time>): SeriesBase_T | undefined {
+    //@ts-ignore The next line pulls out the seriesBase instance of the associated lwc.series obj
+    //and uses the seriesIndex() to reverse order them by index; Note, only Series from the clicked pane are returned.
+    const orderedPairs = Array.from(params.seriesData).sort((o1, o2) => o2[0].seriesBase?.index - o1[0].seriesBase?.index)
+    for (const [Series, SeriesData] of orderedPairs) {
+        //@ts-ignore -- Return the First SeriesBase that passes it's hitTest: Valid only for Lightweight-Charts v5.0.8 
+        if (Series.seriesBase?.hitTest(params, SeriesData.se ?? SeriesData.Wt)) return Series.seriesBase
+    }
 }

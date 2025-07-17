@@ -4,9 +4,10 @@
  */
 import * as lwc from "lightweight-charts";
 import { ORDERABLE, Orderable, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
-import { charting_frame, charting_pane } from "../charting_frame";
+import { charting_frame } from "../charting_frame";
+import { charting_pane } from "../charting_pane";
 import { indicator } from "../indicator";
-import { RoundedCandleSeriesData, RoundedCandleSeriesImpl, RoundedCandleSeriesOptions, RoundedCandleSeriesPartialOptions } from "./rounded-candles-series/rounded-candles-series";
+import { RoundedCandleHitTest, RoundedCandleSeriesData, RoundedCandleSeriesImpl, RoundedCandleSeriesOptions, RoundedCandleSeriesPartialOptions } from "./rounded-candles-series/rounded-candles-series";
 
 
 // #region --------------------- Type Definitions & Interface Extensions ----------------------- */
@@ -51,6 +52,21 @@ const SERIES_TYPE_MAP = new Map<Series_Type, SeriesDefinitions>([
     [Series_Type.BAR, lwc.BarSeries],
     [Series_Type.OHLC, lwc.CandlestickSeries],
     [Series_Type.CANDLESTICK, lwc.CandlestickSeries],
+])
+
+const NULL_HIT = () => false
+// Unlisted Series Types default to 
+type HitTest = (this:SeriesBase_T, params: lwc.MouseEventParams, data:any) => boolean
+const SERIES_HIT_TEST_MAP = new Map<Series_Type, HitTest>([
+    // Built-In Series Types
+    [Series_Type.LINE, LineHitTest],
+    [Series_Type.AREA, LineHitTest],
+    [Series_Type.HISTOGRAM, HistogramHitTest],
+    [Series_Type.BAR, CandleHitTest],
+    [Series_Type.OHLC, CandleHitTest],
+    [Series_Type.CANDLESTICK, CandleHitTest],
+    // Custom Series Types
+    [Series_Type.ROUNDED_CANDLE, RoundedCandleHitTest],
 ])
 
 export type BarSeries = SeriesBase<'Bar'>
@@ -132,6 +148,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     sType: Series_Type
     _name: string | undefined
 
+    hitTest: HitTest
     _markers: Map<string, lwc.SeriesMarker<lwc.Time>> | undefined
     _markersPlugin: lwc.ISeriesMarkersPluginApi<lwc.Time> | undefined
     _pricelines: Map<string, lwc.IPriceLine> | undefined
@@ -149,6 +166,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this._indicator = _indicator
         this._name = displayName
         this._series = this._createSeries(sType)
+        this.hitTest = SERIES_HIT_TEST_MAP.get(sType)?.bind(this) ?? NULL_HIT
 
         console.log(this)
         this.leafProps = {
@@ -158,18 +176,25 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         }
     }
     
-    private _createSeries(series_type: Series_Type): lwc.ISeriesApi<lwc.SeriesType> {
+    private _createSeries(series_type: Series_Type): SeriesApi {
         let _lwc_type = SERIES_TYPE_MAP.get(series_type)
-        if (_lwc_type) return this.pane._addSeries(_lwc_type)
+        let new_series
+        if (_lwc_type) new_series = this.pane._addSeries(_lwc_type)
 
         // ---- Custom Series Types ---- //
-        switch (series_type) {
+        else switch (series_type) {
             // Add Custom Series Switch statement so accommodations don't need to be made on the Python side
             case (Series_Type.ROUNDED_CANDLE):
-                return this.pane._addCustomSeries(new RoundedCandleSeriesImpl())
+                new_series = this.pane._addCustomSeries(new RoundedCandleSeriesImpl())
+                break;
         }
+        if (!new_series)
+            throw TypeError(`Unknown Series Type: ${series_type}`)
 
-        throw TypeError(`Unknown Series Type: ${series_type}`)
+        // Provide a reference back to the SeriesBase Obj from the internal Series Object,
+        // @ts-ignore -- SeriesAPI._series.seriesBase = this : Valid only for Lightweight-Charts v5.0.8
+        new_series.Jn.seriesBase = this
+        return new_series
     }
 
     get id() : string {return this._id}
@@ -289,6 +314,8 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         //Setting Data Changes Visible Range, set it back.
         if (current_range !== null)
             this.chart.timeScale().setVisibleRange(current_range)
+        
+        this.hitTest = SERIES_HIT_TEST_MAP.get(this.sType)?.bind(this) ?? NULL_HIT
     }
 
     // #region -------- lightweight-chart ISeriesAPI functions --------
@@ -316,3 +343,44 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     // unsubscribeDataChanged(handler: lwc.DataChangedHandler) {this._series.unsubscribeDataChanged(handler)}
     // #endregion
 }
+
+// #region ---- ---- ---- ---- SeriesAPI HitTests ---- ---- ---- ---- 
+
+function LineHitTest(this:SeriesBase_T, params: lwc.MouseEventParams, data:Array<number>): boolean {
+    const localY = params.sourceEvent?.localY
+    if (localY === undefined || !data ) return false
+    
+    // Data = [value, value, value, value]
+    const value = this.priceToCoordinate(data[0] as number)
+
+    // Cursor is within 5 px of the line
+    return (value && (Math.abs(value - localY) <= 5)) ?? false
+}
+
+
+function HistogramHitTest(this:SeriesBase_T, params: lwc.MouseEventParams, data:Array<number>): boolean {
+    const localY = params.sourceEvent?.localY
+    if (localY === undefined || !data ) return false
+    
+    // Data = [value, value, value, value]
+    const value = this.priceToCoordinate(data[0] as number)
+
+    if (this.priceScale().options().invertScale)
+        return (value && localY < value) ?? false
+    else
+        return (value && localY > value) ?? false
+}
+
+
+function CandleHitTest(this:SeriesBase_T, params: lwc.MouseEventParams, data:Array<number>): boolean {
+    const localY = params.sourceEvent?.localY
+    if (localY === undefined || !data ) return false
+    
+    // Data = [open, high, low, close]
+    const high = this.priceToCoordinate(data[1] as number)
+    const low = this.priceToCoordinate(data[2] as number)
+
+	// gt & lt signs are backwards because coordinate is measured from top, not from bottom
+	return ((high && low) && (high <= localY && low >= localY)) ?? false 
+}
+// #endregion

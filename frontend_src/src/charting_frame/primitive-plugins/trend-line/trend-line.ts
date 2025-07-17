@@ -13,7 +13,7 @@ import {
 	Time
 } from 'lightweight-charts';
 import { point } from '../../../../tsx/window/overlay_manager';
-import { PrimitiveBase, draw_dot, primitiveOptions } from '../primitive-base';
+import { HoveredItem, PrimitiveBase, draw_dot, primitiveOptions } from '../primitive-base';
 
 
 /* --------------------- Primitive Options ----------------------- */
@@ -37,6 +37,10 @@ interface TrendLineParameters {
 	p2: SingleValueData | null,
 	options?: Partial<TrendLineOptions>
 }
+
+const LINE = 0
+const P1 = 1
+const P2 = 2
 
 /* --------------------- Primitive Main Class ----------------------- */
 
@@ -90,8 +94,9 @@ export class TrendLine extends PrimitiveBase {
 		};
 	}
 
-	hitTest(x: number, y: number): PrimitiveHoveredItem | null {
-		return this._paneView.hitTest(x, y)
+	hitTest(x: number, y: number): PrimitiveHoveredItem | null { 
+		// @ts-ignore ---- Let's just pretend its the right object ok? I want better hit-detection.
+		return this._paneView.hitTest(x, y) as PrimitiveHoveredItem
 	}
 
 	/**
@@ -194,7 +199,7 @@ class TrendLinePaneView implements IPrimitivePaneView {
 	_p1: Point | null = null
 	_p2: Point | null = null
 	_source: TrendLine;
-	_hovered: boolean = false
+	_hovered: number | undefined
 	_selected: boolean = false
 	_renderer: TrendLinePaneRenderer
 
@@ -269,12 +274,12 @@ class TrendLinePaneView implements IPrimitivePaneView {
 	 * the parent indicator if applicable, p_XXXX the unique ID for this primitive, and [_[arg]]
 	 * is any optional extention to specify what part of the primitive (_p1 or _p2 in this case)
 	 */
-	hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+	hitTest(x: number, y: number): HoveredItem | null {
 		if (this.line === null || this.ctx === null) return null
 		if (this._p1 === null || this._p2 === null) return null
 		if (!this._source._options.tangible || !this._source._options.visible) return null
 
-		this._hovered = false //Assume it isn't. Will correct if not.
+		this._hovered = undefined //Assume it isn't hovered. Will correct if not.
 		if (!( //Course X range Check
 			x + 10 > this._p1.x && x - 10 < this._p2.x ||
 			x - 10 < this._p1.x && x + 10 > this._p2.x
@@ -287,28 +292,28 @@ class TrendLinePaneView implements IPrimitivePaneView {
 
 		//Only check to a square around the point since it's much faster
 		if (Math.abs(this._p1.x - x) < 10 && Math.abs(this._p1.y - y) < 10) {
-			this._hovered = true
+			this._hovered = P1
 			return { 
 				cursorStyle: 'grab',
-				externalId: this._source._id + '_p1',
+				externalId: this._source,
 				zOrder: 'normal'
 			}
 		}
 		if (Math.abs(this._p2.x - x) < 10 && Math.abs(this._p2.y - y) < 10) {
-			this._hovered = true
+			this._hovered = P2
 			return {
 				cursorStyle: 'grab',
-				externalId: this._source._id + '_p2',
+				externalId: this._source,
 				zOrder: 'normal'
 			}
 		}
 		//Set min width so it's easier to hover on small lines
 		this.ctx.lineWidth = Math.max(this._source._options.width, 6)
 		if (this.ctx.isPointInStroke(this.line, x, y)) {
-			this._hovered = true
+			this._hovered = LINE
 			return {
 				cursorStyle: 'grab',
-				externalId: this._source._id,
+				externalId: this._source,
 				zOrder: 'normal',
 			}
 		}
@@ -319,7 +324,7 @@ class TrendLinePaneView implements IPrimitivePaneView {
 class TrendLinePaneRenderer implements IPrimitivePaneRenderer {
 	_p1: Point | null = null
 	_p2: Point | null = null
-	_hovered: boolean = false
+	_hovered: number | undefined
 	_selected: boolean = false
 	_options: TrendLineOptions
 	_passback: CallableFunction
@@ -351,7 +356,7 @@ class TrendLinePaneRenderer implements IPrimitivePaneRenderer {
 		});
 	}
 
-	_update(p1: Point | null, p2: Point | null, hovered: boolean, selected: boolean, options:TrendLineOptions) {
+	_update(p1: Point | null, p2: Point | null, hovered: number | undefined, selected: boolean, options:TrendLineOptions) {
 		this._p1 = p1
 		this._p2 = p2
 		this._options = options

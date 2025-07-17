@@ -20,16 +20,18 @@ import { ensureDefined } from '../helpers/assertions';
 import { SeriesBase_T } from '../series-plugins/series-base';
 import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 
+//@ts-ignore ---- Hijack the returned primitve to yield the actual object instead.
+export interface HoveredItem extends PrimitiveHoveredItem {
+	externalId: PrimitiveBase
+}
+
 export interface primitiveOptions {
     visible: boolean
     tangible: boolean
     autoscale: boolean
 }
 
-const PRIMITIVE = Symbol('SeriesPrimitive')
-export function isPrimitive(obj: unknown): obj is PrimitiveBase { 
-    return ( obj !== null && typeof obj === 'object' && PRIMITIVE in obj )
-}
+export function isPrimitive(obj: unknown): obj is PrimitiveBase { return obj instanceof PrimitiveBase }
 
 /**
  * This is a near implementation to the plugin-base class that is in (but not exported from)
@@ -43,7 +45,6 @@ export function isPrimitive(obj: unknown): obj is PrimitiveBase {
  * Docs: https://tradingview.github.io/lightweight-charts/docs/plugins/series-primitives
  */
 export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable {
-    [PRIMITIVE]:true = true;
     [ORDERABLE]:true = true;
     private _frame: charting_frame | undefined
     private _parent: PrimitiveSet | SeriesBase_T | undefined
@@ -60,6 +61,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
 
     //Any of the methods below can be defined by a sub-class. In doing so they will be added as listeners
+    // @ts-ignore
     hitTest?(x: number, y: number): PrimitiveHoveredItem | null;
     protected onDataUpdate?(scope: DataChangedScope): void;
     protected onClick?(param: MouseEventParams<Time>): void;

@@ -2,7 +2,9 @@ import { ReactiveMap } from "@solid-primitives/map"
 import { Accessor, createSignal } from "solid-js"
 import { icons } from "../../../tsx/generic_elements/icons"
 import { KeyboardCTX } from "../../../tsx/window/keyboard_listener"
-import { charting_pane, isChartingFrame } from "../charting_frame"
+import { MouseEventKeys } from "../../types"
+import { isChartingFrame } from "../charting_frame"
+import { charting_pane } from "../charting_pane"
 import { isPrimitive, PrimitiveBase } from "./primitive-base"
 
 
@@ -73,8 +75,6 @@ export interface PrimitiveTool {
     cleanup: () => void,
 }
 
-type KeysOfType<T, ValueType> = {[K in keyof T]: T[K] extends ValueType ? K : never }[keyof T];
-type MouseEventKeys = KeysOfType<HTMLElementEventMap, MouseEvent>
 type ToolGeneratorFunc = (pane:charting_pane, e:MouseEvent) => PrimitiveBase | null
 
 const PRIMITIVE_TOOL_MAP = new Map<icons, PrimitiveTool> ([])
