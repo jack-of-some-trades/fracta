@@ -70,6 +70,56 @@ export class tf {
     toValue(): number { return this.multiplier * intervalValMap[this.period] }
 }
 
+//#endregion 
+
+
+// #region ---------------- Event Delegate & Callback Types ---------------- //
+
+export type Callback<T1 = void, T2 = void, T3 = void> = (param1: T1, param2: T2, param3: T3) => void;
+
+export interface ISubscription<T1 = void, T2 = void, T3 = void> {
+	subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void;
+	unsubscribe(callback: Callback<T1, T2, T3>): void;
+	unsubscribeAll(linkedObject: unknown): void;
+}
+
+interface Listener<T1, T2, T3> {
+	callback: Callback<T1, T2, T3>;
+	linkedObject?: unknown;
+	singleshot: boolean;
+}
+
+export class Delegate<T1 = void, T2 = void, T3 = void> implements ISubscription<T1, T2, T3> {
+	private _listeners: Listener<T1, T2, T3>[] = [];
+	hasListeners(): boolean { return this._listeners.length > 0 }
+	clear() { this._listeners = [] }
+
+	subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void {
+		const listener: Listener<T1, T2, T3> = {
+			callback,
+			linkedObject,
+			singleshot: singleshot === true,
+		};
+		this._listeners.push(listener);
+	}
+
+	unsubscribe(callback: Callback<T1, T2, T3>): void {
+		const index = this._listeners.findIndex((listener: Listener<T1, T2, T3>) => callback === listener.callback)
+		if (index > -1) this._listeners.splice(index, 1)
+	}
+
+    /* unsubscribe all but the callbacks associated with the given object */
+	unsubscribeAll(linkedObject: unknown): void {
+		this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => listener.linkedObject !== linkedObject)
+	}
+
+	fire(param1: T1, param2: T2, param3: T3): void {
+		const listenersSnapshot = [...this._listeners]
+		this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => !listener.singleshot)
+		listenersSnapshot.forEach((listener: Listener<T1, T2, T3>) => listener.callback(param1, param2, param3))
+	}
+}
+
 //#endregion
 
 

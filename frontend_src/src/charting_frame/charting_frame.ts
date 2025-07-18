@@ -5,7 +5,7 @@ import { NULL_TREE_BRANCH_INTERFACE, ObjectTreeCTX, treeBranchInterface } from "
 import { contextMenuItem, MenuContextListener } from "../../tsx/window/context_menu";
 import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { point } from "../../tsx/window/overlay_manager";
-import { applyOpacity, tf, ticker } from "../types";
+import { applyOpacity, Delegate, MouseEventKeys, tf, ticker } from "../types";
 import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
 import { charting_pane } from "./charting_pane";
@@ -20,6 +20,7 @@ type ChartingEvent<T = lwc.Time> = lwc.MouseEventParams<T> & {
     hoveredPrimitiveBase: PrimitiveBase | undefined,
 }
 type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
+type ChartingEventsTypes = MouseEventKeys | 'crosshair'
 
 export interface data_src {
     indicator:indicator
@@ -44,6 +45,7 @@ export class charting_frame extends frame {
 
     pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
     attached = new Map<string, (indicator | PrimitiveSet)>()
+    private eventDelegates = new Map<ChartingEventsTypes, Delegate<ChartingEvent>>()
 
     timeframe: tf
     ticker: ticker
@@ -122,6 +124,8 @@ export class charting_frame extends frame {
             MenuContextListener.bind(this.ctxMenuStruct),
             {capture:true}
         )
+        this.subscribeMouseEvent('mousedown', (e) => console.log('mousedown', e))
+        this.subscribeMouseEvent('mouseup', (e) => console.log('mouseup', e))
     }
 
     onActivation() {
@@ -176,9 +180,17 @@ export class charting_frame extends frame {
         )
         return renamed as lwc.MouseEventParams<lwc.Time>
     }
+
+    private _convertMouseEventParams(params: lwc.MouseEventParams<lwc.Time>): ChartingEvent {
+        return {...params, ...{
+            //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
+            'hoveredSeriesBase': advSeriesHitTest(params),
+            'hoveredPrimitiveBase': isPrimitive(params.hoveredObjectId) ? params.hoveredObjectId : undefined
+        }} 
+    }
     
     //** Takes a normal MouseEvent and Returns the and extended Lightweight-Charts Mouse Event. */
-    makeEventParams(e: MouseEvent): ChartingEvent {
+    private _makeEventParams(e: MouseEvent): ChartingEvent {
         let index = this._chart.timeScale().coordinateToLogical(e.offsetX)
         let sourceEvent:lwc.TouchMouseEventData = {
             clientX: e.clientX as lwc.Coordinate,
@@ -200,14 +212,59 @@ export class charting_frame extends frame {
             ? { x: e.clientX - rect.left as lwc.Coordinate, y: e.clientY - rect.top as lwc.Coordinate }
             : null
 
-        const lwcEvent = this._getMouseEventParams(index, pt, sourceEvent)
-
-        return {...lwcEvent, ...{
-            //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
-            'hoveredSeriesBase': advSeriesHitTest(lwcEvent),
-            'hoveredPrimitiveBase': isPrimitive(lwcEvent.hoveredObjectId) ? lwcEvent.hoveredObjectId : undefined
-        }} 
+        return this._convertMouseEventParams(this._getMouseEventParams(index, pt, sourceEvent))
     }
+
+    private _fireMouseEvent(e:MouseEvent){
+        const delegate = this.eventDelegates.get(e.type as MouseEventKeys)
+        if (delegate && delegate.hasListeners()) delegate.fire(this._makeEventParams(e))
+    }
+
+    private _fireCrosshairEvent(e:lwc.MouseEventParams){
+        const delegate = this.eventDelegates.get('crosshair')
+        if (delegate && delegate.hasListeners()) delegate.fire(this._convertMouseEventParams(e))
+    }
+
+    subscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler){
+        const evtDelegate = this.eventDelegates.get(event)
+        if (evtDelegate){
+            evtDelegate.subscribe(handler)
+            return
+        } 
+        //Make the required Event delegate
+        const newEvtDelegate = new Delegate<ChartingEvent>()
+        this.eventDelegates.set(event, newEvtDelegate)
+        newEvtDelegate.subscribe(handler, this)
+
+        // Currently, these listeners are never removed & the delegates are never deleted.
+        if (event === 'crosshair'){
+            this._chart.subscribeCrosshairMove(this._fireCrosshairEvent)
+        } else {
+            this.chart_el.addEventListener(event, this._fireMouseEvent.bind(this))
+        }
+    }
+    
+    unsubscribeMouseEvent(event: MouseEventKeys, handler: ChartEventHandler){
+        const evtDelegate = this.eventDelegates.get(event)
+        if (evtDelegate) evtDelegate.unsubscribe(handler)
+    }
+
+    subscribeLogicalRangeChange(handler:lwc.LogicalRangeChangeEventHandler){
+        this._chart.timeScale().subscribeVisibleLogicalRangeChange(handler)
+    }
+
+    unsubscribeLogicalRangeChange(handler:lwc.LogicalRangeChangeEventHandler){
+        this._chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler)
+    }
+
+    subscribeTimeRangeChange(handler:lwc.TimeRangeChangeEventHandler<lwc.Time>){
+        this._chart.timeScale().subscribeVisibleTimeRangeChange(handler)
+    }
+
+    unsubscribeTimeRangeChange(handler:lwc.TimeRangeChangeEventHandler<lwc.Time>){
+        this._chart.timeScale().unsubscribeVisibleTimeRangeChange(handler)
+    }
+
 
     // #endregion
 

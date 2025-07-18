@@ -20,10 +20,8 @@ import { ensureDefined } from '../helpers/assertions';
 import { SeriesBase_T } from '../series-plugins/series-base';
 import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 
-//@ts-ignore ---- Hijack the returned primitve to yield the actual object instead.
-export interface HoveredItem extends PrimitiveHoveredItem {
-	externalId: PrimitiveBase
-}
+//@ts-ignore ---- Hijack the returned object to yield the actual object instead.
+export interface HoveredItem extends PrimitiveHoveredItem { externalId: PrimitiveBase }
 
 export interface primitiveOptions {
     visible: boolean
@@ -113,8 +111,6 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
             if (this.onClick) { this._chart.subscribeClick(this._fireClick); }
             if (this.onDblClick) { this._chart.subscribeDblClick(this._fireDblClick); }
             if (this.onCrosshairMove) { this._chart.subscribeCrosshairMove(this._fireCrosshairMove); }
-            if (this.onMouseDown) { this._frame?.chart_el.addEventListener('mousedown', this._fireMouseDown); }
-            if (this.onMouseUp) { this._frame?.chart_el.addEventListener('mouseup', this._fireMouseUp); }
         }
 
         this._requestUpdate = requestUpdate;
@@ -128,8 +124,6 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
         if (this.onClick) { this._chart?.unsubscribeClick(this._fireClick); }
         if (this.onDblClick) { this._chart?.unsubscribeDblClick(this._fireDblClick); }
         if (this.onCrosshairMove) { this._chart?.unsubscribeCrosshairMove(this._fireCrosshairMove); }
-        if (this.onMouseDown) { this._frame?.chart_el.removeEventListener('mousedown', this._fireMouseDown); }
-        if (this.onMouseUp) { this._frame?.chart_el.removeEventListener('mouseup', this._fireMouseUp); }
 
         this._chart = undefined;
         this._series = undefined;
@@ -140,8 +134,6 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     // lexical 'this' scope (due to the use of the arrow function)
     // and to ensure its reference stays the same, so we can unsubscribe later.
     private _fireDataUpdated = (scope: DataChangedScope) => { if (this.onDataUpdate) { this.onDataUpdate(scope); }}
-    private _fireMouseDown = (e: MouseEvent) => { if (this.onMouseDown && this._frame) this.onMouseDown(this._frame.makeEventParams(e)); }
-    private _fireMouseUp = (e: MouseEvent) => {  if (this.onMouseUp && this._frame) this.onMouseUp(this._frame.makeEventParams(e)); }
     private _fireClick = (e: MouseEventParams<Time>) => { if (this.onClick) { this.onClick(e); }}
     private _fireDblClick = (e: MouseEventParams<Time>) => { if (this.onDblClick) { this.onDblClick(e); }}
     private _fireCrosshairMove = (e: MouseEventParams<Time>) => { if (this.onCrosshairMove) { this.onCrosshairMove(e); }}
