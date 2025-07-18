@@ -58,6 +58,7 @@ function ToolBoxToggle(){
     return <div class="toolbox_btn_wrap" onMouseDown={()=>setVisibility(!visibility())} >    
         <Icon 
             icon={visibility()? icons.star_filled: icons.star}
+            selected={visibility()}
             width={26}
             height={26}
             classList={{toolbox_btn:true}}

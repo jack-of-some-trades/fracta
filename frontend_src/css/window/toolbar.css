@@ -54,6 +54,19 @@
 .toolbar_menu_button:hover .icon {
     color: var(--icon-color);
 }
+
+/* Reset rules to make the Cursor Icons not show the selected state, but only on the toolbar  */
+
+svg.toolbar_icon_btn[id^="cursor_"][selected] {
+    color: var(--icon-color);
+    background-color: var(--icon-background-color);
+}
+
+svg.toolbar_icon_btn[id^="cursor_"]:hover {
+    color: var(--icon-color);
+    background-color: var(--icon-hover-color);
+}
+
 /* ********** ToolBox Visibility Button ********** */
 
 .toolbox_btn {
@@ -63,15 +76,6 @@
 .toolbox_btn_wrap{
     margin: 10px 4px 16px;
 } 
-
-/* CSS Work around for not being able to use the "activated" Prop
-on an Icon when it needs to be driven by an Overlay Visibility
-Accessor */
-.toolbox_btn_wrap #star_filled {
-    color: var(--icon-dark-color);
-    background-color: var(--accent-color);
-}
-
 
 /* ********** Floating ToolBox Overlay ********** */
 
