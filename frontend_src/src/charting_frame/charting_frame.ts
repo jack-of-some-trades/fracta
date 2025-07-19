@@ -15,12 +15,12 @@ import { PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { Series_Type, SeriesBase_T } from "./series-plugins/series-base";
 
 
-type ChartingEvent<T = lwc.Time> = lwc.MouseEventParams<T> & {
+export type ChartingEvent<T = lwc.Time> = lwc.MouseEventParams<T> & {
     hoveredSeriesBase: SeriesBase_T | undefined,
     hoveredPrimitiveBase: PrimitiveBase | undefined,
 }
-type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
-type ChartingEventsTypes = MouseEventKeys | 'crosshair'
+export type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
+export type ChartingEventsTypes = MouseEventKeys | 'crosshair'
 
 export interface data_src {
     indicator:indicator
@@ -101,6 +101,18 @@ export class charting_frame extends frame {
 
         this.ctxMenuStruct = generateContextMenuStruct(this)
         this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
+        this.chart_el?.addEventListener(
+            'contextmenu', 
+            this._onContextMenu.bind(this),
+            {capture:true}
+        )
+
+        //Add Base Click Event Types that auto forward the events to hovered Series & Primitives
+        this.subscribeMouseEvent('click', this._onClickTypeEvents.bind(this, 'click'))
+        this.subscribeMouseEvent('dblclick', this._onClickTypeEvents.bind(this, 'dblclick'))
+        this.subscribeMouseEvent('auxclick', this._onClickTypeEvents.bind(this, 'auxclick'))
+        this.subscribeMouseEvent('mousedown', this._onClickTypeEvents.bind(this, 'mousedown'))
+        this.subscribeMouseEvent('mouseup', this._onClickTypeEvents.bind(this, 'mouseup'))
 
         console.log(this)
         
@@ -119,13 +131,6 @@ export class charting_frame extends frame {
                 'rightBarStaysOnScroll': true
             })
         })
-        this.chart_el?.addEventListener(
-            'contextmenu', 
-            MenuContextListener.bind(this.ctxMenuStruct),
-            {capture:true}
-        )
-        this.subscribeMouseEvent('mousedown', (e) => console.log('mousedown', e))
-        this.subscribeMouseEvent('mouseup', (e) => console.log('mouseup', e))
     }
 
     onActivation() {
@@ -238,13 +243,13 @@ export class charting_frame extends frame {
 
         // Currently, these listeners are never removed & the delegates are never deleted.
         if (event === 'crosshair'){
-            this._chart.subscribeCrosshairMove(this._fireCrosshairEvent)
+            this._chart.subscribeCrosshairMove(this._fireCrosshairEvent.bind(this))
         } else {
             this.chart_el.addEventListener(event, this._fireMouseEvent.bind(this))
         }
     }
     
-    unsubscribeMouseEvent(event: MouseEventKeys, handler: ChartEventHandler){
+    unsubscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler){
         const evtDelegate = this.eventDelegates.get(event)
         if (evtDelegate) evtDelegate.unsubscribe(handler)
     }
@@ -265,6 +270,28 @@ export class charting_frame extends frame {
         this._chart.timeScale().unsubscribeVisibleTimeRangeChange(handler)
     }
 
+    private _onContextMenu(e:MouseEvent){
+        const params = this._makeEventParams(e)
+        const pane = this.panes()[params.paneIndex ?? -1]
+        const menuItems = this.ctxMenuStruct
+        if (pane) 
+            menuItems.concat(pane.ctxMenuStruct)
+        if (params.hoveredSeriesBase?.ctxMenuStruct) 
+            menuItems.concat(params.hoveredSeriesBase?.ctxMenuStruct)
+        if (params.hoveredPrimitiveBase?.ctxMenuStruct) 
+            menuItems.concat(params.hoveredPrimitiveBase?.ctxMenuStruct)
+
+        MenuContextListener.bind(menuItems)(e)
+    }
+
+    // Forward Click Events to Objects after a hit has been detected so each 
+    // object doesn't need to perform a ( this === hoveredObj ) check
+    private _onClickTypeEvents(event: ChartingEventsTypes, e: ChartingEvent){
+        // TODO: Determine what order these should go in, and if one fires
+        // should it block the other?
+        e.hoveredPrimitiveBase?.fireClickEvent(event, e)
+        e.hoveredSeriesBase?.fireClickEvent(event, e)
+    }
 
     // #endregion
 

@@ -4,7 +4,9 @@
  */
 import * as lwc from "lightweight-charts";
 import { ORDERABLE, Orderable, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
-import { charting_frame } from "../charting_frame";
+import { contextMenuItem } from "../../../tsx/window/context_menu";
+import { keyboardShortcut } from "../../../tsx/window/keyboard_listener";
+import { charting_frame, ChartingEvent, ChartingEventsTypes } from "../charting_frame";
 import { charting_pane } from "../charting_pane";
 import { indicator } from "../indicator";
 import { RoundedCandleHitTest, RoundedCandleSeriesData, RoundedCandleSeriesImpl, RoundedCandleSeriesOptions, RoundedCandleSeriesPartialOptions } from "./rounded-candles-series/rounded-candles-series";
@@ -152,6 +154,9 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     _markers: Map<string, lwc.SeriesMarker<lwc.Time>> | undefined
     _markersPlugin: lwc.ISeriesMarkersPluginApi<lwc.Time> | undefined
     _pricelines: Map<string, lwc.IPriceLine> | undefined
+
+    public shortcuts: keyboardShortcut[] | undefined
+    public ctxMenuStruct: contextMenuItem[][] | undefined
 
     leafProps: treeLeafInterface
 
@@ -342,6 +347,23 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     // subscribeDataChanged(handler: lwc.DataChangedHandler) {this._series.subscribeDataChanged(handler)}
     // unsubscribeDataChanged(handler: lwc.DataChangedHandler) {this._series.unsubscribeDataChanged(handler)}
     // #endregion
+
+    
+    onClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'click')}
+    onAuxClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'AuxClick')}
+    onDblClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'cliDblClick')}
+    onMouseUp(param:ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'MouseUp')}
+    onMouseDown(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'MouseDown')}
+    
+    public fireClickEvent(event: ChartingEventsTypes, e:ChartingEvent){
+        switch(event){
+            case 'click': this.onClick?.(e); break;
+            case 'auxclick': this.onAuxClick?.(e); break;
+            case 'dblclick':  this.onDblClick?.(e); break;
+            case 'mouseup': this.onMouseUp?.(e); break;
+            case 'mousedown': this.onMouseDown?.(e); break;
+        }
+    }
 }
 
 // #region ---- ---- ---- ---- SeriesAPI HitTests ---- ---- ---- ---- 
@@ -354,7 +376,7 @@ function LineHitTest(this:SeriesBase_T, params: lwc.MouseEventParams, data:Array
     const value = this.priceToCoordinate(data[0] as number)
 
     // Cursor is within 5 px of the line
-    return (value && (Math.abs(value - localY) <= 5)) ?? false
+    return (value && (Math.abs(value - localY) <= 10)) ?? false
 }
 
 

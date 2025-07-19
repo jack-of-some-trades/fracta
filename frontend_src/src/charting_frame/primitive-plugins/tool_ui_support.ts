@@ -149,7 +149,7 @@ function selectPrimitiveTool(tool:PrimitiveTool){
         if(!isChartingFrame(frame)) return
 
         frame.panes().forEach((pane) => {
-            // Adding the listener to the _chartEl limits primitives from being generation on the time or price axes
+            // Adding the listener to the _chartEl limits primitives from being generated on the time or price axes
             pane._chartEl?.addEventListener(
                 EventType, (e) => createPrimitiveTool(pane, ToolGenerator, e), {signal:creationController.signal}
             )

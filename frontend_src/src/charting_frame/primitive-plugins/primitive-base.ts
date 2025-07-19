@@ -5,7 +5,6 @@ import {
     ISeriesApi,
     ISeriesPrimitive,
     Logical,
-    MouseEventParams,
     Point,
     PrimitiveHoveredItem,
     SeriesAttachedParameter,
@@ -14,8 +13,10 @@ import {
     Time
 } from 'lightweight-charts';
 import { ORDERABLE, Orderable, treeLeafInterface } from '../../../tsx/widget_panels/object_tree';
+import { contextMenuItem } from '../../../tsx/window/context_menu';
+import { keyboardShortcut } from '../../../tsx/window/keyboard_listener';
 import { binarySearch } from '../../types';
-import { charting_frame } from '../charting_frame';
+import { charting_frame, ChartingEvent, ChartingEventsTypes } from '../charting_frame';
 import { ensureDefined } from '../helpers/assertions';
 import { SeriesBase_T } from '../series-plugins/series-base';
 import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
@@ -55,18 +56,35 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     _type: string = "null"
     _options: primitiveOptions
 
-    private _requestUpdate?: () => void;
-    protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
+    public shortcuts: keyboardShortcut[] | undefined
+    public ctxMenuStruct: contextMenuItem[][] | undefined
 
-    //Any of the methods below can be defined by a sub-class. In doing so they will be added as listeners
-    // @ts-ignore
+    private _requestUpdate?: () => void;
+    // requestUpdate() can be called to force a repaint of the chart's canvas
+    protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
+    // hitTest Should return itself as the 'externalID' instead of it'd actual id. Type-ignore the resulting error
     hitTest?(x: number, y: number): PrimitiveHoveredItem | null;
+
+    // The methods below can be defined by a sub-class. Their Respective events will only 
+    // be called When they are the 'hoveredPrimitiveBase' target of the Charting Event.
     protected onDataUpdate?(scope: DataChangedScope): void;
-    protected onClick?(param: MouseEventParams<Time>): void;
-    protected onMouseUp?(param: MouseEventParams<Time>): void;
-    protected onMouseDown?(param: MouseEventParams<Time>): void;
-    protected onDblClick?(param: MouseEventParams<Time>): void;
-    protected onCrosshairMove?(param: MouseEventParams<Time>): void;
+    protected onClick?(param: ChartingEvent): void;
+    protected onAuxClick?(param: ChartingEvent): void;
+    protected onDblClick?(param: ChartingEvent): void;
+    protected onMouseUp?(param:ChartingEvent): void;
+    protected onMouseDown?(param: ChartingEvent): void;
+
+    // The following methods will be added to their respective frame 'onAttached'. These fire much more frequently as a result
+    // ** Prioritize CrosshairMove over mouse move since the crosshair follows magnet cursor mode.
+    // ** These MouseEvents fire on the chart, not the pane. In each method
+    //  you should generally Check if ( e.paneIndex === this._parent.paneIndex )
+    protected onCrosshairMove?(param: ChartingEvent): void;
+    protected onMouseMove?(param: ChartingEvent): void;
+    protected onMouseEnter?(param: ChartingEvent): void;
+    protected onMouseLeave?(param: ChartingEvent): void;
+    protected onMouseOver?(param: ChartingEvent): void;
+    protected onMouseOut?(param: ChartingEvent): void;
+    protected onWheel?(param: ChartingEvent): void;
 
     constructor(_id:string, _type:string, _opts:primitiveOptions){
         this._id = _id
@@ -104,41 +122,66 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     public attached({ chart, series, requestUpdate }: SeriesAttachedParameter<Time>) {
         this._chart = chart;
         this._series = series;
+        this._frame = this._parent?.frame
+        
+        if (this.onDataUpdate) { this._series.subscribeDataChanged(this._fireDataUpdated); }
 
-        //Attach Listeners if they were defined by the subclass and obj is tangible
-        if (this._options.tangible){
-            if (this.onDataUpdate) { this._series.subscribeDataChanged(this._fireDataUpdated); }
-            if (this.onClick) { this._chart.subscribeClick(this._fireClick); }
-            if (this.onDblClick) { this._chart.subscribeDblClick(this._fireDblClick); }
-            if (this.onCrosshairMove) { this._chart.subscribeCrosshairMove(this._fireCrosshairMove); }
+        if (this._frame){
+            if (this.onCrosshairMove) { this._frame.subscribeMouseEvent('crosshair', this._fireCrosshairMove); }
+            if (this.onMouseMove) { this._frame.subscribeMouseEvent('mousemove', this._fireMouseMove); }
+            if (this.onWheel) { this._frame.subscribeMouseEvent('wheel', this._fireWheel); }
+            if (this.onMouseEnter) { this._frame.subscribeMouseEvent('mouseenter', this._fireMouseEnter); }
+            if (this.onMouseLeave) { this._frame.subscribeMouseEvent('mouseleave', this._fireMouseLeave); }
+            if (this.onMouseOver) { this._frame.subscribeMouseEvent('mouseover', this._fireMouseOver); }
+            if (this.onMouseOut) { this._frame.subscribeMouseEvent('mouseout', this._fireMouseOut); }
         }
-
         this._requestUpdate = requestUpdate;
         this.requestUpdate();
     }
 
     //** Invoked by Lightweight-Charts when the Primitive removed from the chart. */
     public detached() {
-        //Detach Listeners if they were defined by the subclass
-        if (this.onDataUpdate) { this._series?.unsubscribeDataChanged(this._fireDataUpdated); }
-        if (this.onClick) { this._chart?.unsubscribeClick(this._fireClick); }
-        if (this.onDblClick) { this._chart?.unsubscribeDblClick(this._fireDblClick); }
-        if (this.onCrosshairMove) { this._chart?.unsubscribeCrosshairMove(this._fireCrosshairMove); }
+        if (this.onDataUpdate && this._series) { 
+            this._series.unsubscribeDataChanged(this._fireDataUpdated); 
+        }
+
+        if (this._frame){
+            if (this.onCrosshairMove) { this._frame.unsubscribeMouseEvent('crosshair', this._fireCrosshairMove); }
+            if (this.onMouseMove) { this._frame.unsubscribeMouseEvent('mousemove', this._fireMouseMove); }
+            if (this.onWheel) { this._frame.unsubscribeMouseEvent('wheel', this._fireWheel); }
+            if (this.onMouseEnter) { this._frame.unsubscribeMouseEvent('mouseenter', this._fireMouseEnter); }
+            if (this.onMouseLeave) { this._frame.unsubscribeMouseEvent('mouseleave', this._fireMouseLeave); }
+            if (this.onMouseOver) { this._frame.unsubscribeMouseEvent('mouseover', this._fireMouseOver); }
+            if (this.onMouseOut) { this._frame.unsubscribeMouseEvent('mouseout', this._fireMouseOut); }
+        }
 
         this._chart = undefined;
         this._series = undefined;
         this._requestUpdate = undefined;
     }
 
-    // These methods are a class property to maintain the
-    // lexical 'this' scope (due to the use of the arrow function)
-    // and to ensure its reference stays the same, so we can unsubscribe later.
-    private _fireDataUpdated = (scope: DataChangedScope) => { if (this.onDataUpdate) { this.onDataUpdate(scope); }}
-    private _fireClick = (e: MouseEventParams<Time>) => { if (this.onClick) { this.onClick(e); }}
-    private _fireDblClick = (e: MouseEventParams<Time>) => { if (this.onDblClick) { this.onDblClick(e); }}
-    private _fireCrosshairMove = (e: MouseEventParams<Time>) => { if (this.onCrosshairMove) { this.onCrosshairMove(e); }}
+    public fireClickEvent(event: ChartingEventsTypes, e:ChartingEvent){
+        switch(event){
+            case 'click': this.onClick?.(e); break;
+            case 'auxclick': this.onAuxClick?.(e); break;
+            case 'dblclick':  this.onDblClick?.(e); break;
+            case 'mouseup': this.onMouseUp?.(e); break;
+            case 'mousedown': this.onMouseDown?.(e); break;
+        }
+    }
 
-    //Utility function to move a SingleValueData Point
+    private _fireCrosshairMove = (e:ChartingEvent) => this.onCrosshairMove?.(e)
+    private _fireMouseMove = (e:ChartingEvent) => this.onMouseMove?.(e)
+    private _fireWheel = (e:ChartingEvent) => this.onWheel?.(e)
+    private _fireMouseEnter = (e:ChartingEvent) => this.onMouseEnter?.(e)
+    private _fireMouseLeave = (e:ChartingEvent) => this.onMouseLeave?.(e)
+    private _fireMouseOver = (e:ChartingEvent) => this.onMouseOver?.(e)
+    private _fireMouseOut = (e:ChartingEvent) => this.onMouseOut?.(e)
+    private _fireDataUpdated = (scope: DataChangedScope) => this.onDataUpdate?.(scope)
+
+    //#region ------------------- Utility Functions -------------------
+
+    //Moves a SingleValueData Point by a given number of indecies (in X) and pixels (in Y)
     protected movePoint(pt: SingleValueData, dx: Logical, dy: Coordinate): SingleValueData | null {
         let x = this.chart.timeScale().timeToCoordinate(pt.time)
         let y = this.series.priceToCoordinate(pt.value)
@@ -157,7 +200,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
         return { time: px, value: py }
     }
 
-    //Utility Function to look at the chart's timescale and grab the nearest time to the time given
+    //Returns the nearest visible time to the time given.
     nearestBarTime(time:Time, look_left:boolean = true): Time | null {
         //@ts-ignore // Fetches the raw data from the timescale
         let time_points = this._chart?.timeScale().kl._u
@@ -174,36 +217,9 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
         else
             return bar_times[Math.min(-index + 1 , bar_times.length - 1)]
     }
-}
 
-/** #region ------------ Dead Code ------------ //
- * The code below could be placed into the Primitive Base to
- * make mouse events specific to the Pane/Price Axis/Time Axis
- * That's a lot of permutations that may never get used hence this code died.
- *
- * private _paneViewDiv: HTMLDivElement | undefined = undefined
- * private _paneTimeAxisDiv: HTMLDivElement | undefined = undefined
- * private _panePriceAxisDiv: HTMLDivElement | undefined = undefined
- * const cells = this._chart.chartElement().getElementsByTagName('td')
- * this._paneViewDiv = cells[1].firstChild as HTMLDivElement ?? undefined;
- * this._paneTimeAxisDiv = cells[2].firstChild as HTMLDivElement ?? undefined;
- * this._panePriceAxisDiv = cells[4].firstChild as HTMLDivElement ?? undefined;
- * 
- *  //Utility Function to tell where in the chart Div the event was fired from.
-    protected getPane(params: MouseEventParams<Time>): '' | 'ViewPane' | "TimePane" | "PricePane" | "Bot_Right_Corner" {
-        if (params.point && params.sourceEvent)
-            if (params.point.x === params.sourceEvent.localX && params.point.y === params.sourceEvent.localY)
-                return 'ViewPane'
-            else if (params.point.x === params.sourceEvent.localX && params.point.y !== params.sourceEvent.localY)
-                return "TimePane"
-            else if (params.point.x !== params.sourceEvent.localX && params.point.y === params.sourceEvent.localY)
-                return "PricePane"
-            else
-                return "Bot_Right_Corner"
-        return ''
-    }
- */
-//#endregion
+    //#endregion
+}
 
 /* --------------------- Custom Types & functions ----------------------- */
 

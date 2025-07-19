@@ -13,6 +13,7 @@ import {
 	Time
 } from 'lightweight-charts';
 import { point } from '../../../../tsx/window/overlay_manager';
+import { ChartingEvent } from '../../charting_frame';
 import { HoveredItem, PrimitiveBase, draw_dot, primitiveOptions } from '../primitive-base';
 
 
@@ -99,27 +100,21 @@ export class TrendLine extends PrimitiveBase {
 		return this._paneView.hitTest(x, y) as PrimitiveHoveredItem
 	}
 
-	/**
-	 * Move line / Point on line Function
-	 */
-	onMouseDown(param: MouseEventParams<Time>) {
+	/* Move line / Point on line */
+	onMouseDown(param: ChartingEvent) {
 		if (!this._options.visible || !this._options.tangible) return
-		const id = param.hoveredObjectId as string
-		if (!id || !id.startsWith(this.id) || !param.sourceEvent || !param.logical) {
-			this._paneView._selected = false
-			return
-		}
+		if (!param.sourceEvent || !param.logical) return
 
 		//Determine moveMove update Function
 		let update_func
-		if (id === this._id) {
+		if (this._paneView._hovered == LINE) {
 			//Binding a point object so that x & y can update inside function call 
 			update_func = this.mouseMoveWholeLine.bind(
 				this, {x:param.logical,y:param.sourceEvent.localY}
 			)
-		} else if (id === this._id+'_p1'){
+		} else if (this._paneView._hovered == P1){
 			update_func = this.mouseMoveEndPoint.bind(this, true)
-		} else if (id === this._id+'_p2'){
+		} else if (this._paneView._hovered == P1){
 			update_func = this.mouseMoveEndPoint.bind(this, false)
 		} else return
 
@@ -147,17 +142,17 @@ export class TrendLine extends PrimitiveBase {
 		},{once:true})
 	}
 
-	onClick(param: MouseEventParams<Time>) {
+	onClick(param: ChartingEvent) {
 		if (!this._options.visible || !this._options.tangible) return
-		switch (param.hoveredObjectId) {
-			case this._id+'_p1':
-				console.log('clicked p1')
+		switch (this._paneView._hovered) {
+			case P1:
+				console.log(this._type, 'clicked p1')
 				break;
-			case this._id+'_p2':
-				console.log('clicked p2')
+			case P2:
+				console.log(this._type, 'clicked p2')
 				break;
-			case this._id:
-				console.log('clicked line')
+			case LINE:
+				console.log(this._type, 'clicked line')
 				break;
 		}
 	}
@@ -187,6 +182,12 @@ export class TrendLine extends PrimitiveBase {
 		last_point.x = param.logical
 		last_point.y = param.sourceEvent.localY
 	}
+
+	
+	onAuxClick?(param: ChartingEvent){console.log(this._type, 'AuxClick')}
+	onDblClick?(param: ChartingEvent){console.log(this._type, 'cliDblClick')}
+	onMouseUp?(param:ChartingEvent){console.log(this._type, 'MouseUp')}
+	// onCrosshairMove?(param:ChartingEvent){console.log(this._type, param.logical, this._series?.coordinateToPrice(param.point?.y ?? -1))}
 
 	//#endregion
 }

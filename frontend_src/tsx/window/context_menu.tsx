@@ -11,7 +11,6 @@ import { location_reference, OverlayCTX, OverlayDiv, point } from "./overlay_man
  * @param e Mouse Event from the source Click
  */
 export function MenuContextListener(this:contextMenuItem[][], e: MouseEvent){
-    if (e.button !== 2) return
     e.preventDefault()
     CONTEXT_MENU_CTX.display[1](true)
     CONTEXT_MENU_CTX.appendMenuItems(this)
