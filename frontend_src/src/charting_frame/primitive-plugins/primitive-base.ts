@@ -12,9 +12,10 @@ import {
     SingleValueData,
     Time
 } from 'lightweight-charts';
+import { Accessor, createEffect, createSignal, on, Setter } from 'solid-js';
 import { ORDERABLE, Orderable, treeLeafInterface } from '../../../tsx/widget_panels/object_tree';
 import { contextMenuItem } from '../../../tsx/window/context_menu';
-import { keyboardShortcut } from '../../../tsx/window/keyboard_listener';
+import { KeyboardCTX, keyboardShortcut } from '../../../tsx/window/keyboard_listener';
 import { binarySearch } from '../../types';
 import { charting_frame, ChartingEvent, ChartingEventsTypes } from '../charting_frame';
 import { ensureDefined } from '../helpers/assertions';
@@ -56,13 +57,18 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     _type: string = "null"
     _options: primitiveOptions
 
+    // State variable controlled by the charting_frame. 
+    // True when the primitive has been clicked on using any mouse button.
+    selected: Accessor<boolean>
+    private setSelected: Setter<boolean>
+
     public shortcuts: keyboardShortcut[] | undefined
     public ctxMenuStruct: contextMenuItem[][] | undefined
 
     private _requestUpdate?: () => void;
     // requestUpdate() can be called to force a repaint of the chart's canvas
     protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
-    // hitTest Should return itself as the 'externalID' instead of it'd actual id. Type-ignore the resulting error
+    // hitTest Should return itself as the 'externalID' instead of it'd actual id. Ignore the resulting type error
     hitTest?(x: number, y: number): PrimitiveHoveredItem | null;
 
     // The methods below can be defined by a sub-class. Their Respective events will only 
@@ -74,7 +80,9 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     protected onMouseUp?(param:ChartingEvent): void;
     protected onMouseDown?(param: ChartingEvent): void;
 
-    // The following methods will be added to their respective frame 'onAttached'. These fire much more frequently as a result
+    // The following methods will be added to their respective frame 'onAttached'. They fire much more frequently as a result. 
+    // If these are used situationally then their subscription should be handled manually; 
+    // i.e. add crosshair subscription when user desires to move a point of a trendline, then remove subscriber once point move is complete.
     // ** Prioritize CrosshairMove over mouse move since the crosshair follows magnet cursor mode.
     // ** These MouseEvents fire on the chart, not the pane. In each method
     //  you should generally Check if ( e.paneIndex === this._parent.paneIndex )
@@ -90,6 +98,11 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
         this._id = _id
         this._type = _type
         this._options = _opts
+
+        const sig = createSignal(false)
+        this.selected = sig[0]; this.setSelected = sig[1];
+		createEffect(on(this.selected, () => this.requestUpdate()))
+
         this.leafProps = {
             id: _id,
             obj: this,
@@ -104,6 +117,18 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
     options(): primitiveOptions {return structuredClone(this._options)}
 
+    onActivation() { // When the Series has been first clicked on
+        console.log('activate primitive', this._type)
+        this.setSelected(true)
+        if (this.shortcuts) KeyboardCTX().attachHandler(this.id, this.shortcuts)
+    }
+
+    onDeactivation() {
+        console.log('deactivate primitive', this._type)
+        this.setSelected(false)
+        if (this.shortcuts) KeyboardCTX().detachHandler(this.id)
+    }
+
     remove() {
         if(isPrimitiveSet(this._parent)){
             this._parent.detachPrimitive(this)
@@ -117,6 +142,8 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     }
 
     public abstract updateData(params: object): void
+    
+    //#region ------------------- Mouse Event Implementation Functions -------------------
 
     //** Invoked by Lightweight-Charts when the Primitive is attached to the chart. */
     public attached({ chart, series, requestUpdate }: SeriesAttachedParameter<Time>) {
@@ -179,10 +206,13 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     private _fireMouseOut = (e:ChartingEvent) => this.onMouseOut?.(e)
     private _fireDataUpdated = (scope: DataChangedScope) => this.onDataUpdate?.(scope)
 
+    //#endregion
+
     //#region ------------------- Utility Functions -------------------
+    //TODO: Abstract these w/ dependency injection and move them to the helpers folder
 
     //Moves a SingleValueData Point by a given number of indecies (in X) and pixels (in Y)
-    protected movePoint(pt: SingleValueData, dx: Logical, dy: Coordinate): SingleValueData | null {
+    movePoint(pt: SingleValueData, dx: Logical, dy: Coordinate): SingleValueData | null {
         let x = this.chart.timeScale().timeToCoordinate(pt.time)
         let y = this.series.priceToCoordinate(pt.value)
         if (!x || !y) return null
@@ -200,22 +230,30 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
         return { time: px, value: py }
     }
 
-    //Returns the nearest visible time to the time given.
-    nearestBarTime(time:Time, look_left:boolean = true): Time | null {
-        //@ts-ignore // Fetches the raw data from the timescale
-        let time_points = this._chart?.timeScale().kl._u
-        if (time_points === undefined) return null
-        //@ts-ignore // When valid, pulls the unix time from the raw data
-        const bar_times = Array.from(time_points, (v) => v.originalTime)
-        // In this library python ensures all times are numbers => Time as Number is valid.
-        let index = binarySearch(bar_times, time as Number, (a,b) => a-b)
+    timeToIndex(time: Time): number | null {
+		const timescale = this.chart.timeScale()
+		return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
+    }
 
-        if (index >= 0)
-            return bar_times[index]
-        else if (look_left)
-            return bar_times[-index]
+    nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {
+        const _nearestTime = this.nearestBarTime(time, look_left)
+        return _nearestTime ? this.chart.timeScale().timeToCoordinate(_nearestTime) : null
+    }
+
+    //Returns the nearest visible time to the time given
+    nearestBarTime(time:Time, look_left:boolean = true): Time | null {
+        const time_points = this._frame?.timescaleTimes
+        if (time_points === undefined) return null
+
+        // In this library python ensures all times are numbers => Time as Number is valid.
+        let index = binarySearch(this._frame?.timescaleTimes ?? [], time as Number, (a,b) => a-b)
+
+        if (index >= 0) // Found Time value given
+            return time
+        else if (look_left) // Negative Index indicates nearest index to the left.
+            return time_points[-index] as Time
         else
-            return bar_times[Math.min(-index + 1 , bar_times.length - 1)]
+            return time_points[Math.min(-index + 1 , time_points.length - 1)] as Time
     }
 
     //#endregion

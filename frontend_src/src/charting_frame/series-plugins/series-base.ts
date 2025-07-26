@@ -5,7 +5,7 @@
 import * as lwc from "lightweight-charts";
 import { ORDERABLE, Orderable, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
 import { contextMenuItem } from "../../../tsx/window/context_menu";
-import { keyboardShortcut } from "../../../tsx/window/keyboard_listener";
+import { KeyboardCTX, keyboardShortcut } from "../../../tsx/window/keyboard_listener";
 import { charting_frame, ChartingEvent, ChartingEventsTypes } from "../charting_frame";
 import { charting_pane } from "../charting_pane";
 import { indicator } from "../indicator";
@@ -147,7 +147,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     private _indicator: indicator
 
     private _id: string
-    sType: Series_Type
+    _type: Series_Type
     _name: string | undefined
 
     hitTest: HitTest
@@ -163,15 +163,15 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     constructor(
         id: string,
         displayName: string | undefined,
-        sType: Series_Type,
+        type: Series_Type,
         _indicator: indicator
     ){
         this._id = id
-        this.sType = sType
+        this._type = type
         this._indicator = _indicator
         this._name = displayName
-        this._series = this._createSeries(sType)
-        this.hitTest = SERIES_HIT_TEST_MAP.get(sType)?.bind(this) ?? NULL_HIT
+        this._series = this._createSeries(type)
+        this.hitTest = SERIES_HIT_TEST_MAP.get(type)?.bind(this) ?? NULL_HIT
 
         console.log(this)
         this.leafProps = {
@@ -205,12 +205,88 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     get id() : string {return this._id}
     get indicator(): indicator {return this._indicator}
     get index(): number {return this._series.seriesOrder()}
-    get name() : string { return this._name? this._name : SERIES_NAME_MAP.get(this.sType) ?? ''}
+    get paneIndex(): number { return this._indicator.pane.paneIndex }
+    get name() : string { return this._name? this._name : SERIES_NAME_MAP.get(this._type) ?? ''}
     get pane() : charting_pane { return this._indicator.pane }
     get frame() : charting_frame { return this._indicator.frame }
     get chart() : lwc.IChartApi { return this._indicator.frame._chart }
 
-    //#region ---- ---- Markers Functions ---- ----
+    onActivation() { // When the Series has been first clicked on
+        console.log('activate series', this._type)
+        if (this.shortcuts) KeyboardCTX().attachHandler(this.id, this.shortcuts)
+    }
+
+    onDeactivation() {
+        console.log('deactivate series', this._type)
+        KeyboardCTX().detachHandler(this.id)
+    }
+    
+    remove(){ this.chart.removeSeries(this._series) }
+    protected update(bar: SeriesDataTypeMap_EXT[T]) { this._series.update(bar) }
+    protected setData(data: SeriesDataTypeMap_EXT[T][]) { this._series.setData(data) }
+
+    /* Changes the type of series that is displayed. Data must be given since the DataType may change */
+    protected change_series_type(series_type:Series_Type, data:SeriesData[]){
+        if (series_type === this._type) return
+
+        const current_zindex = this._series.seriesOrder()
+        const current_range = this.chart.timeScale().getVisibleRange()
+        
+        this.remove()
+        this._series = this._createSeries(series_type)
+        this._series.setData(data) // Type Checking presumed to have been done in python
+        this._type = series_type
+
+        //Reset the draw order to what is was before the change.
+        this._series.setSeriesOrder(current_zindex)
+
+        //Setting Data Changes Visible Range, set it back.
+        if (current_range !== null)
+            this.chart.timeScale().setVisibleRange(current_range)
+        
+        this.hitTest = SERIES_HIT_TEST_MAP.get(this._type)?.bind(this) ?? NULL_HIT
+    }
+
+    // #region ---- ---- lightweight-chart ISeriesAPI functions ---- ----
+
+    priceScale(): lwc.IPriceScaleApi {return this._series.priceScale()}
+    applyOptions(options: SeriesPartialOptionsMap_EXT[T]) {this._series.applyOptions(options)}
+    options(): Readonly<SeriesOptionsMap_EXT[T]> {return this._series.options() as SeriesOptionsMap_EXT[T]}
+
+    // data() may not work as intended. Extra data parameters are deleted on setData()
+    // e.g. High/Low/Close/Open values passed to a line series are deleted. Only 'time', 'value', and 'customValues' are kept.
+    data(): readonly SeriesDataTypeMap_EXT[T][] { return this._series.data() } 
+    dataByIndex(logicalIndex: number, mismatchDirection?: lwc.MismatchDirection): SeriesDataTypeMap_EXT[T] | null {return this._series.dataByIndex(logicalIndex, mismatchDirection)}
+    barsInLogicalRange(range: lwc.LogicalRange): lwc.BarsInfo<lwc.Time> | null {return this._series.barsInLogicalRange(range)}
+    
+    priceFormatter(): lwc.IPriceFormatter {return this._series.priceFormatter()}
+    priceToCoordinate(price: number): lwc.Coordinate | null {return this._series.priceToCoordinate(price)}
+    coordinateToPrice(coordinate: number): lwc.BarPrice | null {return this._series.coordinateToPrice(coordinate)}
+
+    // #endregion
+
+    // #region ---- ---- MouseEvent Functions ---- ----
+    // To be Implemented Mouse Events for Series Types
+
+    private _onClick(param: ChartingEvent){}
+    private _onAuxClick(param: ChartingEvent){}
+    private _onDblClick(param: ChartingEvent){}
+    private _onMouseUp(param:ChartingEvent){}
+    private _onMouseDown(param: ChartingEvent){}
+    
+    public fireClickEvent(event: ChartingEventsTypes, e:ChartingEvent){
+        switch(event){
+            case 'click': this._onClick?.(e); break;
+            case 'auxclick': this._onAuxClick?.(e); break;
+            case 'dblclick':  this._onDblClick?.(e); break;
+            case 'mouseup': this._onMouseUp?.(e); break;
+            case 'mousedown': this._onMouseDown?.(e); break;
+        }
+    }
+
+    //#endregion
+    
+    // #region ---- ---- Markers Functions ---- ----
 
     get markers(): Map<string, lwc.SeriesMarker<lwc.Time>>{
         if (this._markers === undefined)
@@ -263,7 +339,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
 
     //#endregion
 
-    //#region ---- ---- Priceline Functions ---- ----
+    // #region ---- ---- Priceline Functions ---- ----
 
     get pricelines():Map<string, lwc.IPriceLine> {
         if (this._pricelines == undefined)
@@ -299,74 +375,9 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         delete this._pricelines
     }
     //#endregion
-
-
-    /* Changes the type of series that is displayed. Data must be given since the DataType may change */
-    protected change_series_type(series_type:Series_Type, data:SeriesData[]){
-        if (series_type === this.sType) return
-
-        const current_zindex = this._series.seriesOrder()
-        const current_range = this.chart.timeScale().getVisibleRange()
-        
-        this.remove()
-        this._series = this._createSeries(series_type)
-        this._series.setData(data) // Type Checking presumed to have been done in python
-        this.sType = series_type
-
-        //Reset the draw order to what is was before the change.
-        this._series.setSeriesOrder(current_zindex)
-
-        //Setting Data Changes Visible Range, set it back.
-        if (current_range !== null)
-            this.chart.timeScale().setVisibleRange(current_range)
-        
-        this.hitTest = SERIES_HIT_TEST_MAP.get(this.sType)?.bind(this) ?? NULL_HIT
-    }
-
-    // #region -------- lightweight-chart ISeriesAPI functions --------
-    remove(){ this.chart.removeSeries(this._series) }
-    priceScale(): lwc.IPriceScaleApi {return this._series.priceScale()}
-    applyOptions(options: SeriesPartialOptionsMap_EXT[T]) {this._series.applyOptions(options)}
-    options(): Readonly<SeriesOptionsMap_EXT[T]> {return this._series.options() as SeriesOptionsMap_EXT[T]}
-
-    // data() may not work as intended. Extra parameters of data that don't match the series type are deleted
-    // e.g. High/Low/Close/Open values are deleted when the struct is applied to a single_value series type
-    data(): readonly SeriesDataTypeMap_EXT[T][] { return this._series.data() } 
-    update(bar: SeriesDataTypeMap_EXT[T]) { this._series.update(bar) }
-    setData(data: SeriesDataTypeMap_EXT[T][]) { this._series.setData(data) }
-
-    /* 
-     * These can be uncommented to be used. Currently they are commented out since they are 
-     * not SeriesAPI features that are used, or planned to be used, by this module currently
-     */
-    // priceFormatter(): lwc.IPriceFormatter {return this._series.priceFormatter()}
-    priceToCoordinate(price: number): lwc.Coordinate | null {return this._series.priceToCoordinate(price)}
-    coordinateToPrice(coordinate: number): lwc.BarPrice | null {return this._series.coordinateToPrice(coordinate)}
-    // barsInLogicalRange(range: lwc.Range<number>): lwc.BarsInfo<lwc.Time> | null {return this._series.barsInLogicalRange(range)}
-    // dataByIndex(logicalIndex: number, mismatchDirection?: lwc.MismatchDirection): SeriesDataTypeMap_EXT[T] | null {return this._series.dataByIndex(logicalIndex, mismatchDirection)}
-    // subscribeDataChanged(handler: lwc.DataChangedHandler) {this._series.subscribeDataChanged(handler)}
-    // unsubscribeDataChanged(handler: lwc.DataChangedHandler) {this._series.unsubscribeDataChanged(handler)}
-    // #endregion
-
-    
-    onClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'click')}
-    onAuxClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'AuxClick')}
-    onDblClick(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'cliDblClick')}
-    onMouseUp(param:ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'MouseUp')}
-    onMouseDown(param: ChartingEvent){console.log(SERIES_NAME_MAP.get(this.sType), 'MouseDown')}
-    
-    public fireClickEvent(event: ChartingEventsTypes, e:ChartingEvent){
-        switch(event){
-            case 'click': this.onClick?.(e); break;
-            case 'auxclick': this.onAuxClick?.(e); break;
-            case 'dblclick':  this.onDblClick?.(e); break;
-            case 'mouseup': this.onMouseUp?.(e); break;
-            case 'mousedown': this.onMouseDown?.(e); break;
-        }
-    }
 }
 
-// #region ---- ---- ---- ---- SeriesAPI HitTests ---- ---- ---- ---- 
+// #region ---- ---- ---- ---- Built-In SeriesAPI HitTests ---- ---- ---- ---- 
 
 function LineHitTest(this:SeriesBase_T, params: lwc.MouseEventParams, data:Array<number>): boolean {
     const localY = params.sourceEvent?.localY

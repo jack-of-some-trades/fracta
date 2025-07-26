@@ -42,6 +42,7 @@ export class charting_frame extends frame {
     whitespace_series: lwc.ISeriesApi<'Line'>
     primitiveData: Accessor<lwc.SingleValueData>
     private setPrimitiveData: Setter<lwc.SingleValueData>
+    private _timescaleTimes: number[] | undefined
 
     pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
     attached = new Map<string, (indicator | PrimitiveSet)>()
@@ -57,6 +58,11 @@ export class charting_frame extends frame {
 
     panes: Accessor<charting_pane[]>
     private setPanes: Setter<charting_pane[]>
+
+    // Used to track activity states to primarily keep the Keyboard listeners relevant
+    private _activePane: charting_pane | undefined
+    private _activeSeries: SeriesBase_T | undefined
+    private _activePrimitive: PrimitiveBase | undefined
 
     constructor(id: string, tab_update_func: updateTabFunc) {
         super(id, tab_update_func)
@@ -108,10 +114,10 @@ export class charting_frame extends frame {
         )
 
         //Add Base Click Event Types that auto forward the events to hovered Series & Primitives
+        this.subscribeMouseEvent('mousedown', this._onMouseDownEvent.bind(this))
         this.subscribeMouseEvent('click', this._onClickTypeEvents.bind(this, 'click'))
         this.subscribeMouseEvent('dblclick', this._onClickTypeEvents.bind(this, 'dblclick'))
         this.subscribeMouseEvent('auxclick', this._onClickTypeEvents.bind(this, 'auxclick'))
-        this.subscribeMouseEvent('mousedown', this._onClickTypeEvents.bind(this, 'mousedown'))
         this.subscribeMouseEvent('mouseup', this._onClickTypeEvents.bind(this, 'mouseup'))
 
         console.log(this)
@@ -156,6 +162,19 @@ export class charting_frame extends frame {
     get chart() : lwc.IChartApi { return this._chart }
     get chart_el() : HTMLDivElement {return this._chart.chartElement()}
     get paneAPIs() : lwc.IPaneApi<lwc.Time>[] {return this._chart.panes()}
+    // Cached Array of all the times (in UTC) in the timescale.
+    get timescaleTimes() : number[] | undefined { return this._timescaleTimes }
+
+    
+    // Updating the Cached timeseries reference alongside the whitespace *should* catch all Timescale datapoint
+    // updates. The only way for it not to is if a user indicator sets a timepoint not already on the timescale
+    // which in 99.999% of applications will be a bug since it will add a gap to the screen.
+    private updateTimescalePoints(){ 
+        //@ts-ignore: Fetches raw data from the timescale object : Valid only for Lightweight-Charts v5.0.8 
+        const _points = this.chart.timeScale().uh._D
+        //@ts-ignore
+        this._timescaleTimes = (_points && _points.length > 0) ? Array.from(_points, (p) => p.originalTime) : undefined
+    }
 
     refreshSize(){ this._chart.resize(
         Math.max(this.frameRuler().clientWidth, 0), 
@@ -167,6 +186,7 @@ export class charting_frame extends frame {
     autoscaleContent() { this._chart.timeScale().resetTimeScale() }
     applyChartOpts(newOpts: lwc.DeepPartial<lwc.ChartOptions>) { this._chart.applyOptions(newOpts) }
     updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
+
     
     // #endregion
 
@@ -293,6 +313,34 @@ export class charting_frame extends frame {
         e.hoveredSeriesBase?.fireClickEvent(event, e)
     }
 
+    // Extended Frame CLick Event to Manage Activation States of sub-objects
+    private _onMouseDownEvent(e: ChartingEvent){
+        let clicked_pane = this.panes().find((p) => p.paneIndex == e.paneIndex)
+        let change_pane = this._activePane !== clicked_pane
+        let change_series = this._activeSeries !== e.hoveredSeriesBase
+        let change_primitive = this._activePrimitive !== e.hoveredPrimitiveBase
+
+        if (change_primitive) this._activePrimitive?.onDeactivation()
+        if (change_series) this._activeSeries?.onDeactivation()
+        if (change_pane) this._activePane?.onDeactivation()
+        
+        if (change_pane) {
+            this._activePane = clicked_pane
+            this._activePane?.onActivation()
+        }
+        if (change_series) {
+            this._activeSeries = e.hoveredSeriesBase
+            this._activeSeries?.onActivation()
+        }
+        if (change_primitive) {
+            this._activePrimitive = e.hoveredPrimitiveBase
+            this._activePrimitive?.onActivation()
+        }
+
+        // Forward the click event if needed.
+        this._onClickTypeEvents('mousedown', e)
+    }
+
     // #endregion
 
     // #region -------------- Pane Control Functions ------------------ //
@@ -307,14 +355,17 @@ export class charting_frame extends frame {
     }
 
     addPane(): charting_pane {
-        const _paneApi = this._chart.addPane()
+        const _paneApi = this._chart.addPane(true)
         const _paneWrap = new charting_pane(this, _paneApi)
         this.pane_map.set(_paneApi, _paneWrap)
 
         // Must set panes onAnimationFrame since the PaneAPI Element required
         // for rendering the <PaneOverlay/> is created in an animation cycle
         requestAnimationFrame( () => {
-            this.setPanes([...this.panes(), _paneWrap]) 
+            this.setPanes(
+                // Ensure Panes are ordered before setting them
+                [...this.panes(), _paneWrap].sort((p1, p2) => p1.paneIndex - p2.paneIndex)
+            ) 
             this.panes().forEach((p) => p._updatePaneEl())
         })
         return _paneWrap
@@ -347,11 +398,15 @@ export class charting_frame extends frame {
     protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data:lwc.SingleValueData | undefined) {
         this.whitespace_series.setData(data)
         this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
+        
+        this.updateTimescalePoints() 
     }
     
     protected update_whitespace_data(data: lwc.WhitespaceData, primitive_data:lwc.SingleValueData | undefined) {
         this.whitespace_series.update(data)
         this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
+        
+        this.updateTimescalePoints()
     }
 
     protected set_ticker(new_ticker: ticker) {
@@ -522,9 +577,12 @@ const MouseEventKeyMap: {[key:string]: keyof lwc.MouseEventParams} = {
 }
 
 function advSeriesHitTest(params: lwc.MouseEventParams<lwc.Time>): SeriesBase_T | undefined {
-    //@ts-ignore The next line pulls out the seriesBase instance of the associated lwc.series obj
-    //and uses the seriesIndex() to reverse order them by index; Note, only Series from the clicked pane are returned.
-    const orderedPairs = Array.from(params.seriesData).sort((o1, o2) => o2[0].seriesBase?.index - o1[0].seriesBase?.index)
+    //The next line pulls out the seriesBase instances from the associated lwc.series obj. It then filters down
+    //to only those on the clicked pane & uses the seriesIndex() to reverse order them by index.
+    const orderedPairs = Array.from(params.seriesData)                 // @ts-ignore
+        .filter((o) => o[0].seriesBase?.paneIndex == params.paneIndex) // @ts-ignore
+        .sort((o1, o2) => o2[0].seriesBase?.index - o1[0].seriesBase?.index)
+
     for (const [Series, SeriesData] of orderedPairs) {
         //@ts-ignore -- Return the First SeriesBase that passes it's hitTest: Valid only for Lightweight-Charts v5.0.8 
         if (Series.seriesBase?.hitTest(params, SeriesData.se ?? SeriesData.Wt)) return Series.seriesBase

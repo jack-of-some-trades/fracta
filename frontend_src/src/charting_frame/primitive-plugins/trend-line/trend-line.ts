@@ -60,20 +60,15 @@ export class TrendLine extends PrimitiveBase {
 		this._p2 = params.p2;
 		this._paneView = new TrendLinePaneView(this);
 	}
-	//#region --------------- Util Functions --------------- //
-	_pointIndex(p: SingleValueData): number | null {
-		const timescale = this.chart.timeScale()
-		return timescale.coordinateToLogical(timescale.timeToCoordinate(p.time) ?? -1)
-	}
 
 	public updateData(params:TrendLineParameters) {
 		if (params.p1 !== null) this._p1 = params.p1
 		if (params.p2 !== null) this._p2 = params.p2
 		this.applyOptions(params.options)
 	}
-	//#endregion 
 
 	//#region --------------- Base Class / Interface Functions --------------- //
+
 	paneViews() { return [this._paneView]; }
 	updateAllViews() { this._paneView.update(); }
 
@@ -81,8 +76,8 @@ export class TrendLine extends PrimitiveBase {
 		if (!this._options.autoscale || !this._options.visible) return null
 		if (this._p1 === null || this._p2 === null) return null
 
-		const p1Index = this._pointIndex(this._p1);
-		const p2Index = this._pointIndex(this._p2);
+		const p1Index = this.timeToIndex(this._p1.time);
+		const p2Index = this.timeToIndex(this._p2.time);
 		if (p1Index === null || p2Index === null) return null;
 		// Off-Screen check
 		if (endTimePoint < p1Index || startTimePoint > p2Index) return null;
@@ -96,7 +91,7 @@ export class TrendLine extends PrimitiveBase {
 	}
 
 	hitTest(x: number, y: number): PrimitiveHoveredItem | null { 
-		// @ts-ignore ---- Let's just pretend its the right object ok? I want better hit-detection.
+		// @ts-ignore ---- Let's just pretend it wanted the object so we get better hit-detection.
 		return this._paneView.hitTest(x, y) as PrimitiveHoveredItem
 	}
 
@@ -114,21 +109,13 @@ export class TrendLine extends PrimitiveBase {
 			)
 		} else if (this._paneView._hovered == P1){
 			update_func = this.mouseMoveEndPoint.bind(this, true)
-		} else if (this._paneView._hovered == P1){
+		} else if (this._paneView._hovered == P2){
 			update_func = this.mouseMoveEndPoint.bind(this, false)
 		} else return
 
-		//Now that we're gurenteed to have clicked on the line somewhere...
-		this._paneView._selected = true
-
 		const chart = this.chart
 		const pressedMove = chart.options().handleScroll.valueOf() as HandleScrollOptions | boolean
-		let pressedMoveReEnable: boolean
-		if (typeof (pressedMove) == 'boolean') {
-			pressedMoveReEnable = pressedMove
-		} else {
-			pressedMoveReEnable = pressedMove.pressedMouseMove
-		}
+		const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove :  pressedMove.pressedMouseMove
 
 		//Remove Scrolling effect
 		chart.applyOptions({ handleScroll: { pressedMouseMove: false } })
@@ -137,24 +124,9 @@ export class TrendLine extends PrimitiveBase {
 
 		document.addEventListener('mouseup', () => {
 			chart.unsubscribeCrosshairMove(update_func)
-			//Reenable Scrolling effect if it was set
+			//Reenable Scrolling effect if it was set prior to clicking
 			chart.applyOptions({ handleScroll: { pressedMouseMove: pressedMoveReEnable } })
 		},{once:true})
-	}
-
-	onClick(param: ChartingEvent) {
-		if (!this._options.visible || !this._options.tangible) return
-		switch (this._paneView._hovered) {
-			case P1:
-				console.log(this._type, 'clicked p1')
-				break;
-			case P2:
-				console.log(this._type, 'clicked p2')
-				break;
-			case LINE:
-				console.log(this._type, 'clicked line')
-				break;
-		}
 	}
 
 	private mouseMoveEndPoint(p1: boolean, param: MouseEventParams<Time>){
@@ -183,68 +155,39 @@ export class TrendLine extends PrimitiveBase {
 		last_point.y = param.sourceEvent.localY
 	}
 
-	
-	onAuxClick?(param: ChartingEvent){console.log(this._type, 'AuxClick')}
-	onDblClick?(param: ChartingEvent){console.log(this._type, 'cliDblClick')}
-	onMouseUp?(param:ChartingEvent){console.log(this._type, 'MouseUp')}
-	// onCrosshairMove?(param:ChartingEvent){console.log(this._type, param.logical, this._series?.coordinateToPrice(param.point?.y ?? -1))}
-
 	//#endregion
 }
 
 
 /* --------------------- Primitive Render Classes ----------------------- */
 
-
-class TrendLinePaneView implements IPrimitivePaneView {
+// The PaneView and Pane Renderer have been collapsed into a single class since they are small
+// and it simplifies the call structure for TrendLine.hitTest() to use thee canvas and path objects
+// to greatly simplify hit testing
+class TrendLinePaneView implements IPrimitivePaneView, IPrimitivePaneRenderer {
 	_p1: Point | null = null
 	_p2: Point | null = null
 	_source: TrendLine;
 	_hovered: number | undefined
-	_selected: boolean = false
-	_renderer: TrendLinePaneRenderer
 
 	line: Path2D | null = null
 	ctx: CanvasRenderingContext2D | null = null
 
-	constructor(source: TrendLine) {
-		this._source = source;
-		//Bind function so it can be tossed around.
-		this._renderer = new TrendLinePaneRenderer(
-			this._source._options,
-			this.passback.bind(this)
-		)
-	}
+	constructor(source: TrendLine) { this._source = source;	}
 
 	update() {
 		if (this._source._p1 === null || this._source._p2 === null) return
 
 		const series = this._source.series;
-		const timeScale = this._source.chart.timeScale();
-		let y1 = series.priceToCoordinate(this._source._p1.value);
-		let y2 = series.priceToCoordinate(this._source._p2.value);
-		let x1 = timeScale.timeToCoordinate(this._source._p1.time);
-		let x2 = timeScale.timeToCoordinate(this._source._p2.time);
+		const timeScale = this._source.chart.timeScale()
+		let y1 = series.priceToCoordinate(this._source._p1.value)
+		let y2 = series.priceToCoordinate(this._source._p2.value)
+		let x1 = timeScale.timeToCoordinate(this._source._p1.time)
+		let x2 = timeScale.timeToCoordinate(this._source._p2.time)
 
-		// Note: This overwrites the given data to make the object visible hiding a minor error.
-		// This will change the TrendLine's draw location when moving to higher timeframes but wont revert this
-		// change when the timeframe lowers again.
-		// TODO : Reassess this behavior and potentially bake in a get_closest_visible_time() method into primitive-base so
-		// Other Primtives don't need to handle this edge case
- 		if (x1 === null){
-			let new_time = this._source.nearestBarTime(this._source._p1.time)
-			if (new_time !== null){
-				x1 = timeScale.timeToCoordinate(new_time)
-				this._source._p1.time = new_time
-			}
-		}
-		if (x2 === null){
-			let new_time = this._source.nearestBarTime(this._source._p2.time)
-			if (new_time !== null){
-				x2 = timeScale.timeToCoordinate(new_time)
-				this._source._p2.time = new_time
-			}
-		}
+		// TODO: Determine if this constant binary searching is a bad idea or not.
+		if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source._p1.time)
+		if ( x2 === null ) x2 = this._source.nearestBarCoordinate(this._source._p2.time)
 
 		if (x1 === null || x2 === null || y1 === null || y2 === null) {
 			this._p1 = null
@@ -257,14 +200,29 @@ class TrendLinePaneView implements IPrimitivePaneView {
 	}
 
 	//This is only called about 1/4 the amount that update() is
-	renderer() {
-		this._renderer._update(this._p1, this._p2, this._hovered, this._selected, this._source._options)
-		return this._renderer
-	}
+	renderer() { return this }
 
-	//Passback of relevent objects to make hitdetection a LOT easier
-	passback(ctx: CanvasRenderingContext2D, line: Path2D | null) {
-		this.ctx = ctx; this.line = line;
+	draw(target: CanvasRenderingTarget2D) {
+		target.useMediaCoordinateSpace(scope => {
+			const ctx = scope.context;
+			this.ctx = ctx
+			if (this._p1 === null || this._p2 === null) {
+				this.line = null
+			} else {
+				let line = new Path2D()
+				line.moveTo(this._p1.x, this._p1.y)
+				line.lineTo(this._p2.x, this._p2.y)
+				ctx.lineWidth = this._source._options.width
+				ctx.strokeStyle = this._source._options.lineColor
+				ctx.stroke(line)
+
+				if (this._hovered || this._source.selected()) {
+					draw_dot(ctx, this._p1, this._source.selected())
+					draw_dot(ctx, this._p2, this._source.selected())
+				}
+				this.line = line
+			}
+		});
 	}
 
 	/**
@@ -319,49 +277,5 @@ class TrendLinePaneView implements IPrimitivePaneView {
 			}
 		}
 		return null
-	}
-}
-
-class TrendLinePaneRenderer implements IPrimitivePaneRenderer {
-	_p1: Point | null = null
-	_p2: Point | null = null
-	_hovered: number | undefined
-	_selected: boolean = false
-	_options: TrendLineOptions
-	_passback: CallableFunction
-
-	constructor(options: TrendLineOptions, passback: CallableFunction) {
-		this._options = options
-		this._passback = passback
-	}
-
-	draw(target: CanvasRenderingTarget2D) {
-		target.useMediaCoordinateSpace(scope => {
-			const ctx = scope.context;
-			if (this._p1 === null || this._p2 === null) {
-				this._passback(ctx, null)
-			} else {
-				let line = new Path2D()
-				line.moveTo(this._p1.x, this._p1.y)
-				line.lineTo(this._p2.x, this._p2.y)
-				ctx.lineWidth = this._options.width
-				ctx.strokeStyle = this._options.lineColor
-				ctx.stroke(line)
-
-				if (this._hovered || this._selected) {
-					draw_dot(ctx, this._p1, this._selected)
-					draw_dot(ctx, this._p2, this._selected)
-				}
-				this._passback(ctx, line) //Passback reference for hitTest()
-			}
-		});
-	}
-
-	_update(p1: Point | null, p2: Point | null, hovered: number | undefined, selected: boolean, options:TrendLineOptions) {
-		this._p1 = p1
-		this._p2 = p2
-		this._options = options
-		this._hovered = hovered
-		this._selected = selected
 	}
 }

@@ -76,10 +76,12 @@ export class charting_pane implements ReorderableSet {
 
     
     onActivation() { // When the Pane has been clicked on
+        console.log('activate pane', this.paneIndex)
         KeyboardCTX().attachHandler(this.id, this.shortcuts)
     }
 
     onDeactivation() {
+        console.log('deactivate pane', this.paneIndex)
         KeyboardCTX().detachHandler(this.id)
     }
 
