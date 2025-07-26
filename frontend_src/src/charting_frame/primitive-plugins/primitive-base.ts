@@ -2,6 +2,8 @@ import {
     Coordinate,
     DataChangedScope,
     IChartApi,
+    IPrimitivePaneRenderer,
+    IPrimitivePaneView,
     ISeriesApi,
     ISeriesPrimitive,
     Logical,
@@ -22,6 +24,8 @@ import { ensureDefined } from '../helpers/assertions';
 import { SeriesBase_T } from '../series-plugins/series-base';
 import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 
+export type PrimitiveRenderer = IPrimitivePaneView & IPrimitivePaneRenderer
+
 //@ts-ignore ---- Hijack the returned object to yield the actual object instead.
 export interface HoveredItem extends PrimitiveHoveredItem { externalId: PrimitiveBase }
 
@@ -29,6 +33,12 @@ export interface primitiveOptions {
     visible: boolean
     tangible: boolean
     autoscale: boolean
+}
+
+const DEFAULT_OPTS = { 
+    visible: true,
+    tangible: true,
+    autoscale: false,
 }
 
 export function isPrimitive(obj: unknown): obj is PrimitiveBase { return obj instanceof PrimitiveBase }
@@ -94,10 +104,10 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     protected onMouseOut?(param: ChartingEvent): void;
     protected onWheel?(param: ChartingEvent): void;
 
-    constructor(_id:string, _type:string, _opts:primitiveOptions){
+    constructor(_id:string, _type:string, _opts:primitiveOptions | undefined){
         this._id = _id
         this._type = _type
-        this._options = _opts
+        this._options = {...DEFAULT_OPTS, ..._opts}
 
         const sig = createSignal(false)
         this.selected = sig[0]; this.setSelected = sig[1];

@@ -7,8 +7,7 @@
 import { ArrowCursor, CrosshairCursor, DotCursor } from './cursors';
 import { PrimitiveBase } from './primitive-base';
 import { registerPrimitiveTool, registerSimpleTool } from './tool_ui_support';
-import { TrendLine } from './trend-line/trend-line';
-import { TrendLineTool } from './trend-line/trend-line-ui';
+import { TrendLine, TrendLineTool } from './two-point-primitives/trend_line';
 
 
 export const primitives:Map<string, new(id:string, params:any) => PrimitiveBase> = new Map([
