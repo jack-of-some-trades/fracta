@@ -12,7 +12,7 @@ import {
 } from 'lightweight-charts';
 import { point } from '../../../../tsx/window/overlay_manager';
 import { ChartingEvent } from '../../charting_frame';
-import { HoveredItem, PrimitiveBase, primitiveOptions, PrimitiveRenderer } from '../primitive-base';
+import { HIT_RESULT, HoveredItem, PrimitiveBase, primitiveOptions, PrimitiveRenderer } from '../primitive-base';
 
 
 /* --------------------- Primitive Options ----------------------- */
@@ -24,12 +24,6 @@ export interface TwoPointParameters<T extends primitiveOptions> {
 }
 
 export type TwoPointRenderer_T<T extends primitiveOptions> = new(source: TwoPointPrimitive<T>) => TwoPointRenderer<T>
-
-export const TwoPointHoveredEnum = Object.freeze({
-	LINE: 0,
-	P1: 1,
-	P2: 2,
-});
 
 /* --------------------- Primitive Main Class ----------------------- */
 
@@ -89,14 +83,14 @@ export abstract class TwoPointPrimitive<T extends primitiveOptions> extends Prim
 
 		//Determine moveMove update Function
 		let update_func
-		if (this._paneView._hovered == TwoPointHoveredEnum.LINE) {
+		if (this._paneView._hovered == HIT_RESULT.Stroke) {
 			//Binding a point object so that x & y can update inside function call 
 			update_func = this._mouseMoveWholeLine.bind(
 				this, {x:param.logical,y:param.sourceEvent.localY}
 			)
-		} else if (this._paneView._hovered == TwoPointHoveredEnum.P1){
+		} else if (this._paneView._hovered == HIT_RESULT.P1){
 			update_func = this._mouseMoveEndPoint.bind(this, true)
-		} else if (this._paneView._hovered == TwoPointHoveredEnum.P2){
+		} else if (this._paneView._hovered == HIT_RESULT.P2){
 			update_func = this._mouseMoveEndPoint.bind(this, false)
 		} else return
 

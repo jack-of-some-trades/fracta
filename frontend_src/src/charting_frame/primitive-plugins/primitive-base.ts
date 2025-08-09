@@ -41,6 +41,26 @@ const DEFAULT_OPTS = {
     autoscale: false,
 }
 
+// Enumeration to standardize some various hit test results. To be used internally to a Primitive / Renderer Pair
+export enum HIT_RESULT {
+    ControlPt4 = -13,
+    ControlPt3 = -12,
+    ControlPt2 = -11,
+    ControlPt1 = -10,
+    Body = -9,
+    Stroke = -8,
+    StartPt = -7,
+    MidPt = -6,
+    EndPt = -5,
+    Label = -4,
+    SelectionBox = -2,
+	Foreground = -2,
+    Background = -1,
+
+    // Values >= 0 Reserved for Primitive specific definition, most likely data-point #
+    P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10
+}
+
 export function isPrimitive(obj: unknown): obj is PrimitiveBase { return obj instanceof PrimitiveBase }
 
 /**

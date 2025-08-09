@@ -2,9 +2,9 @@ import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { SingleValueData } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
 import { charting_pane } from '../../charting_pane';
-import { HoveredItem, draw_dot, primitiveOptions } from '../primitive-base';
+import { HIT_RESULT, HoveredItem, draw_dot, primitiveOptions } from '../primitive-base';
 import { PrimitiveTool } from '../tool_ui_support';
-import { TwoPointHoveredEnum, TwoPointPrimitive, TwoPointRenderer } from './two_point_primitive';
+import { TwoPointPrimitive, TwoPointRenderer } from './two_point_primitive';
 import { cleanUpTwoPointTool, configureTwoPointPrimitiveUI } from './two_point_primitive_ui';
 
 
@@ -114,7 +114,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
 
         //Only check to a square around the point since it's much faster
         if (Math.abs(this._p1.x - x) < 10 && Math.abs(this._p1.y - y) < 10) {
-            this._hovered = TwoPointHoveredEnum.P1
+            this._hovered = HIT_RESULT.P1
             return { 
                 cursorStyle: 'grab',
                 externalId: this._source,
@@ -122,7 +122,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
             }
         }
         if (Math.abs(this._p2.x - x) < 10 && Math.abs(this._p2.y - y) < 10) {
-            this._hovered = TwoPointHoveredEnum.P2
+            this._hovered = HIT_RESULT.P2
             return {
                 cursorStyle: 'grab',
                 externalId: this._source,
@@ -132,7 +132,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
         //Set min width so it's easier to hover on small lines
         this.ctx.lineWidth = Math.max(this._source._options.width, 6)
         if (this.ctx.isPointInStroke(this.line, x, y)) {
-            this._hovered = TwoPointHoveredEnum.LINE
+            this._hovered = HIT_RESULT.LINE
             return {
                 cursorStyle: 'grab',
                 externalId: this._source,
