@@ -265,6 +265,9 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 		return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
     }
 
+    // TODO: Determine if binary searching this frequently (by calling this un renderer.update functions)
+    //  is a bad idea or not. only alternative would be to cache the value and setup a method to invalidate 
+    // the cache on timeframe change.. when else would it need invalidating?
     nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {
         const _nearestTime = this.nearestBarTime(time, look_left)
         return _nearestTime ? this.chart.timeScale().timeToCoordinate(_nearestTime) : null

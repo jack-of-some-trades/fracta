@@ -61,7 +61,8 @@ export abstract class TwoPointPrimitive<T extends primitiveOptions> extends Prim
 		const p2Index = this.timeToIndex(this._p2.time);
 		if (p1Index === null || p2Index === null) return null;
 		// Off-Screen check
-		if (endTimePoint < p1Index || startTimePoint > p2Index) return null;
+		if (p1Index < startTimePoint && p2Index < startTimePoint) return null;
+		if (p1Index > endTimePoint && p2Index > endTimePoint) return null;
 
 		return {
 			priceRange: {
@@ -173,9 +174,6 @@ export abstract class TwoPointRenderer<T extends primitiveOptions> implements Pr
 		let x1 = timeScale.timeToCoordinate(this._source._p1.time)
 		let x2 = timeScale.timeToCoordinate(this._source._p2.time)
 
-		// TODO: Determine if binary searching this frequently is a bad idea or not.
-		// only alternative would be to cache the value and setup a method to invalidate 
-		// the cache on timeframe change.. when else would it need invalidating?
 		if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source._p1.time)
 		if ( x2 === null ) x2 = this._source.nearestBarCoordinate(this._source._p2.time)
 

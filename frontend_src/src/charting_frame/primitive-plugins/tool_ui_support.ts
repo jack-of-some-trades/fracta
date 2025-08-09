@@ -99,9 +99,8 @@ function createPrimitiveTool(pane: charting_pane, generateTool: ToolGeneratorFun
     if (isPrimitive(new_primitive)){
         setActivePrimitiveObj(new_primitive)
     } else {
-        //Tool Generator encountered an error and couldn't create the primitive
+        //Tool Generator encountered either could create, or is already done, creating the primitive
         finalizeToolCreation()
-        console.warn(new_primitive)
     }
     creationController.abort()
     creationController = new AbortController()

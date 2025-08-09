@@ -4,14 +4,15 @@
  */
 
 import { ITimeScaleApi, MouseEventParams, Time } from "lightweight-charts"
+import { KeyboardCTX } from "../../../../tsx/window/keyboard_listener"
 import { PrimitiveBase, primitiveOptions } from "../primitive-base"
 import { finalizeToolCreation } from "../tool_ui_support"
-import { TwoPointPrimitive } from "./two_point_primitive"
+import { OnePointPrimitive } from "./one-point-primitive"
 
 let mouseMoveController = new AbortController()
-export function cleanUpTwoPointTool(){ mouseMoveController.abort() }
+export function cleanUpOnePointTool(){ mouseMoveController.abort() }
 
-export function configureTwoPointPrimitiveUI<T extends primitiveOptions>(e:MouseEvent, new_primitive: TwoPointPrimitive<T>): PrimitiveBase | null {
+export function configureOnePointPrimitiveUI<T extends primitiveOptions>(e:MouseEvent, new_primitive: OnePointPrimitive<T>): PrimitiveBase | null {
     //Set First point to where this click originated
     let p = new_primitive.series.coordinateToPrice(e.offsetY)
     let t = new_primitive.chart.timeScale().coordinateToTime(e.offsetX)
@@ -21,15 +22,20 @@ export function configureTwoPointPrimitiveUI<T extends primitiveOptions>(e:Mouse
         console.warn('Failed to create Primitive, Price or Time invalid', new_primitive)
         return null
     }
-    // Set both the points to the current value so it is displayed
-    new_primitive.updateData({p1:{time:t, value:p}, p2:{time:t, value:p}})
+    new_primitive.updateData({p1:{time:t, value:p}})
+    
+    if (KeyboardCTX().ctrl()) {
+        // If Ctrl was held, finalize the primitive creation immediately
+        // Notably without calling primitive.remove()
+        return null 
+    }
 
     //Add Clean-up Logic for the remaining Event Listener
     mouseMoveController = new AbortController()
 
-    //Setup Listeners to update the second point
+    //Setup Listeners to update the point
     const timescale = new_primitive.chart.timeScale()
-    const bound_update_ref = updateSecondPoint.bind(new_primitive, timescale)
+    const bound_update_ref = updatePoint.bind(new_primitive, timescale)
     new_primitive.chart.subscribeCrosshairMove(bound_update_ref)
 
     mouseMoveController.signal.addEventListener('abort', () => {
@@ -39,29 +45,29 @@ export function configureTwoPointPrimitiveUI<T extends primitiveOptions>(e:Mouse
     // mount 'click' listener on 'click' event so the second point is only confirmed w/ a second click.
     document.addEventListener('click', () => {
         new_primitive.chart.chartElement().addEventListener(
-            'click', confirmSecondPoint, {signal:mouseMoveController.signal}
+            'click', confirmPoint, {signal:mouseMoveController.signal}
         )
     }, {once: true})
 
     return new_primitive
 }
 
-function confirmSecondPoint(e:MouseEvent){
+function confirmPoint(e:MouseEvent){
     if (e.button !== 0) return //Left mouseBtn listener
 
     //All primitive tools need to call finalize once they are done.
-    cleanUpTwoPointTool()
+    cleanUpOnePointTool()
     finalizeToolCreation()
 }
 
 
-function updateSecondPoint<T extends primitiveOptions>(
-    this:TwoPointPrimitive<T>, timescale:ITimeScaleApi<Time>, param:MouseEventParams<Time>
+function updatePoint<T extends primitiveOptions>(
+    this:OnePointPrimitive<T>, timescale:ITimeScaleApi<Time>, param:MouseEventParams<Time>
 ){
     if (!param.point) return
 
     let t = timescale.coordinateToTime(param.point.x)
     let p = this.series.coordinateToPrice(param.point.y)
     if (t && p)
-        this.updateData({p1:null, p2:{ time: t, value: p }})
+        this.updateData({p1:{ time: t, value: p }})
 }

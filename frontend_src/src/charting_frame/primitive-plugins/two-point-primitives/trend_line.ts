@@ -64,9 +64,6 @@ export class TrendLine extends TwoPointPrimitive<TrendLineOptions> {
 
 /* --------------------- Primitive Renderer ----------------------- */
 
-// The PaneView and Pane Renderer have been collapsed into a single class since they are small
-// and it simplifies the call structure for TrendLine.hitTest() to use thee canvas and path objects
-// to greatly simplify hit testing
 
 class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
 
@@ -132,7 +129,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
         //Set min width so it's easier to hover on small lines
         this.ctx.lineWidth = Math.max(this._source._options.width, 6)
         if (this.ctx.isPointInStroke(this.line, x, y)) {
-            this._hovered = HIT_RESULT.LINE
+            this._hovered = HIT_RESULT.Stroke
             return {
                 cursorStyle: 'grab',
                 externalId: this._source,
