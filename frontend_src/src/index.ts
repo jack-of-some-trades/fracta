@@ -24,6 +24,8 @@ declare global {
         setTicker : (_:string) => void,
     }
 
+    var reloadComputedCanvasStyle: () => void
+
     var activeFrame: frame | undefined
     var activeContainer: container
     // Technically Frame & Container can refer to deleted objects if they were the active 

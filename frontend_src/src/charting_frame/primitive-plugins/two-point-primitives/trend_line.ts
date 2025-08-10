@@ -2,7 +2,8 @@ import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { SingleValueData } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
 import { charting_pane } from '../../charting_pane';
-import { HIT_RESULT, HoveredItem, draw_dot, primitiveOptions } from '../primitive-base';
+import { CanvasStrokeStyles, DEFAULT_STROKE_STYLE, draw_dot, setCanvasStokeStyle } from '../../helpers/canvas';
+import { DEFAULT_PRIMITIVE_OPTS, HIT_RESULT, HoveredItem, primitiveOptions } from '../primitive-base';
 import { PrimitiveTool } from '../tool_ui_support';
 import { TwoPointPrimitive, TwoPointRenderer } from './two_point_primitive';
 import { cleanUpTwoPointTool, configureTwoPointPrimitiveUI } from './two_point_primitive_ui';
@@ -10,7 +11,7 @@ import { cleanUpTwoPointTool, configureTwoPointPrimitiveUI } from './two_point_p
 
 /* --------------------- UI Tool ----------------------- */
 
-const TOOL_NAME = 'TrendLine'
+const TOOL_NAME = 'Trend Line'
 
 export const TrendLineTool: PrimitiveTool = {
     icon: icons.trend_line,
@@ -27,18 +28,11 @@ function createTrendLine(pane:charting_pane, e: MouseEvent){
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface TrendLineOptions extends primitiveOptions {
-    width: number;
-    lineColor: string;
-}
+export interface TrendLineOptions extends primitiveOptions, CanvasStrokeStyles {}
 
-const defaultOptions: TrendLineOptions = {
-    visible: true,
-    tangible: true,
-    autoscale: false,
-
-    width: 1,
-    lineColor: 'rgb(255, 0, 0)',
+const defaultOptions: TrendLineOptions & CanvasStrokeStyles = {
+    ...DEFAULT_PRIMITIVE_OPTS,
+    ...DEFAULT_STROKE_STYLE,
 };
 
 interface TrendLineParameters {
@@ -74,11 +68,11 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
             if (this._p1 === null || this._p2 === null) {
                 this.line = null
             } else {
+                setCanvasStokeStyle(ctx, this.options)
+
                 let line = new Path2D()
                 line.moveTo(this._p1.x, this._p1.y)
                 line.lineTo(this._p2.x, this._p2.y)
-                ctx.lineWidth = this._source._options.width
-                ctx.strokeStyle = this._source._options.lineColor
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {

@@ -159,6 +159,7 @@ export abstract class TwoPointRenderer<T extends primitiveOptions> implements Pr
 	ctx: CanvasRenderingContext2D | null = null
 
 	constructor(source: TwoPointPrimitive<T>) { this._source = source;	}
+    get options():T { return this._source._options }
 	renderer() { return this }
 
 	abstract draw(target: CanvasRenderingTarget2D): void

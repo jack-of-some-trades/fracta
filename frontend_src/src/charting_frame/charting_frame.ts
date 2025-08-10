@@ -490,7 +490,7 @@ function generateContextMenuStruct(frame:charting_frame):contextMenuItem[][] {
 }
 
 
-/* Default TimeChart Options. It's a Function so the style is Evaluated at pane construction */
+/* Default TimeChart Options. It's a Function so the style is Evaluated at chart construction */
 function DEFAULT_CHART_OPTS(){
     const style = getComputedStyle(document.documentElement)
     const OPTS: lwc.DeepPartial<lwc.TimeChartOptions> = {

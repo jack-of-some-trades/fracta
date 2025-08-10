@@ -2,7 +2,8 @@ import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { SingleValueData } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
 import { charting_pane } from '../../charting_pane';
-import { HIT_RESULT, HoveredItem, draw_dot, primitiveOptions } from '../primitive-base';
+import { CanvasStrokeStyles, DEFAULT_STROKE_STYLE, draw_dot, setCanvasStokeStyle } from '../../helpers/canvas';
+import { DEFAULT_PRIMITIVE_OPTS, HIT_RESULT, HoveredItem, primitiveOptions } from '../primitive-base';
 import { PrimitiveTool } from '../tool_ui_support';
 import { OnePointPrimitive, OnePointRenderer } from './one-point-primitive';
 import { cleanUpOnePointTool, configureOnePointPrimitiveUI } from './one-point-primitive-ui';
@@ -27,20 +28,14 @@ function createRay(pane:charting_pane, e: MouseEvent){
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface HorizRayOptions extends primitiveOptions {
-    width: number;
+export interface HorizRayOptions extends primitiveOptions, CanvasStrokeStyles {
     right: boolean;
-    lineColor: string;
 }
 
 const defaultOptions: HorizRayOptions = {
-    visible: true,
-    tangible: true,
-    autoscale: false,
-
-    width: 1,
     right: true,
-    lineColor: 'rgb(255, 0, 0)',
+    ...DEFAULT_PRIMITIVE_OPTS,
+    ...DEFAULT_STROKE_STYLE,
 };
 
 interface HorizRayParameters {
@@ -78,11 +73,11 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
             if (this._p1 === null) {
                 this.stroke = null
             } else {
+                setCanvasStokeStyle(ctx, this.options)
+
                 let line = new Path2D()
                 line.moveTo(this._p1.x, this._p1.y)
                 line.lineTo( this.options.right ? ctx.canvas.width + 1 : -1 , this._p1.y)
-                ctx.lineWidth = this.options.width
-                ctx.strokeStyle = this.options.lineColor
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {

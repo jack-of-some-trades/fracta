@@ -261,6 +261,7 @@ class PyWv:
         try:
             file_handle = open(filepath, encoding="UTF-8")
             self.pyweb_window.load_css(file_handle.read())
+            self.run_script("window.reloadComputedCanvasStyle();")
         except FileNotFoundError:
             log.error("Cannot find/load .css file. Ensure filepath is absolute.")
         finally:
@@ -269,11 +270,11 @@ class PyWv:
     def _on_maximized(self):
         # For Some reason maximized doesn't auto update?
         self.pyweb_window.maximized = True
-        # self.run_script("") #Should make this update the icon...
+        # self.run_script("") # Should make this update the icon...
 
     def _on_restore(self):
         self.pyweb_window.maximized = False
-        # self.run_script("") #Should make this update the icon...
+        # self.run_script("") # Should make this update the icon...
 
 
 @dataclass

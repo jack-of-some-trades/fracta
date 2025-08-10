@@ -7,7 +7,6 @@ import {
     ISeriesApi,
     ISeriesPrimitive,
     Logical,
-    Point,
     PrimitiveHoveredItem,
     SeriesAttachedParameter,
     SeriesOptionsMap,
@@ -35,7 +34,7 @@ export interface primitiveOptions {
     autoscale: boolean
 }
 
-const DEFAULT_OPTS = { 
+export const DEFAULT_PRIMITIVE_OPTS = { 
     visible: true,
     tangible: true,
     autoscale: false,
@@ -127,7 +126,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     constructor(_id:string, _type:string, _opts:primitiveOptions | undefined){
         this._id = _id
         this._type = _type
-        this._options = {...DEFAULT_OPTS, ..._opts}
+        this._options = {...DEFAULT_PRIMITIVE_OPTS, ..._opts}
 
         const sig = createSignal(false)
         this.selected = sig[0]; this.setSelected = sig[1];
@@ -290,29 +289,4 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     }
 
     //#endregion
-}
-
-/* --------------------- Custom Types & functions ----------------------- */
-
-const cssAccentColor = getComputedStyle(document.body).getPropertyValue('--layout-main-fill');
-const cssBorderColor = getComputedStyle(document.body).getPropertyValue('--accent-color');
-
-/**
- * Draws a Dot on the Canvas at the given point. Common enough of a utility that it was made into the exportable function
- */
-export function draw_dot(ctx: CanvasRenderingContext2D, p: Point, sel: boolean = false, color: string = cssAccentColor, borderColor: string = cssBorderColor) {
-    ctx.beginPath()
-    ctx.ellipse(
-        p.x, p.y, 6, 6, 0, 0,
-        Math.PI * 2
-    );
-    ctx.fillStyle = borderColor
-    ctx.fill()
-    ctx.beginPath()
-    ctx.ellipse(
-        p.x, p.y, sel ? 4 : 5, sel ? 4 : 5, 0, 0,
-        Math.PI * 2
-    )
-    ctx.fillStyle = color
-    ctx.fill()
 }
