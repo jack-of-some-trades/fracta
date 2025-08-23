@@ -1,6 +1,7 @@
 import { Accessor, createSignal, Setter, Signal } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
-import { IndicatorOpts } from "../../tsx/charting_frame/indicator_options";
+import { MultipleSeriesStyleEditor } from "../../tsx/charting_frame/series_style_editor";
+import { OptionsMenu } from "../../tsx/generic_elements/options_menu";
 import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
 import { OverlayCTX } from "../../tsx/window/overlay_manager";
 import { charting_frame } from "./charting_frame";
@@ -174,8 +175,16 @@ export class indicator implements ReorderableSet {
         this.primitives.get(_id)?.updateData(params)
     }
 
-    applyOptions(options_in:object){
+    applyOptions(options_in:object, externalCall = false){
         if (this.setOptions) this.setOptions(options_in)
+
+        if (!externalCall) // If the apply options generated from a UI action
+            window.api.set_indicator_options( 
+                this._frame.id.substring(0,6),  // Container ID
+                this._frame.id.substring(0,13), // Frame ID
+                this.id, 
+                options_in
+            )
     }
 
     //TODO : Make it so that a Style Settings Menu will still be generated without needing 
@@ -198,17 +207,18 @@ export class indicator implements ReorderableSet {
 
         OverlayCTX().attachOverlay(
             this.menuId,
-            // Must be a Callable so IndicatorOpts gets generated during the AttachOverlay Call
-            () => IndicatorOpts({
+            // Must be a Callable so OptionsMenuOverlay gets generated during the AttachOverlay Call
+            // Required for OverlayDivs that are created after window generation so onMount() calls correctly
+            () => OptionsMenu({
                 id: menuId,
-                parent_ind: this,
                 options: options,
-                menu_struct: menu_struct,
+                on_submit: this.applyOptions.bind(this),
                 close_menu: () => menuVisibility[1](false),
-
-                container_id: this._frame.id.substring(0,6),
-                frame_id: this._frame.id.substring(0,13),
-                indicator_id: this._id
+                title: this.type + " • " + this.name + (this.name !== '' ? " • " : '' )  + "Options",
+                tabs: {
+                    'Inputs': menu_struct,
+                    'Style': ()=>MultipleSeriesStyleEditor({series:this.series}),
+                },
             }),
             menuVisibility
         )

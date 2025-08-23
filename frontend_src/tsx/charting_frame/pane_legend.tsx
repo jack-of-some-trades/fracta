@@ -22,7 +22,7 @@ export function PaneLegend(props:legend_props){
             
                 return (
                     <IndicatorTag
-                        name={indObj._name !== ""? indObj._name : indObj.type } 
+                        name={indObj.name !== ""? indObj.name : indObj.type } 
                         deletable={indObj.removable}
                         innerHtml={indObj.labelHtml}
                         objVisibility={indObj.visibilitySignal[0]}

@@ -208,5 +208,26 @@ export function applyOpacity(style: string, opacity?: number): string | undefine
   return undefined;
 }
 
+
+
+function padZeros (num:number){ return String(num).padStart(2,'0') }
+
+/**
+ * @param timestamp Unixtimestamp: integer # of seconds since 1970-01-01
+ * @returns Given timestamp as a string timestamp in the form YYYY-MM-DDThh:mm:ssZ
+ */
+export function UnixToString(timestamp: number){ 
+    let d = new Date(timestamp * 1000)
+    return [
+        d.getUTCFullYear(), "-",
+        padZeros(d.getUTCMonth() + 1) , "-",
+        padZeros(d.getUTCDate()), "T",
+        padZeros(d.getUTCHours()), ":",
+        padZeros(d.getUTCMinutes()), ":",
+        padZeros(d.getSeconds()), 'Z'
+    ].join("")
+}
+
+
 //#endregion
 

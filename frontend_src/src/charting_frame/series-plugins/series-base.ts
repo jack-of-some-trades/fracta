@@ -247,10 +247,24 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this.hitTest = SERIES_HIT_TEST_MAP.get(this._type)?.bind(this) ?? NULL_HIT
     }
 
+    applyOptions(options: SeriesPartialOptionsMap_EXT[T], externalCall = false) {
+        this._series.applyOptions(options)
+
+        if (!externalCall) {
+            //Call originated from a UI request. Sync the python object
+            window.api.update_series_options(
+                this.indicator.frame.id.substring(0,6),  // Container ID only
+                this.indicator.frame.id,
+                this.indicator.id,
+                this.id, 
+                options
+            )
+        }
+    }
+
     // #region ---- ---- lightweight-chart ISeriesAPI functions ---- ----
 
     priceScale(): lwc.IPriceScaleApi {return this._series.priceScale()}
-    applyOptions(options: SeriesPartialOptionsMap_EXT[T]) {this._series.applyOptions(options)}
     options(): Readonly<SeriesOptionsMap_EXT[T]> {return this._series.options() as SeriesOptionsMap_EXT[T]}
 
     // data() may not work as intended. Extra data parameters are deleted on setData()

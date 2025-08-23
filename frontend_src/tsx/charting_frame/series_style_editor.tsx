@@ -8,6 +8,32 @@ import * as s from "../../src/charting_frame/series-plugins/series-base"
 import { ColorInput } from "../generic_elements/color_picker"
 import { Icon, icons } from "../generic_elements/icons"
 
+
+interface series_editor_props { series: Map<string, s.SeriesBase_T> }
+
+/**
+ * Creates and Wraps multiple <form/> elements in div. Each form element edits the styling options for
+ * it's own series.
+ */
+export function MultipleSeriesStyleEditor(props: series_editor_props){
+    let forms_wrapper = document.createElement('div')
+
+    const submitAll = () => {
+        forms_wrapper.querySelectorAll('form').forEach(form => form.requestSubmit());
+    }
+
+    return <div ref={forms_wrapper} class="form_wrapper">
+        <For each={Array.from(props.series.entries())}>{([_id, type], i) => {
+            let series = props.series.get(_id)
+            if (series === undefined) return
+            return <SeriesStyleEditor series={series} name={series._name ?? `Series #${i() + 1}`}/>
+        }}</For>
+        <div class="footer">
+            <input type="submit" value={"Apply"} onClick={submitAll}/>
+        </div>
+    </div>
+}
+
 interface series_style_editor_props{
     name: string
     series: s.SeriesBase_T
@@ -30,7 +56,7 @@ interface series_options_signals{
  */
 
 /**
- * Entry Point Component that creates a <form/> for a single series and Populates it with
+ * Component that creates a <form/> for a single series and Populates it with
  * the relative settings based on the type of series object it was provided
  */
 export function SeriesStyleEditor(props:series_style_editor_props){
@@ -124,13 +150,6 @@ function onSubmit(series:s.SeriesBase_T, e:SubmitEvent){
                 }
             })
         ))
-
-        // Send a command to update the Python representation of this object
-        // Need to reconstruct Ids from the Pane id since objects don't hold references to each other
-        const pane_id_array = series.id.split('_')
-        const frame_id = pane_id_array.slice(0,4).join('_')
-        const container_id = pane_id_array.slice(0,2).join('_')
-        window.api.update_series_options(container_id, frame_id, series.indicator.id, series.id, series.options())
     }
 }
 

@@ -273,7 +273,7 @@ def indicator_set_menu(frame_id: str, indicator_id: str, menu_struct, options) -
 
 
 def indicator_set_options(frame_id: str, indicator_id: str, options) -> str:
-    return indicator_preamble(frame_id, indicator_id) + f"_ind.applyOptions({dump(options)});"
+    return indicator_preamble(frame_id, indicator_id) + f"_ind.applyOptions({dump(options)}, true);"
 
 
 def set_legend_label(frame_id: str, indicator_id: str, label: str) -> str:
@@ -321,7 +321,7 @@ def change_series_type(
 
 
 def update_series_opts(frame_id: str, indicator_id: str, series_id: str, opts: object) -> str:
-    return j_func.format(series_preamble(frame_id, indicator_id, series_id) + f"_ser.applyOptions({dump(opts)});")
+    return j_func.format(series_preamble(frame_id, indicator_id, series_id) + f"_ser.applyOptions({dump(opts)}, true);")
 
 
 def update_scale_opts(frame_id: str, indicator_id: str, series_id: str, opts: object) -> str:
