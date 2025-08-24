@@ -46,6 +46,7 @@ export abstract class TwoPointPrimitive<T extends primitiveOptions> extends Prim
         if (params.p1) this._p1 = params.p1
         if (params.p2) this._p2 = params.p2
         this.applyOptions(params.options)
+		if (params.p1 || params.p2) this.requestUpdate()
 	}
 
 	//#region --------------- Base Class / Interface Functions --------------- //

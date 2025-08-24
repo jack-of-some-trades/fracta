@@ -40,7 +40,10 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
     }
 
     public updateData(params:Partial<OnePointParameters<T>>){
-        if (params.p1) this._p1 = params.p1
+        if (params.p1) {
+            this._p1 = params.p1
+            this.requestUpdate()
+        }
         this.applyOptions(params.options)
     }
 

@@ -96,6 +96,9 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
     private _requestUpdate?: () => void;
     // requestUpdate() can be called to force a repaint of the chart's canvas
+    // Internally this calls ChartModel.fullUpdate() which sets an invalidation mask. 
+    // Given the naming my assumption is this is good to call multiple times in a row 
+    // and will only result in a single render update once the invalidation mask is serviced
     protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
     // hitTest Should return itself as the 'externalID' instead of it'd actual id. Ignore the resulting type error
     hitTest?(x: number, y: number): PrimitiveHoveredItem | null;
@@ -163,10 +166,11 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
             this._parent.detachPrimitive(this)
         }
     }
+    
+    applyOptions(opts:Partial<primitiveOptions> | undefined, externalCall = false) {
+        if (opts === undefined) return
 
-    applyOptions(opts:Partial<primitiveOptions> | undefined){
-        if (opts !== undefined)
-            this._options = {...this._options, ...opts}
+        this._options = {...this._options, ...opts}
         this.requestUpdate()
     }
 
