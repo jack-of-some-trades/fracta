@@ -366,11 +366,9 @@ function IndicatorTag(props: { ind: indicator } ){
                     onClick={(e) => {if (e.button === 0) ind.setVisibility(!ind.visibilitySignal[0]())}}
                 /> {/* onClk => indicator visibility toggle */}
 
-                <Show when={ind.setMenuVisibility !== undefined}>
-                    <Icon icon={icons.settings_small} {...gearProps}
-                        onclick={(e) => {if (e.button === 0 && ind.setMenuVisibility && ind.menuVisibility) ind.setMenuVisibility(!ind.menuVisibility())}}
-                    /> {/* onClk => Open Menu If Present */}
-                </Show>
+                <Icon icon={icons.settings_small} {...gearProps}
+                    onclick={(e) => {if (e.button === 0) ind.displayOptionsMenu()}}
+                /> {/* onClk => Open Menu If Present */}
 
                 <Show when={ind.removable}>
                     <Icon icon={icons.close} {...closeProps}/> {/* onClk => delete *Through window.api* */}

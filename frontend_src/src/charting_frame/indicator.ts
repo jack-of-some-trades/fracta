@@ -1,9 +1,8 @@
 import { Accessor, createSignal, Setter, Signal } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 import { MultipleSeriesStyleEditor } from "../../tsx/charting_frame/series_style_editor";
-import { OptionsMenu } from "../../tsx/generic_elements/options_menu";
+import { generateOptionsMenu } from "../../tsx/generic_elements/options_menu";
 import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
-import { OverlayCTX } from "../../tsx/window/overlay_manager";
 import { charting_frame } from "./charting_frame";
 import { charting_pane } from "./charting_pane";
 import { PrimitiveBase } from "./primitive-plugins/primitive-base";
@@ -28,18 +27,17 @@ export class indicator implements ReorderableSet {
     private _pane: charting_pane
     private _frame: charting_frame
 
+    visibilitySignal: Signal<boolean>
     labelHtml: Accessor<string | undefined>
     setLabelHtml: Setter<string | undefined>
 
     outputs:{[key:string]:string}
     menuId: string | undefined
     menuStruct: object | undefined
-    setOptions: SetStoreFunction<object> | undefined
 
-    visibilitySignal: Signal<boolean>
-    menuVisibility: Accessor<boolean> | undefined
-    setMenuVisibility: Setter<boolean> | undefined
-    
+    options: object
+    setOptions: SetStoreFunction<object>
+
     attached: Accessor<(s.SeriesBase_T | PrimitiveSet)[]>
     private setAttached: Setter<(s.SeriesBase_T | PrimitiveSet)[]>
 
@@ -65,6 +63,8 @@ export class indicator implements ReorderableSet {
         this.outputs = outputs
 
         this.visibilitySignal = createSignal<boolean>(true)
+        const options_store = createStore<object>({})
+        this.options = options_store[0]; this.setOptions = options_store[1]
 
         const orderables = createSignal<(s.SeriesBase_T | PrimitiveSet)[]>([])
         this.attached = orderables[0]; this.setAttached = orderables[1]
@@ -175,54 +175,35 @@ export class indicator implements ReorderableSet {
         this.primitives.get(_id)?.updateData(params)
     }
 
-    applyOptions(options_in:object, externalCall = false){
-        if (this.setOptions) this.setOptions(options_in)
+    applyOptions(options:object, externalCall = false){
+        this.setOptions(options)
 
         if (!externalCall) // If the apply options generated from a UI action
             window.api.set_indicator_options( 
                 this._frame.id.substring(0,6),  // Container ID
                 this._frame.id.substring(0,13), // Frame ID
                 this.id, 
-                options_in
+                options
             )
     }
 
-    //TODO : Make it so that a Style Settings Menu will still be generated without needing 
-    //to call the function below, or even require a menu_struct/Indicator Options Class.
-    protected set_menu_struct(menu_struct:object, options_in:object){
-        if (this.menuId !== undefined) {
-            if (this.setOptions) this.setOptions(options_in)
-            return //Menu has already been created.
-        }
-
-        const menuVisibility = createSignal<boolean>(false)
-        this.menuVisibility = menuVisibility[0]
-        this.setMenuVisibility = menuVisibility[1]
-
-        const [options, setOptions] = createStore<object>(options_in)
-        this.setOptions = setOptions
+    protected set_menu_struct(menu_struct:object, options:object){
         this.menuStruct = menu_struct
-        let menuId = `${this._frame.id}_${this._id}_options`
-        this.menuId = menuId
-
-        OverlayCTX().attachOverlay(
-            this.menuId,
-            // Must be a Callable so OptionsMenuOverlay gets generated during the AttachOverlay Call
-            // Required for OverlayDivs that are created after window generation so onMount() calls correctly
-            () => OptionsMenu({
-                id: menuId,
-                options: options,
-                on_submit: this.applyOptions.bind(this),
-                close_menu: () => menuVisibility[1](false),
-                title: this.type + " • " + this.name + (this.name !== '' ? " • " : '' )  + "Options",
-                tabs: {
-                    'Inputs': menu_struct,
-                    'Style': ()=>MultipleSeriesStyleEditor({series:this.series}),
-                },
-            }),
-            menuVisibility
-        )
+        this.setOptions(options)
     }
 
     //#endregion
+
+    displayOptionsMenu(){
+        generateOptionsMenu({
+            id: `${this._frame.id}_${this._id}_options`,
+            options: this.options,
+            on_submit: this.applyOptions.bind(this),
+            title: this.type + " • " + this.name + (this.name !== '' ? " • " : '' )  + "Options",
+            tabs: {
+                'Inputs': this.menuStruct,
+                'Style': () => MultipleSeriesStyleEditor({series:this.series}),
+            },
+        })
+    }
 }

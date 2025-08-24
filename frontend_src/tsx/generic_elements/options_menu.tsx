@@ -1,8 +1,8 @@
 /**
  */
-import { createSignal, For, JSXElement, Match, Show, splitProps, Switch } from "solid-js"
+import { createSignal, For, JSXElement, Match, onMount, Show, splitProps, Switch } from "solid-js"
 import { UnixToString } from "../../src/types"
-import { location_reference, OverlayDiv, point } from "../window/overlay_manager"
+import { location_reference, OverlayCTX, OverlayDiv, point } from "../window/overlay_manager"
 import { ColorInput } from "./color_picker"
 import { Icon, icons, TextIcon } from "./icons"
 import { NavigatorMenu } from "./navigator_menu"
@@ -44,6 +44,7 @@ type OptionTypeMap = {
 type menuStruct = object
 type optionObject = {[key: string]: any}
 
+
 /**
  * @id : Id of the overlayDiv that will be created.
  * @title : Title to appear in the header of the overlay window.
@@ -51,20 +52,30 @@ type optionObject = {[key: string]: any}
  * @on_submit : Function called with the compiled user options passed as a flat object. The options provided are only
  *              for the tab that is visible. Only Tabs that are made with a menu_struct utilize this submit function
  * @tabs : Key:Value Pairs mapping each Tab menu to a menu_struct instructing how to Construct the desired menu.
- *          or an already constructed menu Element.
+ *          or an already constructed menu Element. Undefined values will be ignored.
  * @options : The currently selected options to populate the menus with.
  */
-interface options_menu_props{
-    close_menu: () => void
+interface options_menu_props {
     on_submit: (options: optionObject) => void
 
     id: string
     title: string
-    tabs: {[key: string]: menuStruct | ( () => JSXElement )}
+    tabs: {[key: string]: undefined | menuStruct | ( () => JSXElement )}
     options: optionObject
 }
 
-export function OptionsMenu(props:options_menu_props){
+/**
+ * Helper Function that attaches the desired to OptionsMenu to the screen and handles 
+ * oneshot cleanup. Call Anytime you wish to show the desired menu.
+ */
+export function generateOptionsMenu(props:options_menu_props){
+    OverlayCTX().attachOverlay(
+        props.id,
+        () => <OptionsMenu {...props}/>,
+    )
+}
+
+function OptionsMenu(props:options_menu_props){
     const [location, setLocation] = createSignal<point>({x:0, y:0})
     const position_menu = () => {setLocation({x:window.innerWidth*0.7, y:window.innerHeight*0.2})}
 
@@ -72,13 +83,22 @@ export function OptionsMenu(props:options_menu_props){
     for (const [key, value] of Object.entries(props.tabs)) {
         if (typeof value === 'object')
             compiled_tabs[key] = () => <OptionsForm menu_struct={value} options={props.options} on_submit={props.on_submit}/>
-        else
+        else if (value !== undefined)
             compiled_tabs[key] = value
     }
+
+    //The following call requires that the overlayCTX.attachOverlay() must always be given an element generating function
+    const displaySetter = OverlayCTX().getDisplaySetter(props.id)
+    const close_menu = () => displaySetter(false)
+
+    // Unfortunate, but apparently the overlay needs time to construct otherwise there is a
+    // bit of visual jumping and position desyncing that occurs. Cutoff on my machine is ~75ms
+    onMount(() => { setTimeout(() => displaySetter(true), 100) })
     
     return (
         <OverlayDiv
             id={props.id}
+            oneshot={true} // Always clean these up once closed
             location={location}
             setLocation={setLocation}
             classList={{options_menu:true}}
@@ -89,7 +109,7 @@ export function OptionsMenu(props:options_menu_props){
         >
             <div class="title_box">
                 <h2>{props.title}</h2>
-                <Icon icon={icons.close} force_reload={true} onClick={props.close_menu}/>
+                <Icon icon={icons.close} force_reload={true} onClick={close_menu}/>
             </div>
 
             <NavigatorMenu

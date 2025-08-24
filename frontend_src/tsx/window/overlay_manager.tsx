@@ -57,7 +57,7 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
         id:string, 
         el:JSX.Element | (() => JSX.Element), 
         ShowDisplay: Signal<boolean> | undefined = undefined,
-        autohide:boolean|null=true,
+        autohide: boolean|null=true,
     ){
         if (overlays.find((obj) => obj.id === id))
             setOverlays(Array.from(overlays.filter((obj)=>obj.id !== id)))
@@ -108,7 +108,7 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
     document.body.addEventListener('keydown', (e) => {
         if(e.key === 'Escape') 
             Array.from(overlays).forEach(({id, hide}) => { if(hide !== null) getDisplaySetter(id)(false)})
-    })  
+    })
 
     //#endregion
 
@@ -163,6 +163,7 @@ export enum location_reference {
  * @param bounding_client_id : QuerySelector String for an Element that will be used as a bounding client reference. 
  *        Movement of the overlay div will be limited such that the DOMRect of this reference client cannot go offscreen.
  *        By Default, The entire OverlayDiv will be used as the bounding client
+ * @param oneshot : When true the given overlay div is detached once it is no longer visible leaving it to be garbage collected.
  */
 export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
     id:string
@@ -172,6 +173,7 @@ export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
     drag_handle?:string
     setLocation?: Setter<point>
     bounding_client_id?:string
+    oneshot?: boolean
 }
 
 
@@ -181,11 +183,11 @@ export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
  */
 export function OverlayDiv(props:overlay_div_props){
     let divRef : HTMLDivElement|undefined = undefined
-    let clientRef : HTMLElement|undefined = undefined
+    let boundingClientRef : HTMLElement|undefined = undefined
     let dragListenerSet = !(props.drag_handle && props.setLocation)
     props.classList = {...props.classList, overlay:true}
     const [style, setStyle] = createSignal<JSX.CSSProperties>(initPosition(props.location_ref, props.location()))
-    const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id"])
+    const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id", "oneshot"])
     
     //#region ------------------- Drag Handle Listeners ------------------- //
 
@@ -200,7 +202,7 @@ export function OverlayDiv(props:overlay_div_props){
     const mouseup = (e:MouseEvent) => {
         if(e.button !== 0) return
             
-        let div_ref = clientRef ?? divRef
+        let div_ref = boundingClientRef ?? divRef
         if (div_ref != undefined && props.setLocation != undefined){
             // Ensure the underlying location reference is where the Div is actually drawn at
             // (Dragging off-screen can separate the two)
@@ -211,8 +213,8 @@ export function OverlayDiv(props:overlay_div_props){
         document.removeEventListener('mousemove', move)
         document.removeEventListener('mouseup', mouseup)
     }
-
     //#endregion
+
     //#region ------------------- Position Update Listeners ------------------- //
 
     //Set Position Function and preserve the Reactivity of Display_Ref
@@ -225,9 +227,11 @@ export function OverlayDiv(props:overlay_div_props){
         //Next effect gets a reference to the Div once it is attached to the document & Queryable.
         //Sadly, its the easiest way to get this reference given how these are created.
         createEffect(on(display, () => {
+            if (!display()) return
+
             divRef = document.querySelector(`#${props.id}`) as HTMLDivElement
             if (props.bounding_client_id)
-                clientRef = document.querySelector(props.bounding_client_id) as HTMLElement
+                boundingClientRef = document.querySelector(props.bounding_client_id) as HTMLElement
             OverlayCTX().setDivReference(props.id, divRef)
 
             //If given, add a mouseDown drag listener
@@ -244,9 +248,15 @@ export function OverlayDiv(props:overlay_div_props){
             }
         }))
 
+        // If oneshot param is given, give a cleanup command once the display is not longer visible.
+        createEffect(on(display, () => {
+            if (props.oneshot && !display() && OverlayCTX().getDivReference(props.id))
+                OverlayCTX().detachOverlay(props.id)
+        }))
+
         //Update Div Location when Location Changes (Preserve Reactivity of props.location)
         createEffect(() => { 
-            let ref = clientRef ?? divRef
+            let ref = boundingClientRef ?? divRef
             let pos = getBoundedPosition(props.location(), ref?.getBoundingClientRect()) 
             if (pos) setStyle(pos)
         })
