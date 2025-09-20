@@ -59,7 +59,7 @@ export function SymbolSearchBox(){
 
     OverlayCTX().attachOverlay(
         id,
-        <SymbolSearchMenu
+        () => <SymbolSearchMenu
             id={id}
             tickers={tickers()}
             display={display}

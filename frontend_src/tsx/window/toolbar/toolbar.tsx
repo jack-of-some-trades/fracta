@@ -41,7 +41,7 @@ function ToolBoxToggle(){
 
     OverlayCTX().attachOverlay(
         id,
-        <ToolBoxOverlay id={id} />,
+        () => <ToolBoxOverlay id={id} />,
         visibilitySignal,
         null, // Don't Auto Hide & don't hide on esc click
     )

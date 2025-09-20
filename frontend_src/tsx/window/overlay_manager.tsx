@@ -13,7 +13,7 @@ import { createStore } from "solid-js/store";
 //#region --------------------- Context Manager --------------------- //
 
 type OverlayContextProps = {
-    attachOverlay: (id:string, el:JSX.Element | (() => JSX.Element), ShowDisplay?:Signal<boolean>, autohide?:boolean|null) => void,
+    attachOverlay: (id:string, el:() => JSX.Element, showDisplay?:Signal<boolean> | boolean, autohide?:boolean|null) => void,
     detachOverlay: (id:string) => void,
     getDivReference:(id:string) => undefined | HTMLDivElement,
     setDivReference:(id:string, el:HTMLDivElement) => void,
@@ -33,9 +33,9 @@ let OverlayContext = createContext<OverlayContextProps>(default_ctx_args);
 export function OverlayCTX():OverlayContextProps { return useContext<OverlayContextProps>(OverlayContext) }
 
 interface overlay_struct {
-    id:string,          // Id of the menu
-    el:JSX.Element      // The Menu itself, Should be an <OverlayDiv/>
-    hide:boolean|null   // Auto Hide the menu on a non-contained click, On Null, don't hide on ESC.
+    id:string,              // Id of the menu
+    el:() => JSX.Element    // The Menu itself, Should be an <OverlayDiv/> Factory
+    hide:boolean|null       // Auto Hide the menu on a non-contained click, On Null, don't hide on ESC.
 }
 export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
     const [overlays, setOverlays] = createStore<overlay_struct[]>([])
@@ -45,31 +45,28 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
     //#region ------------------- Overlay Context Functions ------------------- //
 
     /** Place a menu in the overlay manager
-     * @param el : JSX.Element, This should, at the topmost level, be an <OverlayDiv/>, 
-     *          can be a callable that returns the desired object. This may be necessary if the
-     *          Element needs to be created at runtime, instead of on initialization
-     * @param ShowDisplay : Optional Signal<bool>. Allows the Mounting object to make and thus
-     *          have control over the display's Visibility.
+     * @param el : () => JSX.Element, This should, at the topmost level, be an <OverlayDiv/> factory, 
+     *          This must be a factory to preserve Solidjs Component lifecycle controls. Things break if it's not.
+     * @param showDisplay : Optional Signal<bool> | bool. Allows the Source object to make and have control
+     *          over the display's Visibility Signal. When passed a boolean, the required signal is created 
+     *          internally using the supplied boolean as the default visibility state. undefined === false.
      * @param autohide : bool, if true the menu will be automatically hidden when a click outside
-     *          of the overlay's bounds are detected.
+     *          of the overlay's bounds are detected. undefined === true, null === always show overlay (will not hide on ESC.)
      */
     function attachOverlay(
         id:string, 
-        el:JSX.Element | (() => JSX.Element), 
-        ShowDisplay: Signal<boolean> | undefined = undefined,
+        el:() => JSX.Element, 
+        showDisplay: Signal<boolean> | boolean | undefined = undefined,
         autohide: boolean|null=true,
     ){
         if (overlays.find((obj) => obj.id === id))
             setOverlays(Array.from(overlays.filter((obj)=>obj.id !== id)))
             //ID Present, Remove First to proc reactivity of object elements
 
-        if (ShowDisplay === undefined) ShowDisplay = createSignal(false)
-        displayMap.set(id, ShowDisplay)
-
-        // Create the Element, if its a function, after the displayMap has been set
-        // so the OverlayDiv's internal 'OnMount' can function appropriately
-        if (typeof el === 'function')
-            el = el()
+        // Refine the input show varible into a Show signal w/ the correct default state.
+        if (showDisplay === undefined || typeof(showDisplay) === 'boolean') 
+            showDisplay = createSignal(showDisplay ?? false)
+        displayMap.set(id, showDisplay)
 
         setOverlays([...overlays, {id:id, el:el, hide:autohide}])
     }
@@ -129,9 +126,9 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
             {props.children}
 
             <div id='overlay_manager'>
-                <For each={overlays}>{({id, el})=>{
-                    return <Show when={getDisplayAccessor(id)()}>{el}</Show>}
-                }</For>
+                <For each={overlays}>{({id, el}) =>
+                    <Show when={getDisplayAccessor(id)()}>{el()}</Show>}
+                </For>
             </div>
         </OverlayContext.Provider>
     )
@@ -173,7 +170,7 @@ export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
     drag_handle?:string
     setLocation?: Setter<point>
     bounding_client_id?:string
-    oneshot?: boolean
+    oneShot?: boolean
 }
 
 
@@ -187,7 +184,7 @@ export function OverlayDiv(props:overlay_div_props){
     let dragListenerSet = !(props.drag_handle && props.setLocation)
     props.classList = {...props.classList, overlay:true}
     const [style, setStyle] = createSignal<JSX.CSSProperties>(initPosition(props.location_ref, props.location()))
-    const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id", "oneshot"])
+    const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id", "oneShot"])
     
     //#region ------------------- Drag Handle Listeners ------------------- //
 
@@ -250,7 +247,7 @@ export function OverlayDiv(props:overlay_div_props){
 
         // If oneshot param is given, give a cleanup command once the display is not longer visible.
         createEffect(on(display, () => {
-            if (props.oneshot && !display() && OverlayCTX().getDivReference(props.id))
+            if (props.oneShot && !display() && OverlayCTX().getDivReference(props.id))
                 OverlayCTX().detachOverlay(props.id)
         }))
 

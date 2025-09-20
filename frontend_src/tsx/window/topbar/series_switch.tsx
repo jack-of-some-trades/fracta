@@ -67,7 +67,7 @@ export function SeriesSwitcher(){
 
     OverlayCTX().attachOverlay(
         id,
-        <SeriesMenu 
+        () => <SeriesMenu 
             id={id}
             onSel={onSel}
             opts={SeriesOpts} 
@@ -75,7 +75,6 @@ export function SeriesSwitcher(){
             location={menuLocation}
             updateLocation={updateLocation}
         />, 
-
     )
 
     return (

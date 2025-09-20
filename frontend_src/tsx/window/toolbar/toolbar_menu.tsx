@@ -37,7 +37,7 @@ export function ToolBarMenuButton(props:toolbar_menu_props){
 
     OverlayCTX().attachOverlay(
         props.id,
-        <ToolBarOverlay 
+        () => <ToolBarOverlay 
             id={props.id} 
             location={location}
             updateLocation={updateLocation}

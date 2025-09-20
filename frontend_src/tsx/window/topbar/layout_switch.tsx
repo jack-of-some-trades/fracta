@@ -79,7 +79,7 @@ export function LayoutSwitcher(){
 
     OverlayCTX().attachOverlay(
         id,
-        <LayoutMenu 
+        () => <LayoutMenu 
             id={id}
             onSel={onSel}
             opts={LayoutOpts} 

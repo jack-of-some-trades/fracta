@@ -51,7 +51,7 @@ export function IndicatorsBox(){
 
     OverlayCTX().attachOverlay(
         id,
-        <IndicatorsMenu
+        () => <IndicatorsMenu
             id={id}
             packages={packages}
             setDisplay={displaySignal[1]}

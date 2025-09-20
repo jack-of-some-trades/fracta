@@ -50,7 +50,7 @@ export function ContextMenuOverlayProvider() {
     const id = 'context_menu_overlay'
     OverlayCTX().attachOverlay(
         id,
-        ContextMenu({id:id}),
+        () => ContextMenu({id:id}),
         CONTEXT_MENU_CTX.display
     )
 

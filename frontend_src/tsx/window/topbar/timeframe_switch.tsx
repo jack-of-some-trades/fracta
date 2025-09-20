@@ -71,7 +71,7 @@ export function TimeframeSwitcher(){
 
     OverlayCTX().attachOverlay(
         id,
-        <TimeframeMenu 
+        () => <TimeframeMenu 
             id={id}
             onSel={onSel}
             opts={TimeframeOpts} 
