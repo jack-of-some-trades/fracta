@@ -184,8 +184,20 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
         this._options = {...this._options, ...opts}
         this.requestUpdate()
+        
+        if (!externalCall && this._frame && this._parent) {
+            //Call originated from a UI request. Sync the python object
+            window.api.update_primitive_options(
+                this._frame.id.substring(0,6),  // Container ID only
+                this._frame.id,
+                this._parent.id,
+                this.id, 
+                this._options
+            )
+        }
     }
 
+    public abstract displayOptionsMenu(): void
     public abstract updateData(params: object): void
     
     //#region ------------------- Mouse Event Implementation Functions -------------------

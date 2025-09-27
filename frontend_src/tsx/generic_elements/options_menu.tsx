@@ -1,6 +1,9 @@
 /**
  */
-import { createSignal, For, JSXElement, Match, onMount, Show, splitProps, Switch } from "solid-js"
+import { Time } from "lightweight-charts"
+import { createSignal, For, JSXElement, Match, onCleanup, onMount, Show, splitProps, Switch } from "solid-js"
+import { charting_pane } from "../../src/charting_frame/charting_pane"
+import { VertLineController } from "../../src/charting_frame/primitive-plugins/one-point-primitives/vert_line_controller"
 import { UnixToString } from "../../src/types"
 import { location_reference, OverlayCTX, OverlayDiv, point } from "../window/overlay_manager"
 import { ColorInput } from "./color_picker"
@@ -40,38 +43,39 @@ type OptionTypeMap = {
  * 'group' Entries' params are a nested menu_struct that cannot contain another group.
  * 
  * 'Inline' Entries' params are a nested menu_struct that cannot contain a group or inline.
+ * 
+ * An Example of a Menu Struct can be seen @ EOF
  */
 type menuStruct = object
 type optionObject = {[key: string]: any}
-
+type optionMenuTuple = [menuStruct | undefined, optionObject, (options:optionObject) => void]
+type optionsTab = ( () => JSXElement ) | optionMenuTuple | undefined
 
 /**
  * @id : Id of the overlayDiv that will be created.
  * @title : Title to appear in the header of the overlay window.
- * @close_menu : Callable to the close the OverlayDiv Menu Created.
- * @on_submit : Function called with the compiled user options passed as a flat object. The options provided are only
- *              for the tab that is visible. Only Tabs that are made with a menu_struct utilize this submit function
- * @tabs : Key:Value Pairs mapping each Tab menu to a menu_struct instructing how to Construct the desired menu.
- *          or an already constructed menu Element. Undefined values will be ignored.
- * @options : The currently selected options to populate the menus with.
+ * @tabs : Key:Value Pairs mapping each Tab menu to a JSXElement Constructor, or to an array of [Options Menu Struct, current options, Submit function].
+ *         MenuStruct/Option/submit function pairs are constructed using <OptionsMenu/> Elements. The Submit function is passed all the
+ *         options listed in the menuStruct as a single flat object of Key:value pairs.
+ *         if either the tab's value or the menuStruct at index 0 is undefined, the tab will be ignored.
  */
 interface options_menu_props {
-    on_submit: (options: optionObject) => void
-
     id: string
     title: string
-    tabs: {[key: string]: undefined | menuStruct | ( () => JSXElement )}
-    options: optionObject
+    tabs: {[key: string]: optionsTab},
+    pane: charting_pane
 }
 
 /**
  * Helper Function that attaches the desired to OptionsMenu to the screen and handles 
- * oneshot cleanup. Call Anytime you wish to show the desired menu.
+ * oneShot cleanup. Call Anytime you wish to show the desired menu.
  */
 export function generateOptionsMenu(props:options_menu_props){
     OverlayCTX().attachOverlay(
         props.id,
         () => <OptionsMenu {...props}/>,
+        true, //Show Display
+        false //Auto Hide
     )
 }
 
@@ -79,10 +83,19 @@ function OptionsMenu(props:options_menu_props){
     const [location, setLocation] = createSignal<point>({x:0, y:0})
     const position_menu = () => {setLocation({x:window.innerWidth*0.7, y:window.innerHeight*0.2})}
 
-    let compiled_tabs:{[key:string]:()=>JSXElement} = {}
+    let compiled_tabs:{[key:string]: () => JSXElement } = {}
     for (const [key, value] of Object.entries(props.tabs)) {
-        if (typeof value === 'object')
-            compiled_tabs[key] = () => <OptionsForm menu_struct={value} options={props.options} on_submit={props.on_submit}/>
+        if (Array.isArray(value)){
+            let _ms = value[0]
+            if (_ms)  
+                compiled_tabs[key] = () => <OptionsForm 
+                    id = {props.id}
+                    pane = {props.pane} 
+                    menu_struct = {_ms} 
+                    options = {value[1]} 
+                    on_submit = {value[2]} 
+                />
+        }
         else if (value !== undefined)
             compiled_tabs[key] = value
     }
@@ -90,15 +103,11 @@ function OptionsMenu(props:options_menu_props){
     //The following call requires that the overlayCTX.attachOverlay() must always be given an element generating function
     const displaySetter = OverlayCTX().getDisplaySetter(props.id)
     const close_menu = () => displaySetter(false)
-
-    // Unfortunate, but apparently the overlay needs time to construct otherwise there is a
-    // bit of visual jumping and position desyncing that occurs. Cutoff on my machine is ~75ms
-    onMount(() => { setTimeout(() => displaySetter(true), 100) })
     
     return (
         <OverlayDiv
             id={props.id}
-            oneshot={true} // Always clean these up once closed
+            oneShot={true} // Always clean these up once closed
             location={location}
             setLocation={setLocation}
             classList={{options_menu:true}}
@@ -136,8 +145,13 @@ function OptionsMenu(props:options_menu_props){
  * 
  * @param options: is the flat options object mapping each object key to it's current value. 
  * Groups and Inlines are not included in the options_obj.
+ * 
+ * @param pane: Charting_pane object associated with the object creating the options menu. Allows the options
+ * menu to attach primitives that can be used to control a values' variable in addition to the form controls.
  */
 interface options_form_props {
+    id: string
+    pane: charting_pane
     on_submit: (options: optionObject) => void
     menu_struct: object
     options: optionObject
@@ -145,11 +159,12 @@ interface options_form_props {
 
 /** Form to wrap around all of the generated options inputs */
 function OptionsForm(props:options_form_props){
-    const [passDown,] = splitProps(props, ['options'])
+    const [passDown,] = splitProps(props, ['options', 'pane', 'id'])
 
     let form = document.createElement('form')
-    const submit = () => form.requestSubmit()
+    const requestSubmit = () => form.requestSubmit()
     const wrappedSubmit = (e:Event) => {
+        console.log('submit')
         let opts = packageInput(e)
         if (opts)
             props.on_submit(opts)
@@ -160,23 +175,23 @@ function OptionsForm(props:options_form_props){
             ref={form}
             class='input_form'
             onSubmit={wrappedSubmit}
-            onKeyPress={(e) => {if(e.key === "Enter") submit()}}
+            onKeyPress={(e) => {if(e.key === "Enter") requestSubmit()}}
         >
             <For each={Object.entries(props.menu_struct)}>{([key, [type, params]]) => 
                 <Switch fallback={<>
-                        <Input key={key} type={type} params={params} submit={submit} {...passDown}/>
+                        <Input key={key} type={type} params={params} requestSubmit={requestSubmit} {...passDown}/>
                     </>}>
                     <Match when={type === "group"}>
-                        <Group title={key} params={params} submit={submit} {...passDown}/>
+                        <Group title={key} params={params} requestSubmit={requestSubmit} {...passDown}/>
                     </Match>
                     <Match when={type === "inline"}>
-                        <Inline title={key} params={params} submit={submit} {...passDown}/>
+                        <Inline title={key} params={params} requestSubmit={requestSubmit} {...passDown}/>
                     </Match>
                 </Switch>
             }</For>
         </form>
         <div class="footer">
-            <input type="submit" value={"Apply"} onclick={submit}/>
+            <input type="submit" value={"Apply"} onclick={requestSubmit}/>
         </div>
     </div>
 }
@@ -207,14 +222,16 @@ function packageInput(e:Event): optionObject | undefined {
 // #region --------------------- Group and Inline Els ----------------------- */
 
 interface section_props {
+    id: string
+    pane: charting_pane
     title: string
     params: object
     options: optionObject
-    submit: () => void,
+    requestSubmit: () => void
 }
 
 function Group(props:section_props){
-    const [passDown,] = splitProps(props, ["options", "submit"])
+    const [passDown,] = splitProps(props, ["options", "requestSubmit", "pane", 'id'])
     return  (
         <div class="group">
             <h3 innerText={props.title}/>
@@ -232,7 +249,7 @@ function Group(props:section_props){
 }
 
 function Inline(props:section_props){
-    const [passDown,] = splitProps(props, ["options", "submit"])
+    const [passDown,] = splitProps(props, ["options", "requestSubmit", "pane", 'id'])
     return  (
         <div class="inline">
             <For each={Object.entries(props.params)}>{([key, [type, params]]) => 
@@ -248,17 +265,19 @@ function Inline(props:section_props){
 
 interface input_switch_props extends input_props {type:string}
 interface input_props {
-    key:string, 
-    params:inputParams, 
-    options:optionObject,
-    submit: () => void,
+    id: string
+    key: string
+    pane: charting_pane
+    params: inputParams
+    options: optionObject
+    requestSubmit: () => void
 }
 
 //The following interface is a catch all for anything the Indicator Options 
 //Metaclass _parse_arg[_param] functions throw into the menu_struct for each argument
 interface inputParams {
     title: string
-    default : any   //This has no current use, but it is available 
+    default : any
     autosend: boolean
     tooltip?: string
     options?: Array<any>
@@ -268,7 +287,9 @@ interface inputParams {
     min?: number
     max?: number
     step?: number
+    error?: boolean
     slider?: boolean
+    controller?: boolean
 }
 
 function Input(props: input_switch_props){
@@ -308,9 +329,9 @@ function Input(props: input_switch_props){
 function BoolInput(props: input_props){
     return <input 
         id={props.key} 
-        type="checkbox" 
-        checked={props.options[props.key] ?? false}
-        onInput={props.params.autosend? props.submit: undefined}
+        type="checkbox"
+        checked={(props.options[props.key] ?? props.params.default) ?? false}
+        onInput={props.params.autosend? props.requestSubmit: undefined}
     />
 }
 
@@ -318,29 +339,58 @@ function StringInput(props: input_props){
     return <input 
         id={props.key} 
         type="text" 
-        value={props.options[props.key]} 
-        onInput={props.params.autosend? props.submit: undefined}
+        value={props.options[props.key]  ?? props.params.default } 
+        onInput={props.params.autosend? props.requestSubmit: undefined}
     />
 }
 
 function TimeInput(props: input_props){
+    const [ref, setRef] = createSignal<HTMLInputElement | undefined>()
+    let defaultTime = props.options[props.key] ?? props.params.default
+
+    if (props.params.controller ?? true) {
+        let controller = new VertLineController(
+            props.id + '_' + props.key +'_cntrlr', 
+            {
+                p1: {time: defaultTime, value: 0},
+                autosend: props.params.autosend,
+                submit: props.requestSubmit,
+                update: (time:Time) => {
+                    let _ref = ref()
+                    if (!_ref) return 
+                    
+                    _ref.value = UnixToString(time as number)
+                    if (props.params.autosend) props.requestSubmit() 
+                }
+            }
+        )
+
+        onMount(() => props.pane._attachSeriesPrimitive(controller))
+        onCleanup(() => controller.remove())
+    }
+
     return <input 
-        id={props.key} 
+        id={props.key}
+        ref = {setRef} 
         type="datetime-local" 
-        value={UnixToString(props.options[props.key])}
-        onInput={props.params.autosend? props.submit: undefined}
+        value={UnixToString(defaultTime)}
+        onInput={props.params.autosend? props.requestSubmit : undefined}
     />
 }
 
-function NumberInput(props: input_props){
+function NumberInput(props: input_props){    
+    let input_val = props.options[props.key]  ?? props.params.default
+    let step = props.params.step ?? 0.01 // default to 0.01 accuracy
+    let rounded_val = Math.round((input_val) * 1/step) * step 
+
     return (
         <input id={props.key}  type={props.params.slider ? 'range' : 'number'}
-            value={props.options[props.key]}
+            value={rounded_val}
             max={props.params.max}
             min={props.params.min}
-            step={props.params.step}
+            step={props.params.error ? step : 'any'} // Only Error if desired.
             list={props.params.options ? props.key + "_datalist" : undefined}
-            onInput={props.params.autosend? props.submit: undefined}
+            onInput={props.params.autosend? props.requestSubmit : undefined}
         />
     )
 }
@@ -349,13 +399,13 @@ function EnumInput(props: input_props){
     return <span class="select-span">
         <select
             id={props.key} 
-            onInput={props.params.autosend? props.submit: undefined}
+            onInput={props.params.autosend? props.requestSubmit: undefined}
         >
             <For each={props.params.options}>{(option) =>
                 <option 
                     value={option}
                     innerText={option}
-                    selected={option == props.options[props.key]? true : undefined}
+                    selected={option == (props.options[props.key] ?? props.params.default)? true : undefined}
                 />
             }</For>
         </select>
@@ -368,9 +418,9 @@ function ColorInputWrap(props: input_props){
         <ColorInput 
             id={props.key}
             input_id={props.key} 
-            init_color={props.options[props.key]}
+            init_color={props.options[props.key] ?? props.params.default}
             class="color_input_wrapper"
-            onInput={props.params.autosend? props.submit: undefined}
+            onInput={props.params.autosend? props.requestSubmit: undefined}
         />
     )
 }
@@ -380,7 +430,7 @@ function SourceInput(props: input_props){
         <select 
             id={props.key} 
             attr:type="source" 
-            onInput={props.params.autosend? props.submit: undefined}
+            onInput={props.params.autosend? props.requestSubmit: undefined}
         >
             {/* <For each={props.sources()}>{({indicator, function_name, source_type}) => {
                 if (props.indicator_id === indicator.id)
@@ -405,6 +455,130 @@ function SourceInput(props: input_props){
         <Icon icon={icons.menu_arrow_ns}/>
     </span>
 }
-//#endregion
+
+// #endregion
+
+// #endregion
+
+// #region --------------------- Example Menu Struct ----------------------- */
+
+// const EXAMPLE_STRUCT = {
+//     "Display Series": [
+//         "group",
+//         {
+//             "series_type": [
+//                 "enum",
+//                 {
+//                     "default": "Rounded_Candle",
+//                     "tooltip": null,
+//                     "options": [
+//                         "Line",
+//                         "Area",
+//                         "Baseline",
+//                         "Histogram",
+//                         "Bar",
+//                         "Candlestick",
+//                         "Rounded_Candle"
+//                     ],
+//                     "autosend": true,
+//                     "title": "Series Type"
+//                 }
+//             ]
+//         }
+//     ],
+//     "Volume Series": [
+//         "group",
+//         {
+//             "vol_price_axis": [
+//                 "string",
+//                 {
+//                     "default": "vol",
+//                     "tooltip": "Press Enter to Commit Change",
+//                     "options": null,
+//                     "autosend": false,
+//                     "title": "Price Axis"
+//                 }
+//             ],
+//             "a": [ // The name of an inline isn't displayed, so it simply shouldn't collide with another name.
+//                 "inline",
+//                 {
+//                     "vol_scale_invert": [
+//                         "bool",
+//                         {
+//                             "default": false,
+//                             "tooltip": null,
+//                             "options": null,
+//                             "autosend": true,
+//                             "title": "Invert"
+//                         }
+//                     ],
+//                     "vol_scale_margin": [
+//                         "number",
+//                         {
+//                             "default": 75,
+//                             "tooltip": null,
+//                             "options": null,
+//                             "autosend": true,
+//                             "title": "Scale Margin",
+//                             "min": 0,
+//                             "max": 100,
+//                             "step": null,
+//                             "slider": null
+//                         }
+//                     ]
+//                 }
+//             ],
+//             "b": [
+//                 "inline",
+//                 {
+//                     "color_vol": [
+//                         "bool",
+//                         {
+//                             "default": true,
+//                             "tooltip": null,
+//                             "options": null,
+//                             "autosend": true,
+//                             "title": "Color Vol"
+//                         }
+//                     ],
+//                     "up_color": [
+//                         "color",
+//                         {
+//                             "default": "rgba(38,166,154,1)",
+//                             "tooltip": null,
+//                             "options": null,
+//                             "autosend": true,
+//                             "title": "Up "
+//                         }
+//                     ],
+//                     "down_color": [
+//                         "color",
+//                         {
+//                             "default": "rgba(239,83,80,1)",
+//                             "tooltip": null,
+//                             "options": null,
+//                             "autosend": true,
+//                             "title": "Down "
+//                         }
+//                     ]
+//                 }
+//             ],
+//             "vol_opacity": [
+//                 "number",
+//                 {
+//                     "default": 50,
+//                     "tooltip": null,
+//                     "options": null,
+//                     "autosend": true,
+//                     "title": "Opacity",
+//                     "min": 0,
+//                     "max": 100,
+//                     "step": 5,
+//                     "slider": true
+//                 }
+//             ]
+//         }
+//     ]
+// }
 
 // #endregion

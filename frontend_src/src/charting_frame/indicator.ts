@@ -175,7 +175,7 @@ export class indicator implements ReorderableSet {
         this.primitives.get(_id)?.updateData(params)
     }
 
-    applyOptions(options:object, externalCall = false){
+    applyOptions(options:{[key: string]: any}, externalCall = false){
         this.setOptions(options)
 
         if (!externalCall) // If the apply options generated from a UI action
@@ -197,13 +197,12 @@ export class indicator implements ReorderableSet {
     displayOptionsMenu(){
         generateOptionsMenu({
             id: `${this._frame.id}_${this._id}_options`,
-            options: this.options,
-            on_submit: this.applyOptions.bind(this),
             title: this.type + " • " + this.name + (this.name !== '' ? " • " : '' )  + "Options",
             tabs: {
-                'Inputs': this.menuStruct,
+                'Inputs': [this.menuStruct, this.options, this.applyOptions.bind(this)],
                 'Style': () => MultipleSeriesStyleEditor({series:this.series}),
             },
+            pane: this._pane
         })
     }
 }

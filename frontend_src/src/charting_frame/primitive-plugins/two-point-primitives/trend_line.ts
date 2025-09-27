@@ -1,6 +1,7 @@
 import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { SingleValueData } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
+import { generateOptionsMenu } from '../../../../tsx/generic_elements/options_menu';
 import { charting_pane } from '../../charting_pane';
 import { CanvasStrokeStyles, DEFAULT_STROKE_STYLE, draw_dot, setCanvasStokeStyle } from '../../helpers/canvas';
 import { DEFAULT_PRIMITIVE_OPTS, HIT_RESULT, HoveredItem, primitiveOptions } from '../primitive-base';
@@ -11,7 +12,7 @@ import { cleanUpTwoPointTool, configureTwoPointPrimitiveUI } from './two_point_p
 
 /* --------------------- UI Tool ----------------------- */
 
-const TOOL_NAME = 'Trend Line'
+const TOOL_NAME = 'Trend-Line'
 
 export const TrendLineTool: PrimitiveTool = {
     icon: icons.trend_line,
@@ -53,11 +54,25 @@ export class TrendLine extends TwoPointPrimitive<TrendLineOptions> {
         }
         super(id, TOOL_NAME, TrendLineRenderer, _filled_params)    
     }
-}
 
+    public displayOptionsMenu(): void {
+        generateOptionsMenu({
+            id: this.id + '_options',
+            title: TOOL_NAME + ' Options',
+            tabs: {
+                'Inputs': [DATA_MENU_STRUCT, {p1_time:this._p1?.time, p1_price:this._p1?.value, p2_time:this._p2?.time, p2_price:this._p2?.value}, this.updateData.bind(this)],
+                'Style': undefined,
+            },
+            pane: this.pane
+        })
+    }
+}
 
 /* --------------------- Primitive Renderer ----------------------- */
 
+// The PaneView and Pane Renderer have been collapsed into a single class since they are small
+// and it simplifies the call structure for TrendLine.hitTest() to use the canvas and path objects
+// to greatly simplify hit testing
 
 class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
 
@@ -132,4 +147,52 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
         }
         return null
     }
+}
+
+
+const DATA_MENU_STRUCT = {
+    "inline_a": [ // Name isn't used anywhere
+        "inline",
+        {
+            "p1_time": [
+                "timestamp",
+                {
+                    "default": "01-01-1970",
+                    "autosend": true,
+                    "title": "Point #1 : Time"
+                }
+            ],
+            "p1_price": [
+                "number",
+                {
+                    "default": 100,
+                    "step": 0.01,
+                    "autosend": true,
+                    "title": "Price"
+                }
+            ]
+        }
+    ],
+    "inline_b": [ // Name isn't used anywhere
+        "inline",
+        {
+            "p2_time": [
+                "timestamp",
+                {
+                    "default": "01-01-1970",
+                    "autosend": true,
+                    "title": "Point #2 : Time"
+                }
+            ],
+            "p2_price": [
+                "number",
+                {
+                    "default": 100,
+                    "step": 0.01,
+                    "autosend": true,
+                    "title": "Price"
+                }
+            ]
+        }
+    ],
 }

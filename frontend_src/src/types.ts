@@ -214,9 +214,10 @@ function padZeros (num:number){ return String(num).padStart(2,'0') }
 
 /**
  * @param timestamp Unixtimestamp: integer # of seconds since 1970-01-01
+ * @param include_Z Boolean: Include the trailing 'Z' timezone char
  * @returns Given timestamp as a string timestamp in the form YYYY-MM-DDThh:mm:ssZ
  */
-export function UnixToString(timestamp: number){ 
+export function UnixToString(timestamp: number, include_Z: boolean = false){ 
     let d = new Date(timestamp * 1000)
     return [
         d.getUTCFullYear(), "-",
@@ -224,7 +225,7 @@ export function UnixToString(timestamp: number){
         padZeros(d.getUTCDate()), "T",
         padZeros(d.getUTCHours()), ":",
         padZeros(d.getUTCMinutes()), ":",
-        padZeros(d.getSeconds()), 'Z'
+        padZeros(d.getSeconds()), include_Z ? 'Z' : ''
     ].join("")
 }
 

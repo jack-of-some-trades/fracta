@@ -1,5 +1,5 @@
 import { CanvasRenderingTarget2D } from 'fancy-canvas';
-import { SingleValueData } from 'lightweight-charts';
+import { Coordinate, SingleValueData, Time } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
 import { generateOptionsMenu } from '../../../../tsx/generic_elements/options_menu';
 import { charting_pane } from '../../charting_pane';
@@ -12,48 +12,45 @@ import { cleanUpOnePointTool, configureOnePointPrimitiveUI } from './one-point-p
 
 /* --------------------- UI Tool ----------------------- */
 
-const TOOL_NAME = 'Horizontal Ray'
+const TOOL_NAME = 'Vertical Line'
 
-export const HorizRayTool: PrimitiveTool = {
-    icon: icons.horiz_ray,
+export const VertLineTool: PrimitiveTool = {
+    icon: icons.vert_line,
     label: TOOL_NAME,
-    create: createRay,
+    create: createVLine,
     cleanup: cleanUpOnePointTool
 }
 
-function createRay(pane:charting_pane, e: MouseEvent){
-    const new_line = new HorizRay('', {p1:null})
+function createVLine(pane:charting_pane, e: MouseEvent){
+    const new_line = new VertLine('', {p1:null})
     pane._attachSeriesPrimitive(new_line)
     return configureOnePointPrimitiveUI(e, new_line)
 }
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface HorizRayOptions extends primitiveOptions, CanvasStrokeStyles {
-    right: boolean;
-}
+export interface VertLineOptions extends primitiveOptions, CanvasStrokeStyles {}
 
-const defaultOptions: HorizRayOptions = {
-    right: true,
+const defaultOptions: VertLineOptions = {
     ...DEFAULT_PRIMITIVE_OPTS,
     ...DEFAULT_STROKE_STYLE,
 };
 
-interface HorizRayParameters {
-    p1: SingleValueData | null,
-    options?: Partial<HorizRayOptions>
+export interface VertLineParameters {
+    p1: SingleValueData<Time> | null,
+    options?: Partial<VertLineOptions>
 }
 
 
 /* --------------------- Primitive Base Class ----------------------- */
 
-export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
+export class VertLine extends OnePointPrimitive<VertLineOptions> {
 
-    constructor(id:string, params:HorizRayParameters) {
+    constructor(id:string, params:VertLineParameters) {
         const _filled_params = {
             p1: params.p1, options:{...defaultOptions, ...params.options}
         }
-        super(id, TOOL_NAME, HorizRayRenderer, _filled_params)    
+        super(id, TOOL_NAME, VertLineRenderer, _filled_params)    
     }
 
     public displayOptionsMenu(): void {
@@ -72,7 +69,7 @@ export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
 
 /* --------------------- Primitive Renderer ----------------------- */
 
-class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
+class VertLineRenderer extends OnePointRenderer<VertLineOptions> {
 
     draw(target: CanvasRenderingTarget2D) {
         target.useMediaCoordinateSpace(scope => {
@@ -84,12 +81,13 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
                 setCanvasStokeStyle(ctx, this.options)
 
                 let line = new Path2D()
-                line.moveTo(this._p1.x, this._p1.y)
-                line.lineTo( this.options.right ? ctx.canvas.width + 1 : -1 , this._p1.y)
+                line.moveTo(this._p1.x, 0)
+                line.lineTo(this._p1.x, ctx.canvas.height + 1)
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {
-                    draw_dot(ctx, this._p1, this._source.selected())
+                    let _midpoint = {x: this._p1.x, y:Math.floor(ctx.canvas.height/2) as Coordinate}
+                    draw_dot(ctx, _midpoint, this._source.selected())
                 }
                 this.stroke = line
             }
@@ -104,21 +102,18 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
         this._hovered = undefined //Assume it isn't hovered. Will correct if not.
 
         //Course X range Check
-        if (this.options.right ? this._p1.x - 10 > x : this._p1.x + 10 < x) 
+        if (Math.abs(this._p1.x - x) > 10) 
             return null
 
         //Point Check
-        if (Math.abs(this._p1.x - x) < 10 && Math.abs(this._p1.y - y) < 10){
+        if (Math.abs(this._p1.y - y) < 10){
             this._hovered = HIT_RESULT.P1
             return { 
                 cursorStyle: 'grab',
                 externalId: this._source,
                 zOrder: 'normal'
             }
-        }
-
-        //Trace Check
-        if ( Math.abs(this._p1.y - y) < Math.max(this.options.width, 8) ){
+        } else {
             this._hovered = HIT_RESULT.Stroke
             return { 
                 cursorStyle: 'grab',
@@ -126,33 +121,17 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
                 zOrder: 'normal'
             }
         }
-        
-        return null
     }
 }
 
 
 const DATA_MENU_STRUCT = {
-    "inline_a": [
-        "inline",
+    "p1_time": [
+        "timestamp",
         {
-            "p1_time": [
-                "timestamp",
-                {
-                    "default": "01-01-1970",
-                    "autosend": true,
-                    "title": "Point #1 : Time"
-                }
-            ],
-            "p1_price": [
-                "number",
-                {
-                    "default": 100,
-                    "step": 0.01,
-                    "autosend": true,
-                    "title": "Price"
-                }
-            ]
+            "default": "01-01-1970",
+            "autosend": true,
+            "title": "Time"
         }
     ]
 }

@@ -59,6 +59,9 @@ export class PyApi {
     update_series_options(container_id: string, frame_id: string, ind_id:string, ser_id:string, opts:any){
         console.log(`Set Series Options: ${container_id},${frame_id},${ind_id},${ser_id}`, opts)
     }
+    update_primitive_options(container_id: string, frame_id: string, par_id:string, prim_id:string, opts:any){
+        console.log(`Set Primitive Options: ${container_id},${frame_id},${par_id},${prim_id}`, opts)
+    }
 
     /* ---------------- Javascript >>> Python >>> Javascript ---------------- */
     // Functions that Originate in Javascript and require Python to fulfill a promise
