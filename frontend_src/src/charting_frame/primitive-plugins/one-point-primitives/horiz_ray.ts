@@ -56,12 +56,20 @@ export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
         super(id, TOOL_NAME, HorizRayRenderer, _filled_params)    
     }
 
+    public updateData(params:Partial<HorizRayParameters & HorizRayOptions>){
+        if (params.right !== undefined) {
+            this._options.right = params.right
+            this.requestUpdate()
+        }
+        super.updateData(params)
+    }
+
     public displayOptionsMenu(): void {
         generateOptionsMenu({
             id: this.id + '_options',
             title: TOOL_NAME + ' Options',
             tabs: {
-                'Inputs': [DATA_MENU_STRUCT, {p1_time:this._p1?.time, p1_price:this._p1?.value}, this.updateData.bind(this)],
+                'Inputs': [MENU_STRUCT, {...{p1: this._p1}, ...this._options}, this.updateData.bind(this)],
                 'Style': undefined,
             },
             pane: this.pane
@@ -132,27 +140,22 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
 }
 
 
-const DATA_MENU_STRUCT = {
-    "inline_a": [
-        "inline",
+const MENU_STRUCT = {
+    "right": [
+        "bool",
         {
-            "p1_time": [
-                "timestamp",
-                {
-                    "default": "01-01-1970",
-                    "autosend": true,
-                    "title": "Point #1 : Time"
-                }
-            ],
-            "p1_price": [
-                "number",
-                {
-                    "default": 100,
-                    "step": 0.01,
-                    "autosend": true,
-                    "title": "Price"
-                }
-            ]
+            "default": true,
+            "autosend": true,
+            "title": "Project Right"
         }
-    ]
+    ],
+    "p1": [
+        "point",
+        {
+            "default": {time: "01-01-1970", value: 100},
+            "autosend": true,
+            "step": 0.01,
+            "title": "Ray Origin"
+        }
+    ],
 }

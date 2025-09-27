@@ -173,8 +173,8 @@ export class charting_frame extends frame {
     // updates. The only way for it not to is if a user indicator sets a timepoint not already on the timescale
     // which in 99.999% of applications will be a bug since it will add a gap to the screen.
     private updateTimescalePoints(){ 
-        //@ts-ignore: Fetches raw data from the timescale object : Valid only for Lightweight-Charts v5.0.8 
-        const _points = this.chart.timeScale().uh._D
+        //@ts-ignore: Fetches raw data from the timescale object : Valid only for Lightweight-Charts v5.0.8
+        const _points = this.chart.timeScale().uh.D_
         //@ts-ignore
         this._timescaleTimes = (_points && _points.length > 0) ? Array.from(_points, (p) => p.originalTime) : undefined
     }

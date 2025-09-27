@@ -1,14 +1,14 @@
 import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import {
-    AutoscaleInfo,
-    Coordinate,
-    HandleScrollOptions,
-    Logical,
-    MouseEventParams,
-    Point,
-    PrimitiveHoveredItem,
-    SingleValueData,
-    Time
+	AutoscaleInfo,
+	Coordinate,
+	HandleScrollOptions,
+	Logical,
+	MouseEventParams,
+	Point,
+	PrimitiveHoveredItem,
+	SingleValueData,
+	Time
 } from 'lightweight-charts';
 import { point } from '../../../../tsx/window/overlay_manager';
 import { ChartingEvent } from '../../charting_frame';
@@ -176,6 +176,8 @@ export abstract class TwoPointRenderer<T extends primitiveOptions> implements Pr
 		let x1 = timeScale.timeToCoordinate(this._source._p1.time)
 		let x2 = timeScale.timeToCoordinate(this._source._p2.time)
 
+		// Crucial step to ensure something gets drawn. timeToCoordinate() only returns a value if
+		// that exact time exists on the chart. if it doesn't, we need to manually binary search for the closest time.
 		if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source._p1.time)
 		if ( x2 === null ) x2 = this._source.nearestBarCoordinate(this._source._p2.time)
 

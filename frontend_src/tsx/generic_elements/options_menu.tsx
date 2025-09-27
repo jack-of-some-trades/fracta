@@ -4,7 +4,7 @@ import { Time } from "lightweight-charts"
 import { createSignal, For, JSXElement, Match, onCleanup, onMount, Show, splitProps, Switch } from "solid-js"
 import { charting_pane } from "../../src/charting_frame/charting_pane"
 import { VertLineController } from "../../src/charting_frame/primitive-plugins/one-point-primitives/vert_line_controller"
-import { UnixToString } from "../../src/types"
+import { DateStringToUnix, UnixToString } from "../../src/types"
 import { location_reference, OverlayCTX, OverlayDiv, point } from "../window/overlay_manager"
 import { ColorInput } from "./color_picker"
 import { Icon, icons, TextIcon } from "./icons"
@@ -164,7 +164,6 @@ function OptionsForm(props:options_form_props){
     let form = document.createElement('form')
     const requestSubmit = () => form.requestSubmit()
     const wrappedSubmit = (e:Event) => {
-        console.log('submit')
         let opts = packageInput(e)
         if (opts)
             props.on_submit(opts)
@@ -212,6 +211,8 @@ function packageInput(e:Event): optionObject | undefined {
                 switch(node.getAttribute('type')){
                     case ("checkbox"): return [node.id, node.checked]
                     case ("number"): case("range"): return [node.id, parseFloat(node.value)]
+                    case ("datetime-local"): return [node.id, DateStringToUnix(node.value)]
+                    case ("point"): return [node.id, JSON.parse(node.value)]
                     default: return [node.id, node.value]
                 }
             })
@@ -307,6 +308,7 @@ function Input(props: input_switch_props){
         <Switch>
             <Match when={props.type === "bool"}><BoolInput {...inputProps}/></Match>
             <Match when={props.type === "enum"}><EnumInput {...inputProps}/></Match>
+            <Match when={props.type === "point"}><PointInput {...inputProps}/></Match>
             <Match when={props.type === "source"}><SourceInput {...inputProps}/></Match>
             <Match when={props.type === "number"}><NumberInput {...inputProps}/></Match>
             <Match when={props.type === "string"}><StringInput {...inputProps}/></Match>
@@ -344,11 +346,63 @@ function StringInput(props: input_props){
     />
 }
 
+function PointInput(props: input_props){
+    let time_ref = document.createElement('input')
+    let value_ref = document.createElement('input')
+    let object_ref = document.createElement('input')
+
+    let input_pt = props.options[props.key] ?? props.params.default
+    let step = props.params.step ?? 0.01 // default to 0.01 accuracy
+    let rounded_val = Math.round((input_pt.value) * 1/step) * step 
+
+    const updateHiddenTag = () => {
+        const pt = {
+            time: DateStringToUnix(time_ref.value),
+            value: parseFloat(value_ref.value)
+        }
+        object_ref.value = JSON.stringify(pt)
+        if (props.params.autosend) props.requestSubmit()
+    }
+
+    return <div class="input_block">
+        {/* Invisible Input Tag that actually gets read when the input is packaged */}
+        <input 
+            id={props.key}
+            ref={object_ref}
+            style={{display:"none"}}
+            type="point" // Defaults to a string type since 'point' isn't known.
+            value={JSON.stringify(input_pt)}
+        />
+
+        {/* Visible Time & Value input tags. Tags get filtered out of the form @ submit since id='' */}
+        <span innerText={'{ Time:'}/>
+        <input 
+            ref={time_ref}
+            type="datetime-local"
+            value={UnixToString(input_pt.time)}
+            onInput={updateHiddenTag}
+        />
+        <span innerText={' Value:'}/>
+        <input 
+            ref={value_ref}
+            type="number"
+            value={rounded_val}
+            max={props.params.max}
+            min={props.params.min}
+            step={props.params.error ? step : 'any'}
+            onInput={updateHiddenTag}
+        />
+        <span innerText={' }'}/>
+    </div>
+}
+
 function TimeInput(props: input_props){
     const [ref, setRef] = createSignal<HTMLInputElement | undefined>()
     let defaultTime = props.options[props.key] ?? props.params.default
 
-    if (props.params.controller ?? true) {
+    if (props.params.controller) {
+        // TODO: This only works at the moment because it's only pulling the time. If it were to pull the price
+        // then it would break once the orinating primitve and this primitive are placed on two different price scales
         let controller = new VertLineController(
             props.id + '_' + props.key +'_cntrlr', 
             {
@@ -356,7 +410,7 @@ function TimeInput(props: input_props){
                 autosend: props.params.autosend,
                 submit: props.requestSubmit,
                 update: (time:Time) => {
-                    let _ref = ref()
+                    const _ref = ref()
                     if (!_ref) return 
                     
                     _ref.value = UnixToString(time as number)
@@ -379,7 +433,7 @@ function TimeInput(props: input_props){
 }
 
 function NumberInput(props: input_props){    
-    let input_val = props.options[props.key]  ?? props.params.default
+    let input_val = props.options[props.key] ?? props.params.default
     let step = props.params.step ?? 0.01 // default to 0.01 accuracy
     let rounded_val = Math.round((input_val) * 1/step) * step 
 

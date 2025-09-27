@@ -160,13 +160,11 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     options(): primitiveOptions {return structuredClone(this._options)}
 
     onActivation() { // When the Series has been first clicked on
-        console.log('activate primitive', this._type)
         this.setSelected(true)
         if (this.shortcuts) KeyboardCTX().attachHandler(this.id, this.shortcuts)
     }
 
     onDeactivation() {
-        console.log('deactivate primitive', this._type)
         this.setSelected(false)
         if (this.shortcuts) KeyboardCTX().detachHandler(this.id)
     }
@@ -292,7 +290,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 		return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
     }
 
-    // TODO: Determine if binary searching this frequently (by calling this un renderer.update functions)
+    // TODO: Determine if binary searching this frequently (by calling this in renderer.update functions)
     //  is a bad idea or not. only alternative would be to cache the value and setup a method to invalidate 
     // the cache on timeframe change.. when else would it need invalidating?
     nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {

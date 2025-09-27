@@ -22,6 +22,14 @@ export interface OnePointParameters<T extends primitiveOptions> {
     options: T
 }
 
+export interface OnePointParametersPartial<T extends primitiveOptions> {
+    p1?: SingleValueData | null,
+    options?: Partial<T>
+}
+
+type UpdateParams<T extends primitiveOptions> =
+  OnePointParametersPartial<T> & Partial<T>
+
 export type OnePointRenderer_T<T extends primitiveOptions> = new(source: OnePointPrimitive<T>) => OnePointRenderer<T>
 
 /* --------------------- Primitive Main Class ----------------------- */
@@ -39,7 +47,7 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
         this._paneView = new renderer(this)
     }
 
-    public updateData(params:Partial<OnePointParameters<T>>){
+    public updateData(params:UpdateParams<T>){
         if (params.p1) {
             this._p1 = params.p1
             this.requestUpdate()
@@ -104,7 +112,7 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
         let p1 = this.movePoint(this._p1, dx, dy)
 
         if (!p1) return
-        this.updateData({p1:p1})
+        this.updateData({p1:p1} as UpdateParams<T>)
         last_point.x = param.logical
         last_point.y = param.sourceEvent.localY
     }
@@ -138,6 +146,8 @@ export abstract class OnePointRenderer<T extends primitiveOptions> implements Pr
         let y1 = series.priceToCoordinate(this._source._p1.value)
         let x1 = timeScale.timeToCoordinate(this._source._p1.time)
 
+		// Crutial step to ensure something gets drawn. timeToCoordinate() only returns a value if
+		// that exact time exists on the chart. if it doesn't, we need to manually binary search for the closest time.
         if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source._p1.time)
 
         if (x1 === null || y1 === null) {
