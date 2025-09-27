@@ -2,6 +2,7 @@ import {
     Coordinate,
     DataChangedScope,
     IChartApi,
+    IPaneApi,
     IPrimitivePaneRenderer,
     IPrimitivePaneView,
     ISeriesApi,
@@ -19,6 +20,7 @@ import { contextMenuItem } from '../../../tsx/window/context_menu';
 import { KeyboardCTX, keyboardShortcut } from '../../../tsx/window/keyboard_listener';
 import { binarySearch } from '../../types';
 import { charting_frame, ChartingEvent, ChartingEventsTypes } from '../charting_frame';
+import { charting_pane } from '../charting_pane';
 import { ensureDefined } from '../helpers/assertions';
 import { SeriesBase_T } from '../series-plugins/series-base';
 import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
@@ -56,7 +58,7 @@ export enum HIT_RESULT {
 	Foreground = -2,
     Background = -1,
 
-    // Values >= 0 Reserved for Primitive specific definition, most likely data-point #
+    // Values >= 0 Reserved for data-point # or Primitive specific definition
     P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10
 }
 
@@ -108,7 +110,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     protected onDataUpdate?(scope: DataChangedScope): void;
     protected onClick?(param: ChartingEvent): void;
     protected onAuxClick?(param: ChartingEvent): void;
-    protected onDblClick?(param: ChartingEvent): void;
+    protected onDblClick?(param: ChartingEvent) { this.displayOptionsMenu() }
     protected onMouseUp?(param:ChartingEvent): void;
     protected onMouseDown?(param: ChartingEvent): void;
 
@@ -118,6 +120,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     // ** Prioritize CrosshairMove over mouse move since the crosshair follows magnet cursor mode.
     // ** These MouseEvents fire on the chart, not the pane. In each method
     //  you should generally Check if ( e.paneIndex === this._parent.paneIndex )
+    // TODO: Only update mouse Enter/Move/Over/Out to fire when they occur?
     protected onCrosshairMove?(param: ChartingEvent): void;
     protected onMouseMove?(param: ChartingEvent): void;
     protected onMouseEnter?(param: ChartingEvent): void;
@@ -144,8 +147,15 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
     get id(): string {return this._id}
     get name(): string {return this._name ?? this._type}
-    get chart(): IChartApi { return ensureDefined(this._chart); }
+    get chartApi(): IChartApi { return ensureDefined(this._chart); }
+    get paneApi(): IPaneApi<Time> { return this.series.getPane() }
     get series(): ISeriesApi<keyof SeriesOptionsMap> { return ensureDefined(this._series); }
+
+    //@ts-ignore - Ignore Non-existent Property Error
+    get pane(): charting_pane { return ensureDefined(this.paneApi.chartingPane) }
+    //@ts-ignore - Ignore Non-existent Property Error
+    get frame(): charting_frame { return ensureDefined(this.chartApi.chartingFrame) }
+
     setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
     options(): primitiveOptions {return structuredClone(this._options)}
 
@@ -164,6 +174,8 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     remove() {
         if(isPrimitiveSet(this._parent)){
             this._parent.detachPrimitive(this)
+        } else {
+            this.paneApi.detachPrimitive(this)
         }
     }
     
@@ -246,17 +258,17 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
     //Moves a SingleValueData Point by a given number of indecies (in X) and pixels (in Y)
     movePoint(pt: SingleValueData, dx: Logical, dy: Coordinate): SingleValueData | null {
-        let x = this.chart.timeScale().timeToCoordinate(pt.time)
+        let x = this.chartApi.timeScale().timeToCoordinate(pt.time)
         let y = this.series.priceToCoordinate(pt.value)
         if (!x || !y) return null
 
         //Timescale Conversion to Logical and back required for consistent operation
-        let l = this.chart.timeScale().coordinateToLogical(x)
+        let l = this.chartApi.timeScale().coordinateToLogical(x)
         if (!l) return null
-        x = this.chart.timeScale().logicalToCoordinate(l + dx as Logical)
+        x = this.chartApi.timeScale().logicalToCoordinate(l + dx as Logical)
         if (!x) return null
 
-        let px = this.chart.timeScale().coordinateToTime(x)
+        let px = this.chartApi.timeScale().coordinateToTime(x)
         let py = this.series.coordinateToPrice(y + dy)
         if (!px || !py) return null
 
@@ -264,7 +276,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     }
 
     timeToIndex(time: Time): number | null {
-		const timescale = this.chart.timeScale()
+		const timescale = this.chartApi.timeScale()
 		return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
     }
 
@@ -273,7 +285,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     // the cache on timeframe change.. when else would it need invalidating?
     nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {
         const _nearestTime = this.nearestBarTime(time, look_left)
-        return _nearestTime ? this.chart.timeScale().timeToCoordinate(_nearestTime) : null
+        return _nearestTime ? this.chartApi.timeScale().timeToCoordinate(_nearestTime) : null
     }
 
     //Returns the nearest visible time to the time given

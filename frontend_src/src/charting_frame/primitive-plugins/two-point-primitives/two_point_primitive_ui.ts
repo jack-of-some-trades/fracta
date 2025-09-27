@@ -14,7 +14,7 @@ export function cleanUpTwoPointTool(){ mouseMoveController.abort() }
 export function configureTwoPointPrimitiveUI<T extends primitiveOptions>(e:MouseEvent, new_primitive: TwoPointPrimitive<T>): PrimitiveBase | null {
     //Set First point to where this click originated
     let p = new_primitive.series.coordinateToPrice(e.offsetY)
-    let t = new_primitive.chart.timeScale().coordinateToTime(e.offsetX)
+    let t = new_primitive.chartApi.timeScale().coordinateToTime(e.offsetX)
     
     if (t === null || p === null){
         new_primitive.remove()
@@ -28,17 +28,17 @@ export function configureTwoPointPrimitiveUI<T extends primitiveOptions>(e:Mouse
     mouseMoveController = new AbortController()
 
     //Setup Listeners to update the second point
-    const timescale = new_primitive.chart.timeScale()
+    const timescale = new_primitive.chartApi.timeScale()
     const bound_update_ref = updateSecondPoint.bind(new_primitive, timescale)
-    new_primitive.chart.subscribeCrosshairMove(bound_update_ref)
+    new_primitive.chartApi.subscribeCrosshairMove(bound_update_ref)
 
     mouseMoveController.signal.addEventListener('abort', () => {
-        new_primitive.chart.unsubscribeCrosshairMove(bound_update_ref)
+        new_primitive.chartApi.unsubscribeCrosshairMove(bound_update_ref)
     }, {once: true})
 
     // mount 'click' listener on 'click' event so the second point is only confirmed w/ a second click.
     document.addEventListener('click', () => {
-        new_primitive.chart.chartElement().addEventListener(
+        new_primitive.chartApi.chartElement().addEventListener(
             'click', confirmSecondPoint, {signal:mouseMoveController.signal}
         )
     }, {once: true})

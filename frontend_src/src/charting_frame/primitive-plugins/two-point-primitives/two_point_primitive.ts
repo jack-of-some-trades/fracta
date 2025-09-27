@@ -1,14 +1,14 @@
 import { CanvasRenderingTarget2D } from 'fancy-canvas';
 import {
-	AutoscaleInfo,
-	Coordinate,
-	HandleScrollOptions,
-	Logical,
-	MouseEventParams,
-	Point,
-	PrimitiveHoveredItem,
-	SingleValueData,
-	Time
+    AutoscaleInfo,
+    Coordinate,
+    HandleScrollOptions,
+    Logical,
+    MouseEventParams,
+    Point,
+    PrimitiveHoveredItem,
+    SingleValueData,
+    Time
 } from 'lightweight-charts';
 import { point } from '../../../../tsx/window/overlay_manager';
 import { ChartingEvent } from '../../charting_frame';
@@ -96,7 +96,7 @@ export abstract class TwoPointPrimitive<T extends primitiveOptions> extends Prim
 			update_func = this._mouseMoveEndPoint.bind(this, false)
 		} else return
 
-		const chart = this.chart
+		const chart = this.chartApi
 		const pressedMove = chart.options().handleScroll.valueOf() as HandleScrollOptions | boolean
 		const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove :  pressedMove.pressedMouseMove
 
@@ -114,7 +114,7 @@ export abstract class TwoPointPrimitive<T extends primitiveOptions> extends Prim
 
 	private _mouseMoveEndPoint(p1: boolean, param: MouseEventParams<Time>){
 		if (!param.sourceEvent) return
-		let t = this.chart.timeScale().coordinateToTime(param.sourceEvent.localX)
+		let t = this.chartApi.timeScale().coordinateToTime(param.sourceEvent.localX)
 		let p = this.series.coordinateToPrice(param.sourceEvent.localY)
 
 		if (t && p)
@@ -170,7 +170,7 @@ export abstract class TwoPointRenderer<T extends primitiveOptions> implements Pr
 		if (this._source._p1 === null || this._source._p2 === null) return
 
 		const series = this._source.series;
-		const timeScale = this._source.chart.timeScale()
+		const timeScale = this._source.chartApi.timeScale()
 		let y1 = series.priceToCoordinate(this._source._p1.value)
 		let y2 = series.priceToCoordinate(this._source._p2.value)
 		let x1 = timeScale.timeToCoordinate(this._source._p1.time)

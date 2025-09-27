@@ -46,6 +46,9 @@ export class charting_pane implements ReorderableSet {
         this._pane = pane
         this._frame = frame
 
+        //@ts-ignore Create a way to retrieve this object from the PaneAPI
+        this._pane.chartingPane = this
+
         this.series_primitives = new PrimitiveSet(this)
 
         const sig1 = createSignal<HTMLTableCellElement>()
@@ -90,6 +93,7 @@ export class charting_pane implements ReorderableSet {
     get frame(): charting_frame { return this._frame }
     get paneIndex(): number { return this._pane.paneIndex() }
     get paneApi(): lwc.IPaneApi<lwc.Time> { return this._pane }
+    get chartApi(): lwc.IChartApi { return this.frame.chart }
     get _paneEl(): HTMLTableCellElement | undefined {
         if (this._pane.getHTMLElement()) return this._pane.getHTMLElement() as HTMLTableCellElement
     }

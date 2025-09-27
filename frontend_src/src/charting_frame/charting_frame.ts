@@ -87,6 +87,9 @@ export class charting_frame extends frame {
         const OPTS = DEFAULT_CHART_OPTS()
         let tmp_div = document.createElement('div')
         this._chart = lwc.createChart(tmp_div, OPTS)
+        //@ts-ignore Create a way to retrieve this object from the chartAPI
+        this._chart.chartingFrame = this
+
         // Add initial Pane since AddDefaultPane == false
         this.default_pane = this.addPane()
         this.whitespace_series = this._chart.addSeries(lwc.LineSeries)

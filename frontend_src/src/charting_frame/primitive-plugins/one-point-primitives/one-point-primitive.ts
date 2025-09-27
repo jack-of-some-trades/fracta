@@ -81,7 +81,7 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
         let update_func = this._shiftPoint.bind(
 				this, {x:param.logical,y:param.sourceEvent.localY}
 			)
-        const chart = this.chart
+        const chart = this.chartApi
         const pressedMove = chart.options().handleScroll.valueOf() as HandleScrollOptions | boolean
         const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove : pressedMove.pressedMouseMove
 
@@ -134,7 +134,7 @@ export abstract class OnePointRenderer<T extends primitiveOptions> implements Pr
         if (this._source._p1 === null) return
 
         const series = this._source.series;
-        const timeScale = this._source.chart.timeScale()
+        const timeScale = this._source.chartApi.timeScale()
         let y1 = series.priceToCoordinate(this._source._p1.value)
         let x1 = timeScale.timeToCoordinate(this._source._p1.time)
 
