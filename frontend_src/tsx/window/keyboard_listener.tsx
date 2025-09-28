@@ -1,7 +1,7 @@
 /** 
- * Global Event Listener to handle Keyboard Shortcuts
+ * Global Event Listener to handle Keyboard Shortcuts.
  * 
- * No, This Doesn't need to be a TSX Element. It's implementation would be identical if it were just a .ts file, but
+ * This Doesn't need to be a TSX Element. It's implementation would be identical if it were just a .ts file, but
  * this way it's placed in the file structure next to the context_menu which serves a similar function.
  */
 
@@ -33,7 +33,15 @@ function getPriority(item: keyboardShortcut): number {
             + (typeof(item.hotkey) === 'string'? 0 : -0.5) 
 }
 
-// Context_Menu_Item interface, but guaranteed to have a hotkey defined
+/**
+ * Keyboard shortcut interface. 
+ * @param disable: Optional Boolean Accessor. Can be used to actively enable/disable a shortcut already attached as a handler.
+ *        When disable = false, the event listener considers the key-event not handled and will continue to bubble to find another
+ *        handler that will handle the key-event.
+ * @param title: Residual param from context_menu_item. Only used to silence linter type errors.
+ * @param alt, @param ctrl, @param shift, As you would expect, when true, those modifier keys must be pressed to activate the key-binding.
+ *        In addition, when generated from deriveShortcuts(), the more modifier params needed => the higher the priority of the key-binding.
+ */
 export interface keyboardShortcut {
     execute: () => void
     hotkey: string | RegExp
@@ -54,10 +62,18 @@ type KeyboardContextProps = {
     shift: Accessor<boolean>
 }
 
+/**
+ * @param attachHandler Attach a set of shortcuts. Only one handler will ever trigger for a given key-press. 
+ *        The order of the shortcuts is their priority order. Ind 0 = High Priority, Ind -1 = Low Priority.
+ * @param detachHandler Detach a set of shortcuts by owner ID.
+ * @param attachAnonymousHandler Attach a set of shortcuts from something that has no unique ID. 
+ *        An ID is returned that should be used to remove the shortcuts when they are no longer needed.
+ * @param alt, @param ctrl, @param shift Accessors for the current state of the Modifier Keys
+ */
 const DEFAULT_CTX_ARGS:KeyboardContextProps = {
     attachHandler: (id:string, shortcuts: keyboardShortcut[]) => {},
     detachHandler: (id:string) => {},
-    attachAnonymousHandler: (shortcuts: keyboardShortcut[]) => '',
+    attachAnonymousHandler: (shortcuts: keyboardShortcut[]) => String(),
     alt: () => false,
     ctrl: () => false,
     shift: () => false,
@@ -126,6 +142,7 @@ function onKeyDown(
     setShift:Setter<boolean>, 
     e: KeyboardEvent
 ){
+    e.preventDefault() // Remove all Built in Key bindings (Such as Ctrl-R Refresh)
     if (e.repeat) return // Only Capture Key Changes
 
     switch (e.key) {
@@ -150,6 +167,7 @@ function onKeyUp(
     setShift:Setter<boolean>, 
     e: KeyboardEvent
 ){
+    e.preventDefault()
     switch (e.key) {
         case 'Alt': setAlt(false); return;
         case 'Shift': setShift(false); return;
