@@ -142,8 +142,8 @@ function onKeyDown(
     setShift:Setter<boolean>, 
     e: KeyboardEvent
 ){
-    e.preventDefault() // Remove all Built in Key bindings (Such as Ctrl-R Refresh)
     if (e.repeat) return // Only Capture Key Changes
+    preventCertainDefaults(e)
 
     switch (e.key) {
         case 'Alt': setAlt(true); return;
@@ -167,10 +167,44 @@ function onKeyUp(
     setShift:Setter<boolean>, 
     e: KeyboardEvent
 ){
-    e.preventDefault()
+    preventCertainDefaults(e)
     switch (e.key) {
         case 'Alt': setAlt(false); return;
         case 'Shift': setShift(false); return;
         case 'Control': setCtrl(false); return;
     }
 }
+
+
+/**
+ * Prevent some keyboard shortcuts from triggering. Cannot blanket call e.preventDefault() since
+ * that would disable typing input into all <input/>s
+ */
+function preventCertainDefaults(e: KeyboardEvent){
+    const KEY = e.key.toUpperCase()
+    const MODIFIERS = getMask(e)
+
+    for (const [MASK, KEY_SET] of BLACKLIST_KEYBINDINGS){
+        if (MODIFIERS & MASK && KEY_SET.has(KEY))
+            e.preventDefault()
+            return
+    }
+}
+
+enum ModMask {
+    None  = 0,
+    Ctrl  = 1 << 0,
+    Alt   = 1 << 1,
+    Shift = 1 << 2,
+}
+
+function getMask(e: KeyboardEvent): number {
+    return (e.ctrlKey ? ModMask.Ctrl : 0) |
+           (e.altKey ? ModMask.Alt : 0) |
+           (e.shiftKey ? ModMask.Shift : 0);
+}
+
+const BLACKLIST_KEYBINDINGS: Map<number, Set<string>> = new Map([
+    [ModMask.Ctrl, new Set(['R', 'F', 'G', 'J', 'P', 'I', 'TAB'])],
+    [ModMask.Ctrl | ModMask.Alt, new Set(['DELETE'])],
+])
