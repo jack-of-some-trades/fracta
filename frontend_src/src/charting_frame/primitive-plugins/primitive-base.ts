@@ -36,7 +36,7 @@ export interface primitiveOptions {
     autoscale: boolean
 }
 
-export const DEFAULT_PRIMITIVE_OPTS = { 
+export const DEFAULT_PRIMITIVE_OPTS:primitiveOptions = { 
     visible: true,
     tangible: true,
     autoscale: false,
@@ -62,7 +62,8 @@ export enum HIT_RESULT {
     P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10
 }
 
-export function isPrimitive(obj: unknown): obj is PrimitiveBase { return obj instanceof PrimitiveBase }
+export type PrimitiveBase_T = PrimitiveBase<primitiveOptions>
+export function isPrimitive(obj: unknown): obj is PrimitiveBase_T { return obj instanceof PrimitiveBase }
 
 /**
  * This is a near implementation to the plugin-base class that is in (but not exported from)
@@ -75,7 +76,7 @@ export function isPrimitive(obj: unknown): obj is PrimitiveBase { return obj ins
  * 
  * Docs: https://tradingview.github.io/lightweight-charts/docs/plugins/series-primitives
  */
-export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable {
+export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeriesPrimitive<Time>, Orderable {
     [ORDERABLE]:true = true;
     private _frame: charting_frame | undefined
     private _parent: PrimitiveSet | SeriesBase_T | undefined
@@ -86,7 +87,56 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     _id: string = ""
     _name: string | undefined = undefined
     _type: string = "null"
-    _options: primitiveOptions
+
+    constructor(_id:string, _type:string, _opts:T | undefined){
+        this._id = _id
+        this._type = _type
+        
+        this._options = {...DEFAULT_PRIMITIVE_OPTS as T, ..._opts}
+		this.applyOptions = this.applyOptions.bind(this)
+
+        const sig = createSignal(false)
+        this.selected = sig[0]; this.setSelected = sig[1];
+		createEffect(on(this.selected, () => this.requestUpdate()))
+
+        this.leafProps = {
+            id: _id,
+            obj: this,
+            leafTitle: this.name
+        }
+    }
+
+    get id(): string {return this._id}
+    get name(): string {return this._name ?? this._type}
+    get chartApi(): IChartApi { return ensureDefined(this._chart); }
+    get paneApi(): IPaneApi<Time> { return this.series.getPane() }
+    get series(): ISeriesApi<keyof SeriesOptionsMap> { return ensureDefined(this._series); }
+
+    //@ts-ignore - Ignore Non-existent Property Error
+    get pane(): charting_pane { return ensureDefined(this.paneApi.chartingPane) }
+    //@ts-ignore - Ignore Non-existent Property Error
+    get frame(): charting_frame { return ensureDefined(this.chartApi.chartingFrame) }
+    
+    _options: T // Where all the primitive specific data is stored.
+    options(): T { return structuredClone(this._options) }
+    get<K extends keyof T>(key: K): T[K] { return this._options[key] }
+    applyOptions(opts:Partial<T> | undefined, externalCall = false) {
+        if (opts === undefined) return
+
+        this._options = {...this._options, ...opts}
+        this.requestUpdate()
+        
+        if (!externalCall && this._frame && this._parent) {
+            //Call originated from a UI request. Sync the python object
+            window.api.update_primitive_options(
+                this._frame.id.substring(0,6),  // Container ID only
+                this._frame.id,
+                this._parent.id,
+                this.id, 
+                opts // NOTE: this only sends back updated params
+            )
+        }
+    }
 
     // State variable controlled by the charting_frame. 
     // True when the primitive has been clicked on using any mouse button.
@@ -95,6 +145,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
     public shortcuts: keyboardShortcut[] | undefined
     public ctxMenuStruct: contextMenuItem[][] | undefined
+    public abstract displayOptionsMenu(): void
 
     private _requestUpdate?: () => void;
     // requestUpdate() can be called to force a repaint of the chart's canvas
@@ -129,42 +180,16 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     protected onMouseOut?(param: ChartingEvent): void;
     protected onWheel?(param: ChartingEvent): void;
 
-    constructor(_id:string, _type:string, _opts:primitiveOptions | undefined){
-        this._id = _id
-        this._type = _type
-        this._options = {...DEFAULT_PRIMITIVE_OPTS, ..._opts}
-
-        const sig = createSignal(false)
-        this.selected = sig[0]; this.setSelected = sig[1];
-		createEffect(on(this.selected, () => this.requestUpdate()))
-
-        this.leafProps = {
-            id: _id,
-            obj: this,
-            leafTitle: this.name
-        }
-    }
-
-    get id(): string {return this._id}
-    get name(): string {return this._name ?? this._type}
-    get chartApi(): IChartApi { return ensureDefined(this._chart); }
-    get paneApi(): IPaneApi<Time> { return this.series.getPane() }
-    get series(): ISeriesApi<keyof SeriesOptionsMap> { return ensureDefined(this._series); }
-
-    //@ts-ignore - Ignore Non-existent Property Error
-    get pane(): charting_pane { return ensureDefined(this.paneApi.chartingPane) }
-    //@ts-ignore - Ignore Non-existent Property Error
-    get frame(): charting_frame { return ensureDefined(this.chartApi.chartingFrame) }
-
     setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
-    options(): primitiveOptions {return structuredClone(this._options)}
 
     onActivation() { // When the Series has been first clicked on
+        console.debug('Primitive Activated', this)
         this.setSelected(true)
         if (this.shortcuts) KeyboardCTX().attachHandler(this.id, this.shortcuts)
     }
 
     onDeactivation() {
+        console.debug('Primitive Deactivated', this)
         this.setSelected(false)
         if (this.shortcuts) KeyboardCTX().detachHandler(this.id)
     }
@@ -176,27 +201,6 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
             this.paneApi.detachPrimitive(this)
         }
     }
-    
-    applyOptions(opts:Partial<primitiveOptions> | undefined, externalCall = false) {
-        if (opts === undefined) return
-
-        this._options = {...this._options, ...opts}
-        this.requestUpdate()
-        
-        if (!externalCall && this._frame && this._parent) {
-            //Call originated from a UI request. Sync the python object
-            window.api.update_primitive_options(
-                this._frame.id.substring(0,6),  // Container ID only
-                this._frame.id,
-                this._parent.id,
-                this.id, 
-                this._options
-            )
-        }
-    }
-
-    public abstract displayOptionsMenu(): void
-    public abstract updateData(params: object): void
     
     //#region ------------------- Mouse Event Implementation Functions -------------------
 
@@ -264,7 +268,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     //#endregion
 
     //#region ------------------- Utility Functions -------------------
-    //TODO: Abstract these w/ dependency injection and move them to the helpers folder
+    //TODO: Abstract these w/ dependency injection and move them to the helpers folder?
 
     //Moves a SingleValueData Point by a given number of indecies (in X) and pixels (in Y)
     movePoint(pt: SingleValueData, dx: Logical, dy: Coordinate): SingleValueData | null {
@@ -291,7 +295,7 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
     }
 
     // TODO: Determine if binary searching this frequently (by calling this in renderer.update functions)
-    //  is a bad idea or not. only alternative would be to cache the value and setup a method to invalidate 
+    // is a bad idea or not. only alternative would be to cache the value and setup a method to invalidate 
     // the cache on timeframe change.. when else would it need invalidating?
     nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {
         const _nearestTime = this.nearestBarTime(time, look_left)
@@ -308,9 +312,11 @@ export abstract class PrimitiveBase implements ISeriesPrimitive<Time>, Orderable
 
         if (index >= 0) // Found Time value given
             return time
-        else if (look_left) // Negative Index indicates nearest index to the left.
+
+        // Negative Index => Value not found, (-index) is the nearest index to the left.
+        if (look_left) 
             return time_points[-index] as Time
-        else
+        else // When looking right, cap index at last valid index
             return time_points[Math.min(-index + 1 , time_points.length - 1)] as Time
     }
 

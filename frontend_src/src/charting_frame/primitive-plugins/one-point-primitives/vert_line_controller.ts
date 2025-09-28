@@ -1,18 +1,13 @@
-import { LineStyle, MouseEventParams, Time } from 'lightweight-charts';
+import { MouseEventParams, Time } from 'lightweight-charts';
 import { ChartingEvent } from '../../charting_frame';
-import { VertLine, VertLineOptions, VertLineParameters } from './vert_line';
+import { VertLine, VertLineOptions } from './vert_line';
 
 
-
-interface VertLineControllerParameters extends VertLineParameters {
+// The Controller Requires the following 3 parameters to be a valid controller.
+interface VertLineControllerOptions extends Partial<VertLineOptions> {
     autosend: boolean
     submit: () => void
     update: (time:Time) => void
-}
-
-const DEFAULT_STYLE: Partial<VertLineOptions> = {
-    width: 1,
-    lineStyle: LineStyle.SparseDotted
 }
 
 /**
@@ -24,8 +19,7 @@ export class VertLineController extends VertLine {
     private submit: () => void
     private autosend: boolean
 
-    constructor(id:string, params:VertLineControllerParameters) {
-        params.options = {...DEFAULT_STYLE, ...params.options}
+    constructor(id:string, params:VertLineControllerOptions) {
         super(id, params)
         this.autosend = params.autosend
         this.update = params.update

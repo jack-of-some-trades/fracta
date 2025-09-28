@@ -124,20 +124,16 @@ export interface SeriesPartialOptionsMap_EXT extends Exclude<lwc.SeriesPartialOp
 
 
 /**
- * This class is a thin shell wrapper around lightweight-charts' ISeriesApi.
- * The wrapper serves to add a couple parameters and functions that are closely tied
- * with the series objects. Most Notable, this object contains functions that reach
- * into the SeriesAPI minified object to manipulate instance variables that aren't
- * normally exposed by the lightweight-charts library.
+ * This class is a wrapper around lightweight-charts' ISeriesApi.
+ * The wrapper serves to add a functions that are closely tied with the series objects.
+ * Most Notable, hit-tests, click events, slight manipulation of the underlying seriesAPI object.
  * 
  * This would have been an extension of the lightweight charts' SeriesAPI Class, but that
  * class isn't exported, only it's interface ISeriesAPI is.
  * 
- * This is a sister class to the PrimitiveBase class defined by this module.
- * 
  * This generic class also serves to remove the 'Custom' Series Type. Instead any series types that
  * would have been defined as custom should be explicit extensions of this class's type parameter.
- * Thus should be added to the Options, Partial_Options, and Data Type Maps below.
+ * Thus should be added to the Options, Partial_Options, and Data Type Maps above.
  * 
  * Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeriesApi
  */
@@ -173,7 +169,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this._series = this._createSeries(type)
         this.hitTest = SERIES_HIT_TEST_MAP.get(type)?.bind(this) ?? NULL_HIT
 
-        console.log(this)
+        console.debug(this)
         this.leafProps = {
             id:this.id,
             leafTitle:this.name,
@@ -212,12 +208,12 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     get chart() : lwc.IChartApi { return this._indicator.frame._chart }
 
     onActivation() { // When the Series has been first clicked on
-        console.log('activate series', this._type)
+        console.debug('activate series', this)
         if (this.shortcuts) KeyboardCTX().attachHandler(this.id, this.shortcuts)
     }
 
     onDeactivation() {
-        console.log('deactivate series', this._type)
+        console.debug('deactivate series', this)
         KeyboardCTX().detachHandler(this.id)
     }
     
@@ -284,7 +280,7 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
 
     private _onClick(param: ChartingEvent){}
     private _onAuxClick(param: ChartingEvent){}
-    private _onDblClick(param: ChartingEvent){}
+    private _onDblClick(param: ChartingEvent){ this._indicator.displayOptionsMenu() }
     private _onMouseUp(param:ChartingEvent){}
     private _onMouseDown(param: ChartingEvent){}
     

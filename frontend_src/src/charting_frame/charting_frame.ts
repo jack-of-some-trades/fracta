@@ -10,14 +10,14 @@ import { updateTabFunc } from "../window/container";
 import { frame } from "../window/frame";
 import { charting_pane } from "./charting_pane";
 import { indicator, isIndicator } from "./indicator";
-import { isPrimitive, PrimitiveBase } from "./primitive-plugins/primitive-base";
+import { isPrimitive, PrimitiveBase_T } from "./primitive-plugins/primitive-base";
 import { PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { Series_Type, SeriesBase_T } from "./series-plugins/series-base";
 
 
 export type ChartingEvent<T = lwc.Time> = lwc.MouseEventParams<T> & {
     hoveredSeriesBase: SeriesBase_T | undefined,
-    hoveredPrimitiveBase: PrimitiveBase | undefined,
+    hoveredPrimitiveBase: PrimitiveBase_T | undefined,
 }
 export type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
 export type ChartingEventsTypes = MouseEventKeys | 'crosshair'
@@ -62,7 +62,7 @@ export class charting_frame extends frame {
     // Used to track activity states to primarily keep the Keyboard listeners relevant
     private _activePane: charting_pane | undefined
     private _activeSeries: SeriesBase_T | undefined
-    private _activePrimitive: PrimitiveBase | undefined
+    private _activePrimitive: PrimitiveBase_T | undefined
 
     constructor(id: string, tab_update_func: updateTabFunc) {
         super(id, tab_update_func)

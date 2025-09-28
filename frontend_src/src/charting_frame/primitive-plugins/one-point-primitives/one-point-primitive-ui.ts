@@ -3,16 +3,15 @@
  * the user to seamlessly create a TrendLine via Mouse input.
  */
 
-import { ITimeScaleApi, MouseEventParams, Time } from "lightweight-charts"
+import { ITimeScaleApi, MouseEventParams, SingleValueData, Time } from "lightweight-charts"
 import { KeyboardCTX } from "../../../../tsx/window/keyboard_listener"
-import { PrimitiveBase, primitiveOptions } from "../primitive-base"
 import { finalizeToolCreation } from "../tool_ui_support"
-import { OnePointPrimitive } from "./one-point-primitive"
+import { OnePointParameters, OnePointPrimitive } from "./one-point-primitive"
 
 let mouseMoveController = new AbortController()
 export function cleanUpOnePointTool(){ mouseMoveController.abort() }
 
-export function configureOnePointPrimitiveUI<T extends primitiveOptions>(e:MouseEvent, new_primitive: OnePointPrimitive<T>): PrimitiveBase | null {
+export function configureOnePointPrimitiveUI<T extends OnePointParameters>(e:MouseEvent, new_primitive: OnePointPrimitive<T>): OnePointPrimitive<T> | null {
     //Set First point to where this click originated
     let p = new_primitive.series.coordinateToPrice(e.offsetY)
     let t = new_primitive.chartApi.timeScale().coordinateToTime(e.offsetX)
@@ -22,7 +21,7 @@ export function configureOnePointPrimitiveUI<T extends primitiveOptions>(e:Mouse
         console.warn('Failed to create Primitive, Price or Time invalid', new_primitive)
         return null
     }
-    new_primitive.updateData({p1:{time:t, value:p}})
+    new_primitive.applyOptions({p1:{time:t, value:p} as SingleValueData} as Partial<T>)
     
     if (KeyboardCTX().ctrl()) {
         // If Ctrl was held, finalize the primitive creation immediately
@@ -35,6 +34,7 @@ export function configureOnePointPrimitiveUI<T extends primitiveOptions>(e:Mouse
 
     //Setup Listeners to update the point
     const timescale = new_primitive.chartApi.timeScale()
+    // @ts-ignore - Sometimes you just gotta accept that you can satisfy the compiler
     const bound_update_ref = updatePoint.bind(new_primitive, timescale)
     new_primitive.chartApi.subscribeCrosshairMove(bound_update_ref)
 
@@ -61,7 +61,7 @@ function confirmPoint(e:MouseEvent){
 }
 
 
-function updatePoint<T extends primitiveOptions>(
+function updatePoint<T extends OnePointParameters>(
     this:OnePointPrimitive<T>, timescale:ITimeScaleApi<Time>, param:MouseEventParams<Time>
 ){
     if (!param.point) return
@@ -69,5 +69,5 @@ function updatePoint<T extends primitiveOptions>(
     let t = timescale.coordinateToTime(param.point.x)
     let p = this.series.coordinateToPrice(param.point.y)
     if (t && p)
-        this.updateData({p1:{ time: t, value: p }})
+        this.applyOptions({p1:{ time: t, value: p } as SingleValueData} as Partial<T>)
 }

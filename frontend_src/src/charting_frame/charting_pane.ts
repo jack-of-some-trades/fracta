@@ -6,7 +6,7 @@ import { contextMenuItem, MenuContextListener } from "../../tsx/window/context_m
 import { deriveShortcuts, KeyboardCTX, keyboardShortcut } from "../../tsx/window/keyboard_listener";
 import { charting_frame } from "./charting_frame";
 import { indicator, isIndicator } from "./indicator";
-import { PrimitiveBase } from "./primitive-plugins/primitive-base";
+import { PrimitiveBase_T } from "./primitive-plugins/primitive-base";
 import { isPrimitiveSet, PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { SeriesApi, SeriesDefinitions } from "./series-plugins/series-base";
 
@@ -154,8 +154,8 @@ export class charting_pane implements ReorderableSet {
     // TODO: Expand this functionality to match primitive base if pane Primitives become more readily used.
     _attachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.attachPrimitive(primitive) }
     _detachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.detachPrimitive(primitive) }
-    _attachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.attachPrimitive(primitive) }
-    _detachSeriesPrimitive(primitive: PrimitiveBase){ this.series_primitives?.detachPrimitive(primitive) }
+    _attachSeriesPrimitive(primitive: PrimitiveBase_T){ this.series_primitives?.attachPrimitive(primitive) }
+    _detachSeriesPrimitive(primitive: PrimitiveBase_T){ this.series_primitives?.detachPrimitive(primitive) }
     _addSeries(type: SeriesDefinitions): SeriesApi { return this._pane.addSeries(type) }
     _addCustomSeries(impl: lwc.ICustomSeriesPaneView): SeriesApi { return this._pane.addCustomSeries(impl) }
     _priceScale(scale: string): lwc.IPriceScaleApi { return this._pane.priceScale(scale) }

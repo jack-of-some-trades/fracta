@@ -402,7 +402,7 @@ function TimeInput(props: input_props){
 
     if (props.params.controller) {
         // TODO: This only works at the moment because it's only pulling the time. If it were to pull the price
-        // then it would break once the orinating primitve and this primitive are placed on two different price scales
+        // then it would break once the orinating primitve and this primitive are placed on two different price scales.
         let controller = new VertLineController(
             props.id + '_' + props.key +'_cntrlr', 
             {

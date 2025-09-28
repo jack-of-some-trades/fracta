@@ -17,43 +17,24 @@ import { HIT_RESULT, HoveredItem, PrimitiveBase, primitiveOptions, PrimitiveRend
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface OnePointParameters<T extends primitiveOptions> {
-    p1: SingleValueData | null,
-    options: T
+export interface OnePointParameters extends primitiveOptions {
+    p1: SingleValueData | null
 }
 
-export interface OnePointParametersPartial<T extends primitiveOptions> {
-    p1?: SingleValueData | null,
-    options?: Partial<T>
-}
-
-type UpdateParams<T extends primitiveOptions> =
-  OnePointParametersPartial<T> & Partial<T>
-
-export type OnePointRenderer_T<T extends primitiveOptions> = new(source: OnePointPrimitive<T>) => OnePointRenderer<T>
+export type OnePointRenderer_T<T extends OnePointParameters> = new(source: OnePointPrimitive<T>) => OnePointRenderer<T>
 
 /* --------------------- Primitive Main Class ----------------------- */
 
-export abstract class OnePointPrimitive<T extends primitiveOptions> extends PrimitiveBase {
-    _p1: SingleValueData | null
-
-    public _options: T
+export abstract class OnePointPrimitive<T extends OnePointParameters> extends PrimitiveBase<T> {
     protected _paneView: OnePointRenderer<T>;
 
-    constructor(id:string, type:string, renderer: OnePointRenderer_T<T>, params:OnePointParameters<T>) {
+    constructor(id:string, type:string, renderer: OnePointRenderer_T<T>, params:T) {
         super(id, type, undefined)
-        this._options = params.options
-        this._p1 = params.p1;
+        this._options = params
         this._paneView = new renderer(this)
     }
 
-    public updateData(params:UpdateParams<T>){
-        if (params.p1) {
-            this._p1 = params.p1
-            this.requestUpdate()
-        }
-        this.applyOptions(params.options)
-    }
+    get p1():T['p1'] { return this.get('p1') }
 
     //#region --------------- Base Class / Interface Functions --------------- //
 
@@ -61,17 +42,17 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
     updateAllViews() { this._paneView.update(); }
 
     autoscaleInfo(startTimePoint: Logical, endTimePoint: Logical): AutoscaleInfo | null {
-        if (!this._options.autoscale || !this._options.visible || this._p1 === null) return null
+        if (!this._options.autoscale || !this._options.visible || this.p1 === null) return null
 
-        const p1Index = this.timeToIndex(this._p1.time);
+        const p1Index = this.timeToIndex(this.p1.time);
         if (p1Index === null) return null;
         // Off-Screen check
         if (endTimePoint < p1Index || startTimePoint > p1Index) return null;
 
         return {
             priceRange: {
-                minValue: this._p1.value,
-                maxValue: this._p1.value,
+                minValue: this.p1.value,
+                maxValue: this.p1.value,
             },
         };
     }
@@ -86,33 +67,33 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
         if (!param.sourceEvent || !param.logical) return
         if (this._paneView._hovered != HIT_RESULT.P1 && this._paneView._hovered != HIT_RESULT.Stroke ) return
     
-        let update_func = this._shiftPoint.bind(
-				this, {x:param.logical,y:param.sourceEvent.localY}
-			)
+        let shiftFunc = this._shiftPoint.bind(
+            this, {x:param.logical,y:param.sourceEvent.localY}
+        )
         const chart = this.chartApi
         const pressedMove = chart.options().handleScroll.valueOf() as HandleScrollOptions | boolean
         const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove : pressedMove.pressedMouseMove
 
         //Remove Scrolling effect
         chart.applyOptions({ handleScroll: { pressedMouseMove: false } })
-        chart.subscribeCrosshairMove(update_func)
+        chart.subscribeCrosshairMove(shiftFunc)
 
         document.addEventListener('mouseup', () => {
-            chart.unsubscribeCrosshairMove(update_func)
+            chart.unsubscribeCrosshairMove(shiftFunc)
             //Reenable Scrolling effect if it was set prior to clicking
             chart.applyOptions({ handleScroll: { pressedMouseMove: pressedMoveReEnable } })
         },{once:true})
     }
     
     private _shiftPoint(last_point:point , param: MouseEventParams<Time>){
-        if (!param.logical || !param.sourceEvent || !this._p1) return
+        if (!param.logical || !param.sourceEvent || !this.p1) return
         let dx = param.logical - last_point.x as Logical
         let dy = param.sourceEvent.localY - last_point.y as Coordinate
 
-        let p1 = this.movePoint(this._p1, dx, dy)
+        let p1 = this.movePoint(this.p1, dx, dy)
 
         if (!p1) return
-        this.updateData({p1:p1} as UpdateParams<T>)
+        this.applyOptions({p1:p1} as Partial<T>)
         last_point.x = param.logical
         last_point.y = param.sourceEvent.localY
     }
@@ -123,9 +104,9 @@ export abstract class OnePointPrimitive<T extends primitiveOptions> extends Prim
 
 /* --------------------- Primitive Render Classes ----------------------- */
 
-export abstract class OnePointRenderer<T extends primitiveOptions> implements PrimitiveRenderer {
-    _p1: Point | null = null
-    _source: OnePointPrimitive<T>;
+export abstract class OnePointRenderer<T extends OnePointParameters> implements PrimitiveRenderer {
+    protected _c1: Point | null = null
+    protected _source: OnePointPrimitive<T>;
     _hovered: number | undefined
 
     stroke: Path2D | null = null
@@ -135,27 +116,28 @@ export abstract class OnePointRenderer<T extends primitiveOptions> implements Pr
     renderer() { return this }
 
     get options():T { return this._source._options }
+    get<K extends keyof T>(key: K): T[K] { return this._source.get(key) }
     abstract draw(target: CanvasRenderingTarget2D): void
     abstract hitTest(x: number, y: number): HoveredItem | null
 
     update() {
-        if (this._source._p1 === null) return
+        if (this._source.p1 === null) return
 
         const series = this._source.series;
         const timeScale = this._source.chartApi.timeScale()
-        let y1 = series.priceToCoordinate(this._source._p1.value)
-        let x1 = timeScale.timeToCoordinate(this._source._p1.time)
+        let y1 = series.priceToCoordinate(this._source.p1.value)
+        let x1 = timeScale.timeToCoordinate(this._source.p1.time)
 
-		// Crutial step to ensure something gets drawn. timeToCoordinate() only returns a value if
+		// Crucial step to ensure something gets drawn. timeToCoordinate() only returns a value if
 		// that exact time exists on the chart. if it doesn't, we need to manually binary search for the closest time.
-        if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source._p1.time)
+        if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source.p1.time)
 
         if (x1 === null || y1 === null) {
-            this._p1 = null
+            this._c1 = null
             return
         }
 
-        this._p1 = { x: Math.round(x1) as Coordinate, y: Math.round(y1) as Coordinate }
+        this._c1 = { x: Math.round(x1) as Coordinate, y: Math.round(y1) as Coordinate }
     }
     
 }

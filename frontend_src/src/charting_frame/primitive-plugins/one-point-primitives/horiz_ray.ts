@@ -1,12 +1,11 @@
 import { CanvasRenderingTarget2D } from 'fancy-canvas';
-import { SingleValueData } from 'lightweight-charts';
 import { icons } from '../../../../tsx/generic_elements/icons';
 import { generateOptionsMenu } from '../../../../tsx/generic_elements/options_menu';
 import { charting_pane } from '../../charting_pane';
 import { CanvasStrokeStyles, DEFAULT_STROKE_STYLE, draw_dot, setCanvasStokeStyle } from '../../helpers/canvas';
-import { DEFAULT_PRIMITIVE_OPTS, HIT_RESULT, HoveredItem, primitiveOptions } from '../primitive-base';
+import { DEFAULT_PRIMITIVE_OPTS, HIT_RESULT, HoveredItem } from '../primitive-base';
 import { PrimitiveTool } from '../tool_ui_support';
-import { OnePointPrimitive, OnePointRenderer } from './one-point-primitive';
+import { OnePointParameters, OnePointPrimitive, OnePointRenderer } from './one-point-primitive';
 import { cleanUpOnePointTool, configureOnePointPrimitiveUI } from './one-point-primitive-ui';
 
 
@@ -22,46 +21,30 @@ export const HorizRayTool: PrimitiveTool = {
 }
 
 function createRay(pane:charting_pane, e: MouseEvent){
-    const new_line = new HorizRay('', {p1:null})
+    const new_line = new HorizRay('')
     pane._attachSeriesPrimitive(new_line)
     return configureOnePointPrimitiveUI(e, new_line)
 }
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface HorizRayOptions extends primitiveOptions, CanvasStrokeStyles {
+export interface HorizRayOptions extends OnePointParameters, CanvasStrokeStyles {
     right: boolean;
 }
 
 const defaultOptions: HorizRayOptions = {
+    p1: null,
     right: true,
     ...DEFAULT_PRIMITIVE_OPTS,
     ...DEFAULT_STROKE_STYLE,
 };
 
-interface HorizRayParameters {
-    p1: SingleValueData | null,
-    options?: Partial<HorizRayOptions>
-}
-
-
 /* --------------------- Primitive Base Class ----------------------- */
 
 export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
 
-    constructor(id:string, params:HorizRayParameters) {
-        const _filled_params = {
-            p1: params.p1, options:{...defaultOptions, ...params.options}
-        }
-        super(id, TOOL_NAME, HorizRayRenderer, _filled_params)    
-    }
-
-    public updateData(params:Partial<HorizRayParameters & HorizRayOptions>){
-        if (params.right !== undefined) {
-            this._options.right = params.right
-            this.requestUpdate()
-        }
-        super.updateData(params)
+    constructor(id:string, params?:Partial<HorizRayOptions>) {
+        super(id, TOOL_NAME, HorizRayRenderer, {...defaultOptions, ...params})
     }
 
     public displayOptionsMenu(): void {
@@ -69,7 +52,7 @@ export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
             id: this.id + '_options',
             title: TOOL_NAME + ' Options',
             tabs: {
-                'Inputs': [MENU_STRUCT, {...{p1: this._p1}, ...this._options}, this.updateData.bind(this)],
+                'Inputs': [MENU_STRUCT, this._options, this.applyOptions],
                 'Style': undefined,
             },
             pane: this.pane
@@ -86,18 +69,18 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
         target.useMediaCoordinateSpace(scope => {
             const ctx = scope.context;
             this.ctx = ctx
-            if (this._p1 === null) {
+            if (this._c1 === null) {
                 this.stroke = null
             } else {
                 setCanvasStokeStyle(ctx, this.options)
 
                 let line = new Path2D()
-                line.moveTo(this._p1.x, this._p1.y)
-                line.lineTo( this.options.right ? ctx.canvas.width + 1 : -1 , this._p1.y)
+                line.moveTo(this._c1.x, this._c1.y)
+                line.lineTo( this.options.right ? ctx.canvas.width + 1 : -1 , this._c1.y)
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {
-                    draw_dot(ctx, this._p1, this._source.selected())
+                    draw_dot(ctx, this._c1, this._source.selected())
                 }
                 this.stroke = line
             }
@@ -105,18 +88,16 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
     }
 
     hitTest(x: number, y: number): HoveredItem | null {
-        if (  
-            !this._source._options.tangible || !this._source._options.visible || this._p1 === null
-        ) return null
+        if (!this.get('tangible') || !this.get('visible') || this._c1 === null) return null
 
         this._hovered = undefined //Assume it isn't hovered. Will correct if not.
 
         //Course X range Check
-        if (this.options.right ? this._p1.x - 10 > x : this._p1.x + 10 < x) 
+        if (this.options.right ? this._c1.x - 10 > x : this._c1.x + 10 < x) 
             return null
 
         //Point Check
-        if (Math.abs(this._p1.x - x) < 10 && Math.abs(this._p1.y - y) < 10){
+        if (Math.abs(this._c1.x - x) < 10 && Math.abs(this._c1.y - y) < 10){
             this._hovered = HIT_RESULT.P1
             return { 
                 cursorStyle: 'grab',
@@ -126,7 +107,7 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
         }
 
         //Trace Check
-        if ( Math.abs(this._p1.y - y) < Math.max(this.options.width, 8) ){
+        if ( Math.abs(this._c1.y - y) < Math.max(this.options.width, 8) ){
             this._hovered = HIT_RESULT.Stroke
             return { 
                 cursorStyle: 'grab',
