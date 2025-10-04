@@ -114,6 +114,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
             return { 
                 cursorStyle: 'grab',
                 externalId: this._source,
+                hitResult: HIT_RESULT.P1,
                 zOrder: 'normal'
             }
         }
@@ -122,6 +123,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
             return {
                 cursorStyle: 'grab',
                 externalId: this._source,
+                hitResult: HIT_RESULT.P2,
                 zOrder: 'normal'
             }
         }
@@ -132,6 +134,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
             return {
                 cursorStyle: 'grab',
                 externalId: this._source,
+                hitResult: HIT_RESULT.Stroke,
                 zOrder: 'normal',
             }
         }

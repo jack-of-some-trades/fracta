@@ -213,6 +213,7 @@ export class charting_frame extends frame {
         return {...params, ...{
             //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
             'hoveredSeriesBase': advSeriesHitTest(params),
+            // Params.hoveredObjectId === PrimitiveHoveredItem.externalId (prmitive base defines this as the primitive object itself)
             'hoveredPrimitiveBase': isPrimitive(params.hoveredObjectId) ? params.hoveredObjectId : undefined
         }} 
     }

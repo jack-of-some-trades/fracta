@@ -27,8 +27,11 @@ import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 
 export type PrimitiveRenderer = IPrimitivePaneView & IPrimitivePaneRenderer
 
-//@ts-ignore ---- Hijack the returned object to yield the actual object instead.
-export interface HoveredItem extends PrimitiveHoveredItem { externalId: PrimitiveBase }
+//@ts-ignore - Change the type of externalID to provide better hit-detection
+export interface HoveredItem extends PrimitiveHoveredItem { 
+    externalId: PrimitiveBase_T
+    hitResult: hitResult
+}
 
 export interface primitiveOptions {
     visible: boolean
@@ -42,7 +45,8 @@ export const DEFAULT_PRIMITIVE_OPTS:primitiveOptions = {
     autoscale: false,
 }
 
-// Enumeration to standardize some various hit test results. To be used internally to a Primitive / Renderer Pair
+// Enumeration to standardize some various hit test results.
+export type hitResult = HIT_RESULT | number
 export enum HIT_RESULT {
     ControlPt4 = -13,
     ControlPt3 = -12,
@@ -154,7 +158,7 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     // and will only result in a single render update once the invalidation mask is serviced
     protected requestUpdate(): void { if (this._requestUpdate) this._requestUpdate(); }
     // hitTest Should return itself as the 'externalID' instead of it'd actual id. Ignore the resulting type error
-    hitTest?(x: number, y: number): PrimitiveHoveredItem | null;
+    hitTest(x: number, y: number): PrimitiveHoveredItem | null { return null };
 
     // The methods below can be defined by a sub-class. Their Respective events will only 
     // be called When they are the 'hoveredPrimitiveBase' target of the Charting Event.
@@ -164,20 +168,20 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     protected onDblClick?(param: ChartingEvent) { this.displayOptionsMenu() }
     protected onMouseUp?(param:ChartingEvent): void;
     protected onMouseDown?(param: ChartingEvent): void;
-
-    // The following methods will be added to their respective frame 'onAttached'. They fire much more frequently as a result. 
-    // If these are used situationally then their subscription should be handled manually; 
-    // i.e. add crosshair subscription when user desires to move a point of a trendline, then remove subscriber once point move is complete.
-    // ** Prioritize CrosshairMove over mouse move since the crosshair follows magnet cursor mode.
-    // ** These MouseEvents fire on the chart, not the pane. In each method
-    //  you should generally Check if ( e.paneIndex === this._parent.paneIndex )
-    // TODO: Only update mouse Enter/Move/Over/Out to fire when they occur?
-    protected onCrosshairMove?(param: ChartingEvent): void;
-    protected onMouseMove?(param: ChartingEvent): void;
+    // The Following 3, when defined, will execute an additional HitTest() per primitive, per cursor move event.
     protected onMouseEnter?(param: ChartingEvent): void;
     protected onMouseLeave?(param: ChartingEvent): void;
-    protected onMouseOver?(param: ChartingEvent): void;
-    protected onMouseOut?(param: ChartingEvent): void;
+    // Since there is no DOM-Tree separate Over/Out Methods don't make sense, so they've been combined.
+    protected onMouseOverOut?(param: ChartingEvent, from?: hitResult, to?: hitResult): void;
+
+    // MouseEvents will be added to their respective frame 'onAttached'. They fire much more frequently as a result. 
+    // ** Prioritize CrosshairMove over mousemove since the crosshair follows w/ magnet cursor mode.
+    // ** These MouseEvents fire on the chart, not the pane so generally you should check e.paneIndex === this._parent.paneIndex
+    protected onCrosshairMove?(param: ChartingEvent): void;
+    protected onMouseMove?(param: ChartingEvent): void;
+
+    // onWheel is not entirely implemented yet. Currently the Scroll wheel always adjusts the timescale.
+    // That event would need to be intercepted if a primitive's onWheel() is invoked.
     protected onWheel?(param: ChartingEvent): void;
 
     setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
@@ -216,10 +220,9 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
             if (this.onCrosshairMove) { this._frame.subscribeMouseEvent('crosshair', this._fireCrosshairMove); }
             if (this.onMouseMove) { this._frame.subscribeMouseEvent('mousemove', this._fireMouseMove); }
             if (this.onWheel) { this._frame.subscribeMouseEvent('wheel', this._fireWheel); }
-            if (this.onMouseEnter) { this._frame.subscribeMouseEvent('mouseenter', this._fireMouseEnter); }
-            if (this.onMouseLeave) { this._frame.subscribeMouseEvent('mouseleave', this._fireMouseLeave); }
-            if (this.onMouseOver) { this._frame.subscribeMouseEvent('mouseover', this._fireMouseOver); }
-            if (this.onMouseOut) { this._frame.subscribeMouseEvent('mouseout', this._fireMouseOut); }
+            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) { 
+                this._frame.subscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave); 
+            }
         }
         this._requestUpdate = requestUpdate;
         this.requestUpdate();
@@ -235,12 +238,12 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
             if (this.onCrosshairMove) { this._frame.unsubscribeMouseEvent('crosshair', this._fireCrosshairMove); }
             if (this.onMouseMove) { this._frame.unsubscribeMouseEvent('mousemove', this._fireMouseMove); }
             if (this.onWheel) { this._frame.unsubscribeMouseEvent('wheel', this._fireWheel); }
-            if (this.onMouseEnter) { this._frame.unsubscribeMouseEvent('mouseenter', this._fireMouseEnter); }
-            if (this.onMouseLeave) { this._frame.unsubscribeMouseEvent('mouseleave', this._fireMouseLeave); }
-            if (this.onMouseOver) { this._frame.unsubscribeMouseEvent('mouseover', this._fireMouseOver); }
-            if (this.onMouseOut) { this._frame.unsubscribeMouseEvent('mouseout', this._fireMouseOut); }
+            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) { 
+                this._frame.unsubscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave); 
+            }
         }
 
+        this._frame = undefined;
         this._chart = undefined;
         this._series = undefined;
         this._requestUpdate = undefined;
@@ -259,11 +262,27 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     private _fireCrosshairMove = (e:ChartingEvent) => this.onCrosshairMove?.(e)
     private _fireMouseMove = (e:ChartingEvent) => this.onMouseMove?.(e)
     private _fireWheel = (e:ChartingEvent) => this.onWheel?.(e)
-    private _fireMouseEnter = (e:ChartingEvent) => this.onMouseEnter?.(e)
-    private _fireMouseLeave = (e:ChartingEvent) => this.onMouseLeave?.(e)
-    private _fireMouseOver = (e:ChartingEvent) => this.onMouseOver?.(e)
-    private _fireMouseOut = (e:ChartingEvent) => this.onMouseOut?.(e)
     private _fireDataUpdated = (scope: DataChangedScope) => this.onDataUpdate?.(scope)
+
+    private _hoveredItem:HoveredItem | null = null // Only valid state if either a MouseEnter or MouseLeave function is defined
+    private _maybeFireMouseOverOutEnterLeave = (e:ChartingEvent) => { 
+        if (!this._parent || e.paneIndex != this._parent.pane.paneIndex) return
+        if (!e.point?.x || !e.point?.y) return
+
+        const hit = this.hitTest(e.point?.x, e.point?.y) as HoveredItem | null
+
+        if (this.onMouseEnter || this.onMouseLeave){
+            // Detect when hit changes from null to an object or vise-versa
+            if ((hit ? true : false) !== (this._hoveredItem ? true: false))
+                hit ? this.onMouseEnter?.(e) : this.onMouseLeave?.(e)
+        }
+        if (this.onMouseOverOut){
+            // Detected When the Hit-Result Changes
+            if (hit?.hitResult !== this._hoveredItem?.hitResult)
+                this.onMouseOverOut(e, this._hoveredItem?.hitResult, hit?.hitResult)
+        }
+        this._hoveredItem = hit
+    }
 
     //#endregion
 

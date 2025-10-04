@@ -63,9 +63,9 @@ export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends Pr
 		};
 	}
 
-	hitTest(x: number, y: number): PrimitiveHoveredItem | null { 
-		// @ts-ignore ---- Let's just pretend it wanted the object so we get better hit-detection.
-		return this._paneView.hitTest(x, y) as PrimitiveHoveredItem
+	hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+		// Alter return type to silence error while maintaining better hit detection
+		return this._paneView.hitTest(x, y)	as PrimitiveHoveredItem | null
 	}
 
 	/* Move P1, P2, or both */

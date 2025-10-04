@@ -102,6 +102,7 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
             return { 
                 cursorStyle: 'grab',
                 externalId: this._source,
+                hitResult: HIT_RESULT.P1,
                 zOrder: 'normal'
             }
         }
@@ -112,6 +113,7 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
             return { 
                 cursorStyle: 'grab',
                 externalId: this._source,
+                hitResult: HIT_RESULT.Stroke,
                 zOrder: 'normal'
             }
         }

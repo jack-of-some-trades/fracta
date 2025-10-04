@@ -57,11 +57,11 @@ export abstract class OnePointPrimitive<T extends OnePointParameters> extends Pr
         };
     }
 
-    hitTest(x: number, y: number): PrimitiveHoveredItem | null { 
-        // @ts-ignore ---- Let's just pretend it wanted the object so we get better hit-detection.
-        return this._paneView.hitTest(x, y) as PrimitiveHoveredItem
+    hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+        // Alter return type to silence error while maintaining better hit detection
+        return this._paneView.hitTest(x, y)	as PrimitiveHoveredItem | null
     }
-
+    
     onMouseDown(param: ChartingEvent) {
         if (!this._options.visible || !this._options.tangible) return
         if (!param.sourceEvent || !param.logical) return
