@@ -6,6 +6,7 @@ from enum import IntEnum, auto
 import logging
 import asyncio
 import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Protocol
 
@@ -151,15 +152,14 @@ class Window:
 
     async def _manage_queue(self):
         log.debug("Entered Async Queue Manager")
-        while not self._stop_event.is_set():
-            if self._rtn_queue.empty():
-                # Sleep Time is to prioritize other Event Loop Calls.
-                # Can be set to 0 if the Rtn_Queue becomes more active.
-                await asyncio.sleep(0.05)
-            else:
-                cmd, *args = self._rtn_queue.get()
+        async_loop = asyncio.get_event_loop()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            while not self._stop_event.is_set():
+                cmd, *args = await async_loop.run_in_executor(pool, self._rtn_queue.get)
                 WIN_CMD_ROLODEX[cmd](self, *args)
                 log.debug("PY_CMD: %s: %s", cmd.name, str(args))
+
         log.debug("Exited Async Queue Manager")
 
     # region ------------------------ Public Window Methods  ------------------------ #

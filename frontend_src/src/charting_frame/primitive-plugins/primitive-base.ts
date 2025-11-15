@@ -121,7 +121,9 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     //@ts-ignore - Ignore Non-existent Property Error
     get frame(): charting_frame { return ensureDefined(this.chartApi.chartingFrame) }
     
-    _options: T // Where all the primitive specific data is stored.
+    // IMPORTANT DEVELOPER NOTE: All the primitive specific data should be stored in primitive.options.
+    // This links into how options are updated (both from TS & Python) & how the options menus are programmatically generated.
+    _options: T
     options(): T { return structuredClone(this._options) }
     get<K extends keyof T>(key: K): T[K] { return this._options[key] }
     applyOptions(opts:Partial<T> | undefined, externalCall = false) {
@@ -264,7 +266,8 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     private _fireWheel = (e:ChartingEvent) => this.onWheel?.(e)
     private _fireDataUpdated = (scope: DataChangedScope) => this.onDataUpdate?.(scope)
 
-    private _hoveredItem:HoveredItem | null = null // Only valid state if either a MouseEnter or MouseLeave function is defined
+    // Only valid state if one of the  mouseEnter, mouseLeave, mouseOverOut functions are defined
+    private _hoveredItem:HoveredItem | null = null 
     private _maybeFireMouseOverOutEnterLeave = (e:ChartingEvent) => { 
         if (!this._parent || e.paneIndex != this._parent.pane.paneIndex) return
         if (!e.point?.x || !e.point?.y) return

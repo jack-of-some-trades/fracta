@@ -166,6 +166,7 @@ class PyWv:
         self.pyweb_window.events.maximized += self._on_maximized
         self.pyweb_window.events.restored += self._on_restore
 
+        # Need private mode so the HTML is always reloaded. W/o it a cached version is loaded.
         webview.start(debug=debug, private_mode=True)
         self.stop_event.set()
 
@@ -198,8 +199,8 @@ class PyWv:
         "Infinite loop to manage Process Queue since it is launched in an isolated process"
         batch_cmd, batch_size = "", 0
         while not self.stop_event.is_set():
-            # get() doesn't need a timeout. the waiting will get interupted by the os
-            # to go manage the thread that the webview is running in. Bit wasteful i think.
+            # get() doesn't need a timeout & can be completely blocking. the waiting will get interrupted
+            # by the os to go manage the thread that the webview is running in. Bit wasteful i think.
             # Would be nice to have pywebview run in an asyncio Thread
             msg = self.fwd_queue.get()
             cmd, *args = msg
@@ -237,6 +238,7 @@ class PyWv:
                 batch_size = 0
 
     def close(self):
+        self.stop_event.set()
         self.pyweb_window.destroy()
 
     def maximize(self):
