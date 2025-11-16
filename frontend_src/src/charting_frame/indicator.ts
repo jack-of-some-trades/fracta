@@ -5,7 +5,7 @@ import { generateOptionsMenu } from "../../tsx/generic_elements/options_menu";
 import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
 import { charting_frame } from "./charting_frame";
 import { charting_pane } from "./charting_pane";
-import { PrimitiveBase } from "./primitive-plugins/primitive-base";
+import { PrimitiveBase, primitiveOptions } from "./primitive-plugins/primitive-base";
 import { PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { primitives } from "./primitive-plugins/primitives";
 import * as s from "./series-plugins/series-base";
@@ -42,7 +42,7 @@ export class indicator implements ReorderableSet {
     private setAttached: Setter<(s.SeriesBase_T | PrimitiveSet)[]>
 
     series = new Map<string, s.SeriesBase_T>()
-    private primitives = new Map<string, PrimitiveBase>()
+    private primitives = new Map<string, PrimitiveBase<primitiveOptions>>()
     private visibilityMemory = new Map<string, boolean>()
 
     leafProps: treeLeafInterface
@@ -172,7 +172,7 @@ export class indicator implements ReorderableSet {
     }
     
     protected update_primitive(_id: string, params:object) {
-        this.primitives.get(_id)?.updateData(params)
+        this.primitives.get(_id)?.applyOptions(params, true)
     }
 
     applyOptions(options:{[key: string]: any}, externalCall = false){

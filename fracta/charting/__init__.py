@@ -7,7 +7,7 @@ from . import series_options
 from .series_dtypes import SeriesType
 from .charting_frame import ChartingFrame
 from .indicator import Indicator, IndicatorOptions
-from .primative import Primitive
+from .primative import PrimitiveBase
 
 __all__ = (
     # SubModules
@@ -22,5 +22,5 @@ __all__ = (
     "ChartingFrame",
     "Indicator",
     "IndicatorOptions",
-    "Primitive",
+    "PrimitiveBase",
 )

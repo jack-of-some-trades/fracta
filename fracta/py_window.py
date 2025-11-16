@@ -8,6 +8,7 @@ import asyncio
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
+import queue
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Protocol
 
 from . import util, indicators, broker_apis
@@ -112,7 +113,7 @@ class Window:
         self._view_process.start()
 
         if use_calendars:
-            # Enable Calendars after Sub-process Launch so the module isn't loaded by that process.
+            # Enable Calendars after Sub-process Launch so the module isn't loaded by the sub-process.
             # TODO: Always use calendars? it might be optimized enough now that it might as well be used.
             indicators.timeseries.enable_market_calendars()
 
@@ -156,9 +157,12 @@ class Window:
 
         with ThreadPoolExecutor(max_workers=1) as pool:
             while not self._stop_event.is_set():
-                cmd, *args = await async_loop.run_in_executor(pool, self._rtn_queue.get)
-                WIN_CMD_ROLODEX[cmd](self, *args)
-                log.debug("PY_CMD: %s: %s", cmd.name, str(args))
+                try:
+                    cmd, *args = await async_loop.run_in_executor(pool, self._rtn_queue.get, True, 0.2)
+                    WIN_CMD_ROLODEX[cmd](self, *args)
+                    log.debug("PY_CMD: %s: %s", cmd.name, str(args))
+                except queue.Empty:
+                    continue
 
         log.debug("Exited Async Queue Manager")
 
@@ -285,7 +289,7 @@ class Window:
             "menu_listings": menu_opts,
             "favorites": [tf.toStr for tf in favs],
         }
-        self._fwd_queue.put((JS_CMD.UPDATE_TF_OPTS, json_dict))
+        self._fwd_queue.put((JS_CMD.UPDATE_TF_FAVS, json_dict))
 
     # endregion
 

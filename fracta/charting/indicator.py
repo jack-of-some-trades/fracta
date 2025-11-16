@@ -412,7 +412,7 @@ class Indicator(metaclass=IndicatorMeta):
             self.default_output = None
 
         self._series = ID_Dict[sc.SeriesCommon]("s")
-        self._primitives = ID_Dict[pr.Primitive]("p")
+        self._primitives = ID_Dict[pr.PrimitiveBase]("p")
 
         # Setup Indicator Observer Structures
         self._watcher = Watcher(self)
@@ -550,7 +550,7 @@ class Indicator(metaclass=IndicatorMeta):
         for series in self._series.values():
             series.clear_data()
         for primitive in self._primitives.values():
-            primitive.clear()
+            primitive.reset()
 
     def update_options(self, _: IndicatorOptions) -> bool:
         """
@@ -623,9 +623,9 @@ class Indicator(metaclass=IndicatorMeta):
         "Set the label text for this indicator in the pane's Legend. Raw HTML Accepted"
         self._fwd_queue.put((JS_CMD.SET_LEGEND_LABEL, *self._ids, label))
 
-    def get_primitives_of_type[T: pr.Primitive](self, _type: type[T]) -> dict[str, T]:
+    def get_primitives_of_type[T: pr.PrimitiveBase](self, _type: type[T]) -> dict[str, T]:
         "Returns a Dictionary of Primitives owned by this indicator of the Given Type"
-        if _type == pr.Primitive:
+        if _type == pr.PrimitiveBase:
             return self._primitives.copy()  # type: ignore (ID_Dict is still a dict.)
         rtn_dict = {}
         for _key, _primitive in self._primitives.items():
@@ -643,7 +643,7 @@ class Indicator(metaclass=IndicatorMeta):
                 rtn_dict[_key] = _series
         return rtn_dict
 
-    def delete_primitives(self, _type: type = pr.Primitive):
+    def delete_primitives(self, _type: type = pr.PrimitiveBase):
         """
         Deletes all Primitives owned by this indicator of the given type.
         If no argument is given, all of the primitives will be deleted.
