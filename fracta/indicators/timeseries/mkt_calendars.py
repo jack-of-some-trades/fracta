@@ -163,11 +163,15 @@ class Calendars:
         sched = self.schedule_cache[cal.name]
         if sched.index[0] > start.tz_localize(None):
             # Extend Start of Schedule with an additional buffer
-            extra_dates = cal.schedule(start, sched.index[0] - pd.Timedelta("1D"))
+            extra_dates = cal.schedule(
+                    start, sched.index[0] - pd.Timedelta("1D"), market_times="all", force_special_times=False
+                )
             sched = pd.concat([extra_dates, sched])
         if sched.index[-1] < end.normalize().tz_localize(None):
             # Extend End of Schedule with an additional buffer
-            extra_dates = cal.schedule(sched.index[-1] + pd.Timedelta("1D"), end)
+            extra_dates = cal.schedule(
+                sched.index[-1] + pd.Timedelta("1D"), end, market_times="all", force_special_times=False
+            )
             sched = pd.concat([sched, extra_dates])
 
         if extra_dates is not None:  # Update the Cached schedule.
