@@ -36,6 +36,8 @@ class Events:
         self.window_callback = Emitter[Callback_Protocol](single_emit=False)
 
         # Provides typing information for these events since they are built in.
+        # The actual event objects are created in the indicators.timeseries.events module 
+        # to prevent circular imports.
         if TYPE_CHECKING:
             self.open_socket: Emitter[Socket_Open_Protocol]
             self.close_socket: Emitter[Socket_Close_Protocol]

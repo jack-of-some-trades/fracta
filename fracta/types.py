@@ -327,6 +327,27 @@ class TF:
     def __str__(self) -> str:
         return self.toStr
 
+    def is_ltf(self) -> bool:
+        "Check if the given TF is a Long Term Frequency"
+        return self._period in {'s', 'm', 'h'}
+
+    def to_timedelta(self) -> Timedelta:
+        "Create a Pandas Timedelta Object from the TF Object"
+        if self.is_ltf():
+            return Timedelta(f"{self._mult}{self._period}")
+        elif self._period == 'D':
+            return Timedelta(f"{self._mult}D")
+        elif self._period == 'W':
+            return Timedelta(f"{self._mult * 7}D")
+        elif self._period == 'M':
+            # 1 Unix Month = 2629743 Seconds
+            return Timedelta(days=self._mult * (2629743 / 86400))
+        elif self._period == 'Y':
+            # 1 Unix Year = 31556926 Seconds
+            return Timedelta(days=self._mult * (31556926 / 86400))
+        else:
+            raise ValueError(f"Unsupported period code: {self._period}")
+
     @classmethod
     def fromStr(cls, tf_str: str) -> Self:
         "Create a TF Object from a formatted string"

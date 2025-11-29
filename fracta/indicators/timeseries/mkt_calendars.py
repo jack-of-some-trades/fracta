@@ -197,9 +197,8 @@ class Calendars:
         if calendar not in self.mkt_cache:
             raise ValueError(f"{calendar = } is not loaded into the calendar cache.")
 
-        if isinstance(freq, pd.Timedelta):
-            # Only Given a Time Delta for LTF Date_Ranges
-            return self._date_range_ltf(calendar, freq, start, end, periods, include_ETH)
+        if freq.is_ltf():
+            return self._date_range_ltf(calendar, freq.to_timedelta(), start, end, periods, include_ETH)
 
         # For Time periods greater than 1D use HTF Date_Range.
         mkt_calendar = self.mkt_cache[calendar]
