@@ -23,20 +23,20 @@ export type ChartEventHandler = (param: ChartingEvent<lwc.Time>) => void
 export type ChartingEventsTypes = MouseEventKeys | 'crosshair'
 
 export interface data_src {
-    indicator:indicator
-    function_name:string
-    source_type:string
+    indicator: indicator
+    function_name: string
+    source_type: string
 }
 
 const TYPE_STR = 'charting_frame'
 export const isChartingFrame = (frame: frame): frame is charting_frame => frame.type === TYPE_STR
 
 export class charting_frame extends frame {
-    type:string = TYPE_STR
+    type: string = TYPE_STR
 
     frameRuler: Accessor<HTMLDivElement>
     element: JSX.Element
-    
+
     _chart: lwc.IChartApi
     default_pane: charting_pane
     whitespace_series: lwc.ISeriesApi<'Line'>
@@ -54,7 +54,7 @@ export class charting_frame extends frame {
 
     shortcuts: keyboardShortcut[]
     ctxMenuStruct: contextMenuItem[][]
-    private objTreeBranch:treeBranchInterface
+    private objTreeBranch: treeBranchInterface
 
     panes: Accessor<charting_pane[]>
     private setPanes: Setter<charting_pane[]>
@@ -66,7 +66,7 @@ export class charting_frame extends frame {
 
     constructor(id: string, tab_update_func: updateTabFunc) {
         super(id, tab_update_func)
-        
+
         const [frameRuler, setFrameRulerRef] = createSignal<HTMLDivElement>(document.createElement('div'))
         this.frameRuler = frameRuler
 
@@ -74,7 +74,7 @@ export class charting_frame extends frame {
         const sig1 = createSignal<charting_pane[]>([])
         this.panes = sig1[0]; this.setPanes = sig1[1]
         // Use Reactive Signal & Effects to Keep Primitive Series' Data Updated
-        const sig2 = createSignal<lwc.SingleValueData>({time:'1970-01-01', value:0})
+        const sig2 = createSignal<lwc.SingleValueData>({ time: '1970-01-01', value: 0 })
         this.primitiveData = sig2[0]; this.setPrimitiveData = sig2[1]
 
         // The following 3 variables are actually properties of a frame's primary Series(Indicator) obj.
@@ -95,25 +95,25 @@ export class charting_frame extends frame {
         this.whitespace_series = this._chart.addSeries(lwc.LineSeries)
 
         this.element = ChartFrame({
-            frame:this,
+            frame: this,
             setRulerRef: setFrameRulerRef
         })
 
         this.objTreeBranch = {
-            id:this.id,
+            id: this.id,
             branchTitle: '',
             dropDownMode: 'auto',
             reorderables: this.panes,
             reorder: this.reorderPanes.bind(this),
-            moveTo: ()=>{}
+            moveTo: () => { }
         }
 
         this.ctxMenuStruct = generateContextMenuStruct(this)
         this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
         this.chart_el?.addEventListener(
-            'contextmenu', 
+            'contextmenu',
             this._onContextMenu.bind(this),
-            {capture:true}
+            { capture: true }
         )
 
         //Add Base Click Event Types that auto forward the events to hovered Series & Primitives
@@ -124,7 +124,7 @@ export class charting_frame extends frame {
         this.subscribeMouseEvent('mouseup', this._onClickTypeEvents.bind(this, 'mouseup'))
 
         console.log(this)
-        
+
         // The Following listeners allow smooth chart dragging while bars are actively updating.
         this.chart_el.addEventListener('mousedown', () => {
             this.updateTimescaleOpts({
@@ -158,70 +158,74 @@ export class charting_frame extends frame {
         ObjectTreeCTX().setMainBranch(NULL_TREE_BRANCH_INTERFACE)
         KeyboardCTX().detachHandler(this.id)
     }
-    
+
     // #region -------------- Lightweight Charts API Related Functions ------------------ //
 
-    get name() : string  {return ''}
-    get chart() : lwc.IChartApi { return this._chart }
-    get chart_el() : HTMLDivElement {return this._chart.chartElement()}
-    get paneAPIs() : lwc.IPaneApi<lwc.Time>[] {return this._chart.panes()}
+    get name(): string { return '' }
+    get chart(): lwc.IChartApi { return this._chart }
+    get chart_el(): HTMLDivElement { return this._chart.chartElement() }
+    get paneAPIs(): lwc.IPaneApi<lwc.Time>[] { return this._chart.panes() }
     // Cached Array of all the times (in UTC) in the timescale.
-    get timescaleTimes() : number[] | undefined { return this._timescaleTimes }
+    get timescaleTimes(): number[] | undefined { return this._timescaleTimes }
 
-    
+
     // Updating the Cached timeseries reference alongside the whitespace *should* catch all Timescale datapoint
     // updates. The only way for it not to is if a user indicator sets a timepoint not already on the timescale
     // which in 99.999% of applications will be a bug since it will add a gap to the screen.
-    private updateTimescalePoints(){ 
+    private updateTimescalePoints() {
         //@ts-ignore: Fetches raw data from the timescale object : Valid only for Lightweight-Charts v5.0.8
         const _points = this.chart.timeScale().uh.D_
         //@ts-ignore
         this._timescaleTimes = (_points && _points.length > 0) ? Array.from(_points, (p) => p.originalTime) : undefined
     }
 
-    refreshSize(){ this._chart.resize(
-        Math.max(this.frameRuler().clientWidth, 0), 
-        Math.max(this.frameRuler().clientHeight, 0), 
-        false
-    )}
-    
+    refreshSize() {
+        this._chart.resize(
+            Math.max(this.frameRuler().clientWidth, 0),
+            Math.max(this.frameRuler().clientHeight, 0),
+            false
+        )
+    }
+
     fitContent() { this._chart.timeScale().fitContent() }
     autoscaleContent() { this._chart.timeScale().resetTimeScale() }
     applyChartOpts(newOpts: lwc.DeepPartial<lwc.ChartOptions>) { this._chart.applyOptions(newOpts) }
     updateTimescaleOpts(newOpts: lwc.DeepPartial<lwc.HorzScaleOptions>) { this._chart.timeScale().applyOptions(newOpts) }
 
-    
+
     // #endregion
 
     //#region -------------- Mouse Events ------------------ //
 
     private _getMouseEventParams(
-        index : lwc.Logical | null, 
-        pt : point | null, 
-        sourceEvent : lwc.TouchMouseEventData
-    ):lwc.MouseEventParams<lwc.Time>{
+        index: lwc.Logical | null,
+        pt: point | null,
+        sourceEvent: lwc.TouchMouseEventData
+    ): lwc.MouseEventParams<lwc.Time> {
         let renamed = {}
         //@ts-ignore := Chart._chartWidget._getMouseEventParamsImpl() : v5.0.8
         Object.entries(this._chart.Wf.xw(index, pt, sourceEvent)).forEach(
             //@ts-ignore :: Rename from Minified keys => Actual Keys
-            ([k,v]) => {renamed[MouseEventKeyMap[k]] = v}
+            ([k, v]) => { renamed[MouseEventKeyMap[k]] = v }
         )
         return renamed as lwc.MouseEventParams<lwc.Time>
     }
 
     private _convertMouseEventParams(params: lwc.MouseEventParams<lwc.Time>): ChartingEvent {
-        return {...params, ...{
-            //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
-            'hoveredSeriesBase': advSeriesHitTest(params),
-            // Params.hoveredObjectId === PrimitiveHoveredItem.externalId (prmitive base defines this as the primitive object itself)
-            'hoveredPrimitiveBase': isPrimitive(params.hoveredObjectId) ? params.hoveredObjectId : undefined
-        }} 
+        return {
+            ...params, ...{
+                //Always Test for SeriesBase since hoveredSeries only returns when the cursor hovers over a primitive
+                'hoveredSeriesBase': advSeriesHitTest(params),
+                // Params.hoveredObjectId === PrimitiveHoveredItem.externalId (prmitive base defines this as the primitive object itself)
+                'hoveredPrimitiveBase': isPrimitive(params.hoveredObjectId) ? params.hoveredObjectId : undefined
+            }
+        }
     }
-    
+
     //** Takes a normal MouseEvent and Returns the and extended Lightweight-Charts Mouse Event. */
     private _makeEventParams(e: MouseEvent): ChartingEvent {
         let index = this._chart.timeScale().coordinateToLogical(e.offsetX)
-        let sourceEvent:lwc.TouchMouseEventData = {
+        let sourceEvent: lwc.TouchMouseEventData = {
             clientX: e.clientX as lwc.Coordinate,
             clientY: e.clientY as lwc.Coordinate,
             pageX: e.pageX as lwc.Coordinate,
@@ -244,65 +248,65 @@ export class charting_frame extends frame {
         return this._convertMouseEventParams(this._getMouseEventParams(index, pt, sourceEvent))
     }
 
-    private _fireMouseEvent(e:MouseEvent){
+    private _fireMouseEvent(e: MouseEvent) {
         const delegate = this.eventDelegates.get(e.type as MouseEventKeys)
         if (delegate && delegate.hasListeners()) delegate.fire(this._makeEventParams(e))
     }
 
-    private _fireCrosshairEvent(e:lwc.MouseEventParams){
+    private _fireCrosshairEvent(e: lwc.MouseEventParams) {
         const delegate = this.eventDelegates.get('crosshair')
         if (delegate && delegate.hasListeners()) delegate.fire(this._convertMouseEventParams(e))
     }
 
-    subscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler){
+    subscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler) {
         const evtDelegate = this.eventDelegates.get(event)
-        if (evtDelegate){
+        if (evtDelegate) {
             evtDelegate.subscribe(handler)
             return
-        } 
+        }
         //Make the required Event delegate
         const newEvtDelegate = new Delegate<ChartingEvent>()
         this.eventDelegates.set(event, newEvtDelegate)
         newEvtDelegate.subscribe(handler, this)
 
         // Currently, these listeners are never removed & the delegates are never deleted.
-        if (event === 'crosshair'){
+        if (event === 'crosshair') {
             this._chart.subscribeCrosshairMove(this._fireCrosshairEvent.bind(this))
         } else {
             this.chart_el.addEventListener(event, this._fireMouseEvent.bind(this))
         }
     }
-    
-    unsubscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler){
+
+    unsubscribeMouseEvent(event: ChartingEventsTypes, handler: ChartEventHandler) {
         const evtDelegate = this.eventDelegates.get(event)
         if (evtDelegate) evtDelegate.unsubscribe(handler)
     }
 
-    subscribeLogicalRangeChange(handler:lwc.LogicalRangeChangeEventHandler){
+    subscribeLogicalRangeChange(handler: lwc.LogicalRangeChangeEventHandler) {
         this._chart.timeScale().subscribeVisibleLogicalRangeChange(handler)
     }
 
-    unsubscribeLogicalRangeChange(handler:lwc.LogicalRangeChangeEventHandler){
+    unsubscribeLogicalRangeChange(handler: lwc.LogicalRangeChangeEventHandler) {
         this._chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler)
     }
 
-    subscribeTimeRangeChange(handler:lwc.TimeRangeChangeEventHandler<lwc.Time>){
+    subscribeTimeRangeChange(handler: lwc.TimeRangeChangeEventHandler<lwc.Time>) {
         this._chart.timeScale().subscribeVisibleTimeRangeChange(handler)
     }
 
-    unsubscribeTimeRangeChange(handler:lwc.TimeRangeChangeEventHandler<lwc.Time>){
+    unsubscribeTimeRangeChange(handler: lwc.TimeRangeChangeEventHandler<lwc.Time>) {
         this._chart.timeScale().unsubscribeVisibleTimeRangeChange(handler)
     }
 
-    private _onContextMenu(e:MouseEvent){
+    private _onContextMenu(e: MouseEvent) {
         const params = this._makeEventParams(e)
         const pane = this.panes()[params.paneIndex ?? -1]
         const menuItems = this.ctxMenuStruct
-        if (pane) 
+        if (pane)
             menuItems.concat(pane.ctxMenuStruct)
-        if (params.hoveredSeriesBase?.ctxMenuStruct) 
+        if (params.hoveredSeriesBase?.ctxMenuStruct)
             menuItems.concat(params.hoveredSeriesBase?.ctxMenuStruct)
-        if (params.hoveredPrimitiveBase?.ctxMenuStruct) 
+        if (params.hoveredPrimitiveBase?.ctxMenuStruct)
             menuItems.concat(params.hoveredPrimitiveBase?.ctxMenuStruct)
 
         MenuContextListener.bind(menuItems)(e)
@@ -310,7 +314,7 @@ export class charting_frame extends frame {
 
     // Forward Click Events to Objects after a hit has been detected so each 
     // object doesn't need to perform a ( this === hoveredObj ) check
-    private _onClickTypeEvents(event: ChartingEventsTypes, e: ChartingEvent){
+    private _onClickTypeEvents(event: ChartingEventsTypes, e: ChartingEvent) {
         // TODO: Determine what order these should go in, and if one fires
         // should it block the other?
         e.hoveredPrimitiveBase?.fireClickEvent(event, e)
@@ -318,7 +322,7 @@ export class charting_frame extends frame {
     }
 
     // Extended Frame CLick Event to Manage Activation States of sub-objects
-    private _onMouseDownEvent(e: ChartingEvent){
+    private _onMouseDownEvent(e: ChartingEvent) {
         let clicked_pane = this.panes().find((p) => p.paneIndex == e.paneIndex)
         let change_pane = this._activePane !== clicked_pane
         let change_series = this._activeSeries !== e.hoveredSeriesBase
@@ -327,7 +331,7 @@ export class charting_frame extends frame {
         if (change_primitive) this._activePrimitive?.onDeactivation()
         if (change_series) this._activeSeries?.onDeactivation()
         if (change_pane) this._activePane?.onDeactivation()
-        
+
         if (change_pane) {
             this._activePane = clicked_pane
             this._activePane?.onActivation()
@@ -349,12 +353,12 @@ export class charting_frame extends frame {
 
     // #region -------------- Pane Control Functions ------------------ //
 
-    getPaneByIndex(index: number) : charting_pane | undefined { 
-        return this.panes().find((p) => p.paneIndex === index) 
+    getPaneByIndex(index: number): charting_pane | undefined {
+        return this.panes().find((p) => p.paneIndex === index)
     }
 
     private _updatePaneEls() {
-        this.panes().forEach(pane => pane._updatePaneEl()) 
+        this.panes().forEach(pane => pane._updatePaneEl())
         this.setPanes(this.panes().sort((a, b) => a.paneIndex - b.paneIndex))
     }
 
@@ -365,51 +369,51 @@ export class charting_frame extends frame {
 
         // Must set panes onAnimationFrame since the PaneAPI Element required
         // for rendering the <PaneOverlay/> is created in an animation cycle
-        requestAnimationFrame( () => {
+        requestAnimationFrame(() => {
             this.setPanes(
                 // Ensure Panes are ordered before setting them
                 [...this.panes(), _paneWrap].sort((p1, p2) => p1.paneIndex - p2.paneIndex)
-            ) 
+            )
             this.panes().forEach((p) => p._updatePaneEl())
         })
         return _paneWrap
     }
 
-    restorePanes(){ 
+    restorePanes() {
         this.panes().forEach(pane => pane._restorePane())
-        this.applyChartOpts({layout:{panes:{enableResize:true}}})
+        this.applyChartOpts({ layout: { panes: { enableResize: true } } })
     }
 
-    maximizePane(pane:charting_pane){ 
+    maximizePane(pane: charting_pane) {
         if (this.panes().some((p) => p.maximized() || p.minimized()))
             this.restorePanes()
         else
-            this.panes().forEach( p => p._recordStretchFactor() )
-        this.panes().forEach( p => {
-            p == pane ? p._maximizePane() : p. _hidePane()
+            this.panes().forEach(p => p._recordStretchFactor())
+        this.panes().forEach(p => {
+            p == pane ? p._maximizePane() : p._hidePane()
         })
-        this.applyChartOpts({layout:{panes:{enableResize:false}}})
+        this.applyChartOpts({ layout: { panes: { enableResize: false } } })
     }
-    
+
     // #endregion
 
-    
+
     // #region -------------- Python API Functions ------------------ //
 
     //Functions marked as protected are done so it indicate the original intent
     //only encompassed being called from python, not from within JS. uses snake_case for this reason.
-    
-    protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data:lwc.SingleValueData | undefined) {
+
+    protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data: lwc.SingleValueData | undefined) {
         this.whitespace_series.setData(data)
-        this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
-        
-        this.updateTimescalePoints() 
+        this.setPrimitiveData(primitive_data ?? { time: '1970-01-01', value: 0 })
+
+        this.updateTimescalePoints()
     }
-    
-    protected update_whitespace_data(data: lwc.WhitespaceData, primitive_data:lwc.SingleValueData | undefined) {
+
+    protected update_whitespace_data(data: lwc.WhitespaceData, primitive_data: lwc.SingleValueData | undefined) {
         this.whitespace_series.update(data)
-        this.setPrimitiveData(primitive_data ?? {time:'1970-01-01', value:0})
-        
+        this.setPrimitiveData(primitive_data ?? { time: '1970-01-01', value: 0 })
+
         this.updateTimescalePoints()
     }
 
@@ -444,10 +448,10 @@ export class charting_frame extends frame {
     }
 
     protected create_indicator(
-        _id: string, 
+        _id: string,
         type: string,
         name: string,
-        outputs:{[key:string]:string}, 
+        outputs: { [key: string]: string },
     ) {
         let new_indicator = new indicator(_id, type, name, outputs, this)
         this.attached.set(_id, new_indicator)
@@ -456,7 +460,7 @@ export class charting_frame extends frame {
     protected delete_indicator(_id: string) {
         let indicator = this.attached.get(_id)
         if (indicator === undefined || !isIndicator(indicator)) return
-            
+
         indicator.delete()
         this.attached.delete(_id)
     }
@@ -465,15 +469,15 @@ export class charting_frame extends frame {
 
     // #region -------------- Orderable Set Functions ------------------ // 
 
-    indicatorsOnPane(paneAPI:lwc.IPaneApi<lwc.Time>): indicator[]{
+    indicatorsOnPane(paneAPI: lwc.IPaneApi<lwc.Time>): indicator[] {
         let pane = this.pane_map.get(paneAPI)
         if (pane === undefined) return []
 
         return pane.indicators()
     }
 
-    reorderPanes(from: number, to:number) {
-        if (from < 0 || from > this.paneAPIs.length || from === to ) return
+    reorderPanes(from: number, to: number) {
+        if (from < 0 || from > this.paneAPIs.length || from === to) return
         to = Math.max(Math.min(to, this.paneAPIs.length - 1), 0)
         this.panes()[from]._pane.moveTo(to)
         this._updatePaneEls()
@@ -482,7 +486,7 @@ export class charting_frame extends frame {
     // #endregion
 }
 
-function generateContextMenuStruct(frame:charting_frame):contextMenuItem[][] {
+function generateContextMenuStruct(frame: charting_frame): contextMenuItem[][] {
     return [[
         {
             icon: undefined,
@@ -495,7 +499,7 @@ function generateContextMenuStruct(frame:charting_frame):contextMenuItem[][] {
 
 
 /* Default TimeChart Options. It's a Function so the style is Evaluated at chart construction */
-function DEFAULT_CHART_OPTS(){
+function DEFAULT_CHART_OPTS() {
     const style = getComputedStyle(document.documentElement)
     const OPTS: lwc.DeepPartial<lwc.TimeChartOptions> = {
         layout: {                   // ---- Layout Options ----
@@ -562,20 +566,20 @@ function DEFAULT_CHART_OPTS(){
  * 
  * MouseEvent.Wt === MouseEvent.SeriesData
  * MouseEvent.se === MouseEvent.CustomSeriesValues
- */  
+ */
 
 //** Key Map for Lightweight Charts MouseEvent Params: Valid only for Lightweight-Charts v5.0.8  */
 /**
  * The Mouse Event Parameters that are returned are largely what you'd expect aside from the hoveredSeries. This isn't the Series
  * Object that is drawn on the screen, but the series object a hovered primitive is attached to. 
  */
-const MouseEventKeyMap: {[key:string]: keyof lwc.MouseEventParams} = {
+const MouseEventKeyMap: { [key: string]: keyof lwc.MouseEventParams } = {
     Pw: 'time',
     Re: 'logical',
     kw: 'point',
     yw: 'paneIndex',
     Tw: 'hoveredSeries',
-    Rw: 'seriesData', 
+    Rw: 'seriesData',
     Dw: 'hoveredObjectId',
     Vw: 'sourceEvent'
 }

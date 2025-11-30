@@ -12,11 +12,11 @@ import { registerPrimitiveTool, registerSimpleTool } from './tool_ui_support';
 import { TrendLine, TrendLineTool } from './two-point-primitives/trend_line';
 
 //@ts-ignore : ignore the typing error that occurs when Primitives require different param types.
-export const primitives:Map<string, new(id:string, params:any) => PrimitiveBase> = new Map([
+export const primitive_cls: Map<string, new (id: string, params: any) => PrimitiveBase> = new Map([
     ['TrendLine', TrendLine],
     ['HorizRay', HorizRay],
     ['VertLine', VertLine],
-]) 
+])
 
 registerSimpleTool(DotCursor)
 registerSimpleTool(ArrowCursor)

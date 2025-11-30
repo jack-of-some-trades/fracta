@@ -2,7 +2,7 @@
 // #region ---------------- Classes & Interfaces ---------------- //
 
 export type MouseEventKeys = KeysOfType<HTMLElementEventMap, MouseEvent>
-export type KeysOfType<T, ValueType> = {[K in keyof T]: T[K] extends ValueType ? K : never }[keyof T];
+export type KeysOfType<T, ValueType> = { [K in keyof T]: T[K] extends ValueType ? K : never }[keyof T];
 
 /* Represents information about a specific Ticker */
 export interface ticker {
@@ -62,10 +62,10 @@ export class tf {
         return new tf(-1, 'E') //Signal an error
     }
 
-    static isEqual(a:tf, b:tf):boolean { return a.toValue() === b.toValue()}
+    static isEqual(a: tf, b: tf): boolean { return a.toValue() === b.toValue() }
 
     //Trim_unit can be set to True when displaying the timeframe. Should be set to false when transmitting the TF as a string.
-    toString(trim_unit:boolean = false): string { return `${(trim_unit && this.multiplier === 1)? '' : this.multiplier}${this.period}` }
+    toString(trim_unit: boolean = false): string { return `${(trim_unit && this.multiplier === 1) ? '' : this.multiplier}${this.period}` }
     toLabel(): string { return `${this.multiplier} ${intervalMap[this.period]}${(this.multiplier > 1) ? 's' : ''}` }
     toValue(): number { return this.multiplier * intervalValMap[this.period] }
 }
@@ -78,46 +78,46 @@ export class tf {
 export type Callback<T1 = void, T2 = void, T3 = void> = (param1: T1, param2: T2, param3: T3) => void;
 
 export interface ISubscription<T1 = void, T2 = void, T3 = void> {
-	subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void;
-	unsubscribe(callback: Callback<T1, T2, T3>): void;
-	unsubscribeAll(linkedObject: unknown): void;
+    subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void;
+    unsubscribe(callback: Callback<T1, T2, T3>): void;
+    unsubscribeAll(linkedObject: unknown): void;
 }
 
 interface Listener<T1, T2, T3> {
-	callback: Callback<T1, T2, T3>;
-	linkedObject?: unknown;
-	singleshot: boolean;
+    callback: Callback<T1, T2, T3>;
+    linkedObject?: unknown;
+    singleshot: boolean;
 }
 
 export class Delegate<T1 = void, T2 = void, T3 = void> implements ISubscription<T1, T2, T3> {
-	private _listeners: Listener<T1, T2, T3>[] = [];
-	hasListeners(): boolean { return this._listeners.length > 0 }
-	clear() { this._listeners = [] }
+    private _listeners: Listener<T1, T2, T3>[] = [];
+    hasListeners(): boolean { return this._listeners.length > 0 }
+    clear() { this._listeners = [] }
 
-	subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void {
-		const listener: Listener<T1, T2, T3> = {
-			callback,
-			linkedObject,
-			singleshot: singleshot === true,
-		};
-		this._listeners.push(listener);
-	}
+    subscribe(callback: Callback<T1, T2, T3>, linkedObject?: unknown, singleshot?: boolean): void {
+        const listener: Listener<T1, T2, T3> = {
+            callback,
+            linkedObject,
+            singleshot: singleshot === true,
+        };
+        this._listeners.push(listener);
+    }
 
-	unsubscribe(callback: Callback<T1, T2, T3>): void {
-		const index = this._listeners.findIndex((listener: Listener<T1, T2, T3>) => callback === listener.callback)
-		if (index > -1) this._listeners.splice(index, 1)
-	}
+    unsubscribe(callback: Callback<T1, T2, T3>): void {
+        const index = this._listeners.findIndex((listener: Listener<T1, T2, T3>) => callback === listener.callback)
+        if (index > -1) this._listeners.splice(index, 1)
+    }
 
     /* unsubscribe all but the callbacks associated with the given object */
-	unsubscribeAll(linkedObject: unknown): void {
-		this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => listener.linkedObject !== linkedObject)
-	}
+    unsubscribeAll(linkedObject: unknown): void {
+        this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => listener.linkedObject !== linkedObject)
+    }
 
-	fire(param1: T1, param2: T2, param3: T3): void {
-		const listenersSnapshot = [...this._listeners]
-		this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => !listener.singleshot)
-		listenersSnapshot.forEach((listener: Listener<T1, T2, T3>) => listener.callback(param1, param2, param3))
-	}
+    fire(param1: T1, param2: T2, param3: T3): void {
+        const listenersSnapshot = [...this._listeners]
+        this._listeners = this._listeners.filter((listener: Listener<T1, T2, T3>) => !listener.singleshot)
+        listenersSnapshot.forEach((listener: Listener<T1, T2, T3>) => listener.callback(param1, param2, param3))
+    }
 }
 
 //#endregion
@@ -125,7 +125,7 @@ export class Delegate<T1 = void, T2 = void, T3 = void> implements ISubscription<
 
 // #region ---------------- Util Functions ---------------- //
 
-export function arraySwap<T>(array:T[], from:number, to:number){ array[from] = [array[to], array[to] = array[from]][0] }
+export function arraySwap<T>(array: T[], from: number, to: number) { array[from] = [array[to], array[to] = array[from]][0] }
 
 const ID_LEN = 4
 /**
@@ -158,7 +158,7 @@ export function makeId(IDs: string[], prefix: string = ''): string {
  * @param compare_fn Comparison Function that should return a number.
  * @returns Index of the found element, or when negative, the index where the element should be inserted at.
  */
-export function binarySearch(arr:Array<any>, el:any, compare_fn:(a:any, b:any) => number) {
+export function binarySearch(arr: Array<any>, el: any, compare_fn: (a: any, b: any) => number) {
     let m = 0;
     let n = arr.length - 1;
     while (m <= n) {
@@ -166,7 +166,7 @@ export function binarySearch(arr:Array<any>, el:any, compare_fn:(a:any, b:any) =
         let cmp = compare_fn(el, arr[k]);
 
         if (cmp > 0) m = k + 1
-        else if(cmp < 0) n = k - 1
+        else if (cmp < 0) n = k - 1
         else return k
     }
     return ~m;
@@ -179,50 +179,50 @@ export function binarySearch(arr:Array<any>, el:any, compare_fn:(a:any, b:any) =
  * @returns rgba Color string with opacity applied if not given
  */
 export function applyOpacity(style: string, opacity?: number): string | undefined {
-  const colorValue = style.trim();
-  if (!colorValue) return undefined;
+    const colorValue = style.trim();
+    if (!colorValue) return undefined;
 
-  const rgbaMatch = colorValue.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-  if (rgbaMatch) {
-    const [, r, g, b, a] = rgbaMatch;
-    const finalOpacity = a !== undefined ? a : opacity ?? 1;
-    return `rgba(${r}, ${g}, ${b}, ${finalOpacity})`;
-  }
-
-  const hexMatch = colorValue.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-  if (hexMatch) {
-    let hex = hexMatch[1];
-    if (hex.length === 3) {
-      hex = hex.split('').map((c) => c + c).join('');
+    const rgbaMatch = colorValue.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (rgbaMatch) {
+        const [, r, g, b, a] = rgbaMatch;
+        const finalOpacity = a !== undefined ? a : opacity ?? 1;
+        return `rgba(${r}, ${g}, ${b}, ${finalOpacity})`;
     }
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const a = parseInt(hex.slice(6, 8), 16) / 255;
-    if (isNaN(a))
-        return `rgba(${r}, ${g}, ${b}, ${opacity ?? 1})`;
-    else
-        return `rgba(${r}, ${g}, ${b}, ${a})`;
-  }
 
-  return undefined;
+    const hexMatch = colorValue.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hexMatch) {
+        let hex = hexMatch[1];
+        if (hex.length === 3) {
+            hex = hex.split('').map((c) => c + c).join('');
+        }
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const a = parseInt(hex.slice(6, 8), 16) / 255;
+        if (isNaN(a))
+            return `rgba(${r}, ${g}, ${b}, ${opacity ?? 1})`;
+        else
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+
+    return undefined;
 }
 
 
 
-function padZeros (num:number){ return String(num).padStart(2,'0') }
+function padZeros(num: number) { return String(num).padStart(2, '0') }
 
 /**
  * @param timestamp Unixtimestamp: integer # of seconds since 1970-01-01
  * @param include_Z Boolean: Include the trailing 'Z' timezone char
  * @returns Given timestamp as a string timestamp in the form YYYY-MM-DDThh:mm:ssZ
  */
-export function UnixToString(timestamp: number | string, include_Z: boolean = false){ 
-    let d = new Date(typeof timestamp == 'string' ? timestamp : timestamp * 1000) 
+export function UnixToString(timestamp: number | string, include_Z: boolean = false) {
+    let d = new Date(typeof timestamp == 'string' ? timestamp : timestamp * 1000)
 
     return [
         d.getUTCFullYear(), "-",
-        padZeros(d.getUTCMonth() + 1) , "-",
+        padZeros(d.getUTCMonth() + 1), "-",
         padZeros(d.getUTCDate()), "T",
         padZeros(d.getUTCHours()), ":",
         padZeros(d.getUTCMinutes()), ":",
@@ -230,9 +230,9 @@ export function UnixToString(timestamp: number | string, include_Z: boolean = fa
     ].join("")
 }
 
-export function DateStringToUnix(timestamp:string){
+export function DateStringToUnix(timestamp: string) {
     const d = new Date(timestamp)
-    return Math.floor((d.getTime()/1000) - (d.getTimezoneOffset()*60))
+    return Math.floor((d.getTime() / 1000) - (d.getTimezoneOffset() * 60))
 }
 
 //#endregion

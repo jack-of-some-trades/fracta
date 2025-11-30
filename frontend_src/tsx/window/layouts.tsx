@@ -14,40 +14,40 @@ import { Orientation } from "../../src/window/layouts"
 export interface layout_display {
     orientation: Orientation
     element: JSX.Element | HTMLDivElement | undefined,
-    mouseDown: (e:MouseEvent) => void
+    mouseDown: (e: MouseEvent) => void
     el_active: Accessor<boolean>
     el_target: Accessor<boolean>
 }
 
 type LayoutContextProps = {
-    getSize:Accessor<DOMRect>,
+    getSize: Accessor<DOMRect>,
     setStyle: Setter<string>,
-    displays:Accessor<layout_display[]>,
+    displays: Accessor<layout_display[]>,
     setDisplay: Setter<layout_display[]>,
 }
 
-export const default_layout_ctx_args:LayoutContextProps = {
-    getSize:() => {return new DOMRect(0,0,-1,-1)},
-    setStyle: () => {},
+export const default_layout_ctx_args: LayoutContextProps = {
+    getSize: () => { return new DOMRect(0, 0, -1, -1) },
+    setStyle: () => { },
     displays: () => [],
-    setDisplay: () => {},
+    setDisplay: () => { },
 }
 
-interface layout_props{
-    select_cls:string
+interface layout_props {
+    select_cls: string
     innerStyle: Accessor<string>
     displays: Accessor<layout_display[]>
 }
 
-export function Layout(props: layout_props){
+export function Layout(props: layout_props) {
     return <>
-        <style innerHTML={props.innerStyle()}/>
+        <style innerHTML={props.innerStyle()} />
         <For each={props.displays()}>{(display) =>
             <div
-                id={  
-                    display.orientation === Orientation.Vertical? "separator_v" 
-                    : display.orientation === Orientation.Horizontal? "separator_h" 
-                    : undefined
+                id={
+                    display.orientation === Orientation.Vertical ? "separator_v"
+                        : display.orientation === Orientation.Horizontal ? "separator_h"
+                            : undefined
                 }
                 class={props.select_cls}
                 attr:active={display.el_active() ? "" : undefined}

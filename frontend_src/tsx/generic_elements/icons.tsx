@@ -17,49 +17,49 @@ const [SVG_DOC] = createResource(async () => await fetch('./svg-defs.svg').then(
         let parser = new DOMParser()
         return parser.parseFromString(svg_file_text, "text/html")
     }
-)))
+    )))
 
 export interface icon_props extends JSX.SvgSVGAttributes<SVGSVGElement> {
     icon: string,
-    hover?:boolean,
+    hover?: boolean,
     selected?: boolean
     active?: boolean
     force_reload?: boolean
     when?: Accessor<boolean>
 }
 
-const DEFAULT_PROPS:icon_props = {
+const DEFAULT_PROPS: icon_props = {
     icon: "close_small",
-    hover:true,
+    hover: true,
     active: undefined,
     selected: undefined,
     force_reload: false,
     when: undefined,
 }
 
-export function Icon(props:icon_props){
-    let icon_el:SVGSVGElement = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+export function Icon(props: icon_props) {
+    let icon_el: SVGSVGElement = document.createElementNS("http://www.w3.org/2000/svg", "svg")
     const merged = mergeProps(DEFAULT_PROPS, props)
-    merged.classList = {icon:merged.hover, icon_no_hover:!merged.hover, ...merged.classList}
+    merged.classList = { icon: merged.hover, icon_no_hover: !merged.hover, ...merged.classList }
     //If a "Cannot set property of classList" Error has lead you here it is because there is a 
     //reactive Signal in a classList that feeds props.classList. tl:dw Don't use Signals in classlist,
     //use reactive attributes instead. Reactive classList signals cannot be merged.
 
     const [iconProps, svgProps] = splitProps(merged, ["icon", 'hover', 'active', 'selected', "force_reload", "when"]);
     //propKeys is the list of keys set by the user (and this function).
-    let propKeys = (Object.keys({...svgProps, "class":'', "active":'', "selected":''}))
+    let propKeys = (Object.keys({ ...svgProps, "class": '', "active": '', "selected": '' }))
 
     //When SVG_DOC is loaded or icon is changed, Copy reference SVG into Window
-    function update(){
+    function update() {
         let svg_ref = SVG_DOC()?.querySelector(`#${iconProps.icon}`)
-        if (svg_ref){
+        if (svg_ref) {
             //Append a Copy of the children (Paths / groups / etc.)
             svg_ref = svg_ref.cloneNode(true) as Element
             icon_el.replaceChildren(...Array.from(svg_ref.children))
-            
+
             //Remove all old Attrs that were not defined by a parent node
             let static_keys = 0
-            while(icon_el.attributes.length > static_keys)
+            while (icon_el.attributes.length > static_keys)
                 if (propKeys.includes(icon_el.attributes[static_keys].name))
                     static_keys += 1 //Skip removing this attribute
                 else
@@ -75,16 +75,16 @@ export function Icon(props:icon_props){
     createEffect(update)
 
     //Useful when you need to force a repaint on an SVG that's loaded after window creation
-    if(props.force_reload || iconProps.when) setTimeout(update, 50);
+    if (props.force_reload || iconProps.when) setTimeout(update, 50);
 
-    if (iconProps.when){
+    if (iconProps.when) {
         createEffect(on(iconProps.when, update))
         return <Show when={iconProps.when()}>
-            <svg ref={icon_el} {...svgProps} attr:active={iconProps.active? '': undefined} attr:selected={iconProps.selected? '': undefined} />
+            <svg ref={icon_el} {...svgProps} attr:active={iconProps.active ? '' : undefined} attr:selected={iconProps.selected ? '' : undefined} />
         </Show>
     }
     else
-        return <svg ref={icon_el} {...svgProps} attr:active={iconProps.active? '': undefined} attr:selected={iconProps.selected? '': undefined} />
+        return <svg ref={icon_el} {...svgProps} attr:active={iconProps.active ? '' : undefined} attr:selected={iconProps.selected ? '' : undefined} />
 }
 
 export interface text_icon_props extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -92,27 +92,27 @@ export interface text_icon_props extends JSX.HTMLAttributes<HTMLDivElement> {
     activated?: boolean
     when?: Accessor<boolean>
 }
-const DEFAULT_TEXT_PROPS:text_icon_props = {
-    text:'',
+const DEFAULT_TEXT_PROPS: text_icon_props = {
+    text: '',
     activated: undefined
 }
 
-export function TextIcon(props:text_icon_props){
+export function TextIcon(props: text_icon_props) {
     const merged = mergeProps(DEFAULT_TEXT_PROPS, props)
-    merged.classList = mergeProps({icon_text:true}, props.classList)
+    merged.classList = mergeProps({ icon_text: true }, props.classList)
     const [iconProps, divProps] = splitProps(merged, ["text", 'activated', 'when']);
 
-    if (iconProps.when) 
+    if (iconProps.when)
         return <Show when={iconProps.when()}>
-            <div {...divProps} attr:active={iconProps.activated? '': undefined} innerHTML={iconProps.text}/>
+            <div {...divProps} attr:active={iconProps.activated ? '' : undefined} innerHTML={iconProps.text} />
         </Show>
     else
-        return <div {...divProps} attr:active={iconProps.activated? '': undefined} innerHTML={iconProps.text}/>
+        return <div {...divProps} attr:active={iconProps.activated ? '' : undefined} innerHTML={iconProps.text} />
 }
 
 export enum icons {
     blank = 'blank',
-    
+
     menu = 'menu',
     menu_add = 'menu_add',
     menu_ext = "menu_ext",
@@ -171,7 +171,7 @@ export enum icons {
     window_add = "window_add",
     options_add = "options_add",
     options_remove = "options_remove",
-    
+
 
     fib_retrace = "fib_retrace",
     fib_extend = "fib_extend",

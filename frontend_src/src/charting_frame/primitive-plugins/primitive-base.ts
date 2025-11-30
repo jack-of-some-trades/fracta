@@ -28,7 +28,7 @@ import { isPrimitiveSet, PrimitiveSet } from './primitive-set';
 export type PrimitiveRenderer = IPrimitivePaneView & IPrimitivePaneRenderer
 
 //@ts-ignore - Change the type of externalID to provide better hit-detection
-export interface HoveredItem extends PrimitiveHoveredItem { 
+export interface HoveredItem extends PrimitiveHoveredItem {
     externalId: PrimitiveBase_T
     hitResult: hitResult
 }
@@ -39,7 +39,7 @@ export interface primitiveOptions {
     autoscale: boolean
 }
 
-export const DEFAULT_PRIMITIVE_OPTS:primitiveOptions = { 
+export const DEFAULT_PRIMITIVE_OPTS: primitiveOptions = {
     visible: true,
     tangible: true,
     autoscale: false,
@@ -59,7 +59,7 @@ export enum HIT_RESULT {
     EndPt = -5,
     Label = -4,
     SelectionBox = -2,
-	Foreground = -2,
+    Foreground = -2,
     Background = -1,
 
     // Values >= 0 Reserved for data-point # or Primitive specific definition
@@ -81,7 +81,7 @@ export function isPrimitive(obj: unknown): obj is PrimitiveBase_T { return obj i
  * Docs: https://tradingview.github.io/lightweight-charts/docs/plugins/series-primitives
  */
 export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeriesPrimitive<Time>, Orderable {
-    [ORDERABLE]:true = true;
+    [ORDERABLE]: true = true;
     private _frame: charting_frame | undefined
     private _parent: PrimitiveSet | SeriesBase_T | undefined
     protected _chart: IChartApi | undefined
@@ -92,16 +92,16 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     _name: string | undefined = undefined
     _type: string = "null"
 
-    constructor(_id:string, _type:string, _opts:T | undefined){
+    constructor(_id: string, _type: string, _opts: T | undefined) {
         this._id = _id
         this._type = _type
-        
-        this._options = {...DEFAULT_PRIMITIVE_OPTS as T, ..._opts}
-		this.applyOptions = this.applyOptions.bind(this)
+
+        this._options = { ...DEFAULT_PRIMITIVE_OPTS as T, ..._opts }
+        this.applyOptions = this.applyOptions.bind(this)
 
         const sig = createSignal(false)
         this.selected = sig[0]; this.setSelected = sig[1];
-		createEffect(on(this.selected, () => this.requestUpdate()))
+        createEffect(on(this.selected, () => this.requestUpdate()))
 
         this.leafProps = {
             id: _id,
@@ -110,8 +110,8 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
         }
     }
 
-    get id(): string {return this._id}
-    get name(): string {return this._name ?? this._type}
+    get id(): string { return this._id }
+    get name(): string { return this._name ?? this._type }
     get chartApi(): IChartApi { return ensureDefined(this._chart); }
     get paneApi(): IPaneApi<Time> { return this.series.getPane() }
     get series(): ISeriesApi<keyof SeriesOptionsMap> { return ensureDefined(this._series); }
@@ -120,25 +120,25 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     get pane(): charting_pane { return ensureDefined(this.paneApi.chartingPane) }
     //@ts-ignore - Ignore Non-existent Property Error
     get frame(): charting_frame { return ensureDefined(this.chartApi.chartingFrame) }
-    
+
     // IMPORTANT DEVELOPER NOTE: All the primitive specific data should be stored in primitive.options.
     // This links into how options are updated (both from TS & Python) & how the options menus are programmatically generated.
     _options: T
     options(): T { return structuredClone(this._options) }
     get<K extends keyof T>(key: K): T[K] { return this._options[key] }
-    applyOptions(opts:Partial<T> | undefined, externalCall = false) {
+    applyOptions(opts: Partial<T> | undefined, externalCall = false) {
         if (opts === undefined) return
 
-        this._options = {...this._options, ...opts}
+        this._options = { ...this._options, ...opts }
         this.requestUpdate()
-        
+
         if (!externalCall && this._frame && this._parent) {
             //Call originated from a UI request. Sync the python object
             window.api.update_primitive_options(
-                this._frame.id.substring(0,6),  // Container ID only
+                this._frame.id.substring(0, 6),  // Container ID only
                 this._frame.id,
                 this._parent.id,
-                this.id, 
+                this.id,
                 opts // NOTE: this only sends back updated params
             )
         }
@@ -168,7 +168,7 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     protected onClick?(param: ChartingEvent): void;
     protected onAuxClick?(param: ChartingEvent): void;
     protected onDblClick?(param: ChartingEvent) { this.displayOptionsMenu() }
-    protected onMouseUp?(param:ChartingEvent): void;
+    protected onMouseUp?(param: ChartingEvent): void;
     protected onMouseDown?(param: ChartingEvent): void;
     // The Following 3, when defined, will execute an additional HitTest() per primitive, per cursor move event.
     protected onMouseEnter?(param: ChartingEvent): void;
@@ -186,7 +186,7 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     // That event would need to be intercepted if a primitive's onWheel() is invoked.
     protected onWheel?(param: ChartingEvent): void;
 
-    setParent(parent: PrimitiveSet | SeriesBase_T | undefined){this._parent = parent}
+    setParent(parent: PrimitiveSet | SeriesBase_T | undefined) { this._parent = parent }
 
     onActivation() { // When the Series has been first clicked on
         console.debug('Primitive Activated', this)
@@ -201,13 +201,13 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     }
 
     remove() {
-        if(isPrimitiveSet(this._parent)){
+        if (isPrimitiveSet(this._parent)) {
             this._parent.detachPrimitive(this)
         } else {
             this.paneApi.detachPrimitive(this)
         }
     }
-    
+
     //#region ------------------- Mouse Event Implementation Functions -------------------
 
     //** Invoked by Lightweight-Charts when the Primitive is attached to the chart. */
@@ -215,15 +215,15 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
         this._chart = chart;
         this._series = series;
         this._frame = this._parent?.frame
-        
+
         if (this.onDataUpdate) { this._series.subscribeDataChanged(this._fireDataUpdated); }
 
-        if (this._frame){
+        if (this._frame) {
             if (this.onCrosshairMove) { this._frame.subscribeMouseEvent('crosshair', this._fireCrosshairMove); }
             if (this.onMouseMove) { this._frame.subscribeMouseEvent('mousemove', this._fireMouseMove); }
             if (this.onWheel) { this._frame.subscribeMouseEvent('wheel', this._fireWheel); }
-            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) { 
-                this._frame.subscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave); 
+            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) {
+                this._frame.subscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave);
             }
         }
         this._requestUpdate = requestUpdate;
@@ -232,16 +232,16 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
 
     //** Invoked by Lightweight-Charts when the Primitive removed from the chart. */
     public detached() {
-        if (this.onDataUpdate && this._series) { 
-            this._series.unsubscribeDataChanged(this._fireDataUpdated); 
+        if (this.onDataUpdate && this._series) {
+            this._series.unsubscribeDataChanged(this._fireDataUpdated);
         }
 
-        if (this._frame){
+        if (this._frame) {
             if (this.onCrosshairMove) { this._frame.unsubscribeMouseEvent('crosshair', this._fireCrosshairMove); }
             if (this.onMouseMove) { this._frame.unsubscribeMouseEvent('mousemove', this._fireMouseMove); }
             if (this.onWheel) { this._frame.unsubscribeMouseEvent('wheel', this._fireWheel); }
-            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) { 
-                this._frame.unsubscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave); 
+            if (this.onMouseEnter || this.onMouseLeave || this.onMouseOverOut) {
+                this._frame.unsubscribeMouseEvent('mousemove', this._maybeFireMouseOverOutEnterLeave);
             }
         }
 
@@ -251,35 +251,35 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
         this._requestUpdate = undefined;
     }
 
-    public fireClickEvent(event: ChartingEventsTypes, e:ChartingEvent){
-        switch(event){
+    public fireClickEvent(event: ChartingEventsTypes, e: ChartingEvent) {
+        switch (event) {
             case 'click': this.onClick?.(e); break;
             case 'auxclick': this.onAuxClick?.(e); break;
-            case 'dblclick':  this.onDblClick?.(e); break;
+            case 'dblclick': this.onDblClick?.(e); break;
             case 'mouseup': this.onMouseUp?.(e); break;
             case 'mousedown': this.onMouseDown?.(e); break;
         }
     }
 
-    private _fireCrosshairMove = (e:ChartingEvent) => this.onCrosshairMove?.(e)
-    private _fireMouseMove = (e:ChartingEvent) => this.onMouseMove?.(e)
-    private _fireWheel = (e:ChartingEvent) => this.onWheel?.(e)
+    private _fireCrosshairMove = (e: ChartingEvent) => this.onCrosshairMove?.(e)
+    private _fireMouseMove = (e: ChartingEvent) => this.onMouseMove?.(e)
+    private _fireWheel = (e: ChartingEvent) => this.onWheel?.(e)
     private _fireDataUpdated = (scope: DataChangedScope) => this.onDataUpdate?.(scope)
 
     // Only valid state if one of the  mouseEnter, mouseLeave, mouseOverOut functions are defined
-    private _hoveredItem:HoveredItem | null = null 
-    private _maybeFireMouseOverOutEnterLeave = (e:ChartingEvent) => { 
+    private _hoveredItem: HoveredItem | null = null
+    private _maybeFireMouseOverOutEnterLeave = (e: ChartingEvent) => {
         if (!this._parent || e.paneIndex != this._parent.pane.paneIndex) return
         if (!e.point?.x || !e.point?.y) return
 
         const hit = this.hitTest(e.point?.x, e.point?.y) as HoveredItem | null
 
-        if (this.onMouseEnter || this.onMouseLeave){
+        if (this.onMouseEnter || this.onMouseLeave) {
             // Detect when hit changes from null to an object or vise-versa
-            if ((hit ? true : false) !== (this._hoveredItem ? true: false))
+            if ((hit ? true : false) !== (this._hoveredItem ? true : false))
                 hit ? this.onMouseEnter?.(e) : this.onMouseLeave?.(e)
         }
-        if (this.onMouseOverOut){
+        if (this.onMouseOverOut) {
             // Detected When the Hit-Result Changes
             if (hit?.hitResult !== this._hoveredItem?.hitResult)
                 this.onMouseOverOut(e, this._hoveredItem?.hitResult, hit?.hitResult)
@@ -312,34 +312,34 @@ export abstract class PrimitiveBase<T extends primitiveOptions> implements ISeri
     }
 
     timeToIndex(time: Time): number | null {
-		const timescale = this.chartApi.timeScale()
-		return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
+        const timescale = this.chartApi.timeScale()
+        return timescale.coordinateToLogical(timescale.timeToCoordinate(time) ?? -1)
     }
 
     // TODO: Determine if binary searching this frequently (by calling this in renderer.update functions)
     // is a bad idea or not. only alternative would be to cache the value and setup a method to invalidate 
     // the cache on timeframe change.. when else would it need invalidating?
-    nearestBarCoordinate(time:Time, look_left:boolean = true): Coordinate | null {
+    nearestBarCoordinate(time: Time, look_left: boolean = true): Coordinate | null {
         const _nearestTime = this.nearestBarTime(time, look_left)
         return _nearestTime ? this.chartApi.timeScale().timeToCoordinate(_nearestTime) : null
     }
 
     //Returns the nearest visible time to the time given
-    nearestBarTime(time:Time, look_left:boolean = true): Time | null {
+    nearestBarTime(time: Time, look_left: boolean = true): Time | null {
         const time_points = this._frame?.timescaleTimes
         if (time_points === undefined) return null
 
         // In this library python ensures all times are numbers => Time as Number is valid.
-        let index = binarySearch(this._frame?.timescaleTimes ?? [], time as Number, (a,b) => a-b)
+        let index = binarySearch(this._frame?.timescaleTimes ?? [], time as Number, (a, b) => a - b)
 
         if (index >= 0) // Found Time value given
             return time
 
         // Negative Index => Value not found, (-index) is the nearest index to the left.
-        if (look_left) 
+        if (look_left)
             return time_points[-index] as Time
         else // When looking right, cap index at last valid index
-            return time_points[Math.min(-index + 1 , time_points.length - 1)] as Time
+            return time_points[Math.min(-index + 1, time_points.length - 1)] as Time
     }
 
     //#endregion

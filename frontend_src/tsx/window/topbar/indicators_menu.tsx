@@ -21,19 +21,19 @@ export interface indicator_pkg {
     "pkg_name": string,
     "pkg_version": string | undefined,
     "description": string | undefined,
-    "indicators": {[key: string]: indicator_details},
+    "indicators": { [key: string]: indicator_details },
 }
 
 // Box that gets mounted to the Topbar
-export function IndicatorsBox(){
+export function IndicatorsBox() {
     const id = 'indicator_menu'
     let box_el = document.createElement('div')
 
     const displaySignal = createSignal<boolean>(false)
-    const [menuLocation, setMenuLocation] = createSignal<point>({x:0, y:0})
-    const position_menu = () => {setMenuLocation({x:window.innerWidth/2, y:window.innerHeight*0.2})}
-    
-    function onClk(e:MouseEvent){
+    const [menuLocation, setMenuLocation] = createSignal<point>({ x: 0, y: 0 })
+    const position_menu = () => { setMenuLocation({ x: window.innerWidth / 2, y: window.innerHeight * 0.2 }) }
+
+    function onClk(e: MouseEvent) {
         displaySignal[1](!displaySignal[0]()) // Toggle Visibility
         e.stopPropagation();
     }
@@ -43,10 +43,10 @@ export function IndicatorsBox(){
         box_el.addEventListener('mousedown', (e) => onClk(e))
         window.addEventListener('resize', position_menu)
     })
-    onCleanup(() => {window.removeEventListener('resize', position_menu)})
+    onCleanup(() => { window.removeEventListener('resize', position_menu) })
 
     //These signals and stores are initlilized here so that their state isn't reset when the menu disappears
-    const [packages, setPackages] = createStore<{[key: string]: indicator_pkg}>({})
+    const [packages, setPackages] = createStore<{ [key: string]: indicator_pkg }>({})
     window.api.populate_indicator_pkgs = setPackages
 
     OverlayCTX().attachOverlay(
@@ -64,8 +64,8 @@ export function IndicatorsBox(){
 
     return <div class="topbar_container">
         <div class="menu_selectable indicator_topbar_btn" ref={box_el}>
-            <Icon icon={icons.indicator}/>
-            <div class='text' style={{padding:"0px 2px"}}>Indicators</div>
+            <Icon icon={icons.indicator} />
+            <div class='text' style={{ padding: "0px 2px" }}>Indicators</div>
         </div>
         {/* <Icon icon={icons.indicator_template}/> */}
     </div>
@@ -75,64 +75,64 @@ export function IndicatorsBox(){
 
 
 interface ind_menu_props extends Omit<overlay_div_props, "location_ref"> {
-    packages:{[key: string]: indicator_pkg}
-    setDisplay:Setter<boolean>,
+    packages: { [key: string]: indicator_pkg }
+    setDisplay: Setter<boolean>,
 }
 
-function IndicatorsMenu(props: ind_menu_props){
-    const [,overlayDivProps] = splitProps(props, ["setDisplay", "packages"])
+function IndicatorsMenu(props: ind_menu_props) {
+    const [, overlayDivProps] = splitProps(props, ["setDisplay", "packages"])
 
     const activePkgSig = createSignal<indicator_pkg | undefined>(undefined)
 
     return (
         <OverlayDiv
-            {...overlayDivProps} 
-            classList={{indicator_menu:true}} 
+            {...overlayDivProps}
+            classList={{ indicator_menu: true }}
             location_ref={location_reference.CENTER}
             drag_handle={"#indicator_menu_drag"}
             bounding_client_id={`#${props.id}>.indicator_title_bar`}
         >
             {/***** Title Bar *****/}
             <div class="indicator_title_bar">
-                <Icon 
-                    icon={icons.indicator_on_stratagy} 
-                    width={28} height={28} 
-                    classList={{icon:false, symbol_search_icon:true}} 
+                <Icon
+                    icon={icons.indicator_on_stratagy}
+                    width={28} height={28}
+                    classList={{ icon: false, symbol_search_icon: true }}
                 />
-                <h1 class="text" style={{margin: "8px 10px"}}>Indicators</h1>
+                <h1 class="text" style={{ margin: "8px 10px" }}>Indicators</h1>
                 <div id="indicator_menu_drag" />
-                <Icon 
-                    icon={icons.close} 
-                    style={{"margin-right":"15px", padding:"5px"}}
-                    onClick={()=>props.setDisplay(false)}//Close Menu on Click
+                <Icon
+                    icon={icons.close}
+                    style={{ "margin-right": "15px", padding: "5px" }}
+                    onClick={() => props.setDisplay(false)}//Close Menu on Click
                 />
             </div>
-            
-            <div class="indicator_title_separator"/>
+
+            <div class="indicator_title_separator" />
 
             {/***** Info Container *****/}
             <div id="indicator_info_container">
-                
+
                 <div id='indicator_packages_list'>
                     <table><tbody>
-                        <For each={Object.values(props.packages)}>{(pkg) => <PackageCard activePkgSig={activePkgSig} {...pkg}/>}</For>
+                        <For each={Object.values(props.packages)}>{(pkg) => <PackageCard activePkgSig={activePkgSig} {...pkg} />}</For>
                     </tbody></table>
                 </div>
 
-                <div class="indicator_vert_separator"/>
+                <div class="indicator_vert_separator" />
 
                 <div id='indicator_details_list'>
                     <table><tbody>
-                        <For each={Object.values(activePkgSig[0]()?.indicators ?? {})}>{ (details) => 
-                            <IndicatorCard 
-                                {...details} 
-                                activePkgKey={activePkgSig[0]()?.pkg_key?? ''}
+                        <For each={Object.values(activePkgSig[0]()?.indicators ?? {})}>{(details) =>
+                            <IndicatorCard
+                                {...details}
+                                activePkgKey={activePkgSig[0]()?.pkg_key ?? ''}
                                 setDisplay={props.setDisplay}
                             />}
                         </For>
                     </tbody></table>
                     <Show when={activePkgSig[0]()?.description}>
-                        <div id='indicator_pkg_description' innerHTML={activePkgSig[0]()?.description}/>
+                        <div id='indicator_pkg_description' innerHTML={activePkgSig[0]()?.description} />
                     </Show>
                 </div>
             </div>
@@ -140,41 +140,41 @@ function IndicatorsMenu(props: ind_menu_props){
     )
 }
 
-function PackageCard(props: indicator_pkg & {'activePkgSig':Signal<indicator_pkg | undefined>}){
-    const [,pkg] = splitProps(props, ['activePkgSig'])
+function PackageCard(props: indicator_pkg & { 'activePkgSig': Signal<indicator_pkg | undefined> }) {
+    const [, pkg] = splitProps(props, ['activePkgSig'])
 
     return (
         <div
             class='pkg_card'
             onClick={() => props.activePkgSig[1](pkg)}
-            attr:active={props.activePkgSig[0]()?.pkg_key == props.pkg_key? '': undefined}
+            attr:active={props.activePkgSig[0]()?.pkg_key == props.pkg_key ? '' : undefined}
         >
-            <span innerText={props.pkg_name}/>
+            <span innerText={props.pkg_name} />
             <Show when={props.pkg_version}>
-                <div class='version' innerText={props.pkg_version ?? ''}/>
+                <div class='version' innerText={props.pkg_version ?? ''} />
             </Show>
         </div>
     )
 }
 
-function IndicatorCard(props: indicator_details & {'activePkgKey':string, 'setDisplay':Setter<boolean>}){
+function IndicatorCard(props: indicator_details & { 'activePkgKey': string, 'setDisplay': Setter<boolean> }) {
     if (props.unlisted) return
 
-    return <div 
+    return <div
         class='ind_card'
-        onClick={() => {send_indicator_request(props.activePkgKey, props.ind_key); props.setDisplay(false)}}
+        onClick={() => { send_indicator_request(props.activePkgKey, props.ind_key); props.setDisplay(false) }}
     >
-        <span innerText={props.ind_name}/>
+        <span innerText={props.ind_name} />
         <Show when={props.description && props.description != ''}>
-            <div class='description' innerHTML={props.description ?? ''}/>
+            <div class='description' innerHTML={props.description ?? ''} />
         </Show>
         <Show when={props.ind_version && props.ind_version != ''}>
-            <div class='version' innerText={props.ind_version ?? ''}/>
+            <div class='version' innerText={props.ind_version ?? ''} />
         </Show>
     </div>
 }
 
-function send_indicator_request(pkg_key:string, ind_key:string){
+function send_indicator_request(pkg_key: string, ind_key: string) {
     if (window.activeContainer == undefined || window.activeFrame == undefined)
         return
     window.api.indicator_request(

@@ -28,7 +28,7 @@ export class container_manager {
 
     constructor(
         tabs_el: HTMLDivElement
-    ){
+    ) {
         this.tab_manager.init(tabs_el)
     }
 
@@ -75,10 +75,10 @@ export class container_manager {
         const tab_el = this.tab_els.get(id)
         if (tab_el) this.tab_manager.setCurrentTab(tab_el)
 
-        if (window.activeContainer){
+        if (window.activeContainer) {
             window.activeContainer.onHide()     // Allow Sub-classes to inject behavior
         }
-        
+
         window.activeContainer = container_obj
         container_obj.onShow()                   // Allow Sub-classes to inject behavior
         container_obj.refreshSize()                   // Non-Active Containers aren't resized
@@ -102,7 +102,7 @@ export class container_manager {
             this.styleEl = document.createElement('style')
         }
 
-        init(tabs_el: HTMLDivElement){
+        init(tabs_el: HTMLDivElement) {
             this.el = tabs_el
             this.el.style.setProperty('--tab-content-margin', `${TAB_CONTENT_MARGIN}px`)
             this.el.appendChild(this.styleEl)
@@ -118,14 +118,14 @@ export class container_manager {
                     //Sends the command back to python for python to create the container so the two stay synced
                     window.api.add_container()
             })
-    
+
             this.layoutTabs()
             this.setupDraggabilly()
         }
-        
-        get activeTabEl() {return this.el.querySelector('.tab[active]')}
-        get tabContentEl() {return this.el.querySelector('.tabs-content') as HTMLDivElement}
-        private get tabEls() {return Array.prototype.slice.call(this.el.querySelectorAll('.tab'))}
+
+        get activeTabEl() { return this.el.querySelector('.tab[active]') }
+        get tabContentEl() { return this.el.querySelector('.tabs-content') as HTMLDivElement }
+        private get tabEls() { return Array.prototype.slice.call(this.el.querySelectorAll('.tab')) }
 
         private get tabContentWidths() {
             const numberOfTabs = this.tabEls.length
@@ -136,7 +136,7 @@ export class container_manager {
             const totalTabsWidthUsingTarget = (clampedTargetWidth * numberOfTabs) + (2 * TAB_CONTENT_MARGIN) - tabsCumulativeOverlappedWidth
             const totalExtraWidthDueToFlooring = tabsContentWidth - totalTabsWidthUsingTarget
 
-            const widths:number[] = []
+            const widths: number[] = []
             let extraWidthRemaining = totalExtraWidthDueToFlooring
             for (let i = 0; i < numberOfTabs; i += 1) {
                 const extraWidth = clampedTargetWidth < TAB_CONTENT_MAX_WIDTH && extraWidthRemaining > 0 ? 1 : 0
@@ -386,7 +386,7 @@ interface Position {
     y: number;
 }
 
-function closest(value: number, array: number[]):number {
+function closest(value: number, array: number[]): number {
     let closest = Infinity
     let closestIndex = -1
 

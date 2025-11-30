@@ -19,7 +19,7 @@ function optimalCandlestickWidth(
 			Math.atan(
 				Math.max(barSpacingSpecialCaseTo, barSpacing) - barSpacingSpecialCaseTo
 			)) /
-			(Math.PI * 0.5);
+		(Math.PI * 0.5);
 	const res = Math.floor(barSpacing * coeff * pixelRatio);
 	const scaledBarSpacing = Math.floor(barSpacing * pixelRatio);
 	const optimal = Math.min(res, scaledBarSpacing);

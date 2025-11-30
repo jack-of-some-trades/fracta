@@ -16,8 +16,8 @@ import { contextMenuItem } from "./context_menu";
  * @param menuItems 
  * @returns Ordered List of Shortcuts to be passed to the KeyboardCTX().AttachHandlers() method
  */
-export function deriveShortcuts(menuItems:contextMenuItem[][]): keyboardShortcut[] {
-    const items:keyboardShortcut[] = Array.from(menuItems.flat()).filter(
+export function deriveShortcuts(menuItems: contextMenuItem[][]): keyboardShortcut[] {
+    const items: keyboardShortcut[] = Array.from(menuItems.flat()).filter(
         (item: contextMenuItem): item is keyboardShortcut => item.hotkey !== undefined
     )
     items.sort((a, b) => getPriority(a) - getPriority(b))
@@ -25,12 +25,12 @@ export function deriveShortcuts(menuItems:contextMenuItem[][]): keyboardShortcut
 }
 
 // Prioritize firing shortcuts that require modifier keys since they have more restrictive firing conditions
-function getPriority(item: keyboardShortcut): number { 
-    return (item.alt === undefined ? 0 : 1) 
-            + (item.ctrl === undefined ? 0 : 1) 
-            + (item.shift === undefined ? 0 : 1)
-            // Prioritize explicity coded characters over more-broad Regex matches
-            + (typeof(item.hotkey) === 'string'? 0 : -0.5) 
+function getPriority(item: keyboardShortcut): number {
+    return (item.alt === undefined ? 0 : 1)
+        + (item.ctrl === undefined ? 0 : 1)
+        + (item.shift === undefined ? 0 : 1)
+        // Prioritize explicity coded characters over more-broad Regex matches
+        + (typeof (item.hotkey) === 'string' ? 0 : -0.5)
 }
 
 /**
@@ -48,15 +48,15 @@ export interface keyboardShortcut {
     alt?: boolean
     ctrl?: boolean
     shift?: boolean
-    
+
     title: string // Residual from context_menu_item
     disable?: () => boolean
 }
 
 type KeyboardContextProps = {
-    attachHandler: (id:string, shortcuts: keyboardShortcut[]) => void
-    detachHandler: (id:string) => void
-    attachAnonymousHandler(shortcuts: keyboardShortcut[]): string 
+    attachHandler: (id: string, shortcuts: keyboardShortcut[]) => void
+    detachHandler: (id: string) => void
+    attachAnonymousHandler(shortcuts: keyboardShortcut[]): string
     alt: Accessor<boolean>
     ctrl: Accessor<boolean>
     shift: Accessor<boolean>
@@ -70,9 +70,9 @@ type KeyboardContextProps = {
  *        An ID is returned that should be used to remove the shortcuts when they are no longer needed.
  * @param alt, @param ctrl, @param shift Accessors for the current state of the Modifier Keys
  */
-const DEFAULT_CTX_ARGS:KeyboardContextProps = {
-    attachHandler: (id:string, shortcuts: keyboardShortcut[]) => {},
-    detachHandler: (id:string) => {},
+const DEFAULT_CTX_ARGS: KeyboardContextProps = {
+    attachHandler: (id: string, shortcuts: keyboardShortcut[]) => { },
+    detachHandler: (id: string) => { },
     attachAnonymousHandler: (shortcuts: keyboardShortcut[]) => String(),
     alt: () => false,
     ctrl: () => false,
@@ -80,10 +80,10 @@ const DEFAULT_CTX_ARGS:KeyboardContextProps = {
 }
 
 let keyboardContext = createContext<KeyboardContextProps>(DEFAULT_CTX_ARGS);
-export function KeyboardCTX():KeyboardContextProps { return useContext<KeyboardContextProps>(keyboardContext) }
+export function KeyboardCTX(): KeyboardContextProps { return useContext<KeyboardContextProps>(keyboardContext) }
 
 
-export function KeyboardListener(props: JSX.HTMLAttributes<HTMLElement>){
+export function KeyboardListener(props: JSX.HTMLAttributes<HTMLElement>) {
     const [alt, setAlt] = createSignal<boolean>(false)
     const [ctrl, setCtrl] = createSignal<boolean>(false)
     const [shift, setShift] = createSignal<boolean>(false)
@@ -119,11 +119,11 @@ export function KeyboardListener(props: JSX.HTMLAttributes<HTMLElement>){
     // Overwrite so Default CTX args change. 
     // This allows objects outside of the context children to access the above CTX_ARGS.
     keyboardContext = createContext<KeyboardContextProps>(CTX_ARGS);
-    return <keyboardContext.Provider value={CTX_ARGS} children={props.children}/>
+    return <keyboardContext.Provider value={CTX_ARGS} children={props.children} />
 }
 
 
-function maybeFireShortcut(e:KeyboardEvent, shortcut: keyboardShortcut): boolean {
+function maybeFireShortcut(e: KeyboardEvent, shortcut: keyboardShortcut): boolean {
     if (shortcut.alt !== undefined && shortcut.alt !== e.altKey) return false
     if (shortcut.ctrl !== undefined && shortcut.ctrl !== e.ctrlKey) return false
     if (shortcut.shift !== undefined && shortcut.shift !== e.shiftKey) return false
@@ -136,12 +136,12 @@ function maybeFireShortcut(e:KeyboardEvent, shortcut: keyboardShortcut): boolean
 
 
 function onKeyDown(
-    this: Map<string, keyboardShortcut[]>, 
-    setAlt:Setter<boolean>, 
-    setCtrl:Setter<boolean>, 
-    setShift:Setter<boolean>, 
+    this: Map<string, keyboardShortcut[]>,
+    setAlt: Setter<boolean>,
+    setCtrl: Setter<boolean>,
+    setShift: Setter<boolean>,
     e: KeyboardEvent
-){
+) {
     if (e.repeat) return // Only Capture Key Changes
     preventCertainDefaults(e)
 
@@ -153,7 +153,7 @@ function onKeyDown(
 
     let handled = false
     // Iterate over the Handlers in 'last-added-trigger-first' order
-    for (const [id, shortcuts] of Array.from(this).reverse() ){
+    for (const [id, shortcuts] of Array.from(this).reverse()) {
         handled = shortcuts.some((s) => maybeFireShortcut(e, s))
         if (handled) return
     }
@@ -161,12 +161,12 @@ function onKeyDown(
 
 
 function onKeyUp(
-    this: Map<string, keyboardShortcut[]>, 
-    setAlt:Setter<boolean>, 
-    setCtrl:Setter<boolean>, 
-    setShift:Setter<boolean>, 
+    this: Map<string, keyboardShortcut[]>,
+    setAlt: Setter<boolean>,
+    setCtrl: Setter<boolean>,
+    setShift: Setter<boolean>,
     e: KeyboardEvent
-){
+) {
     preventCertainDefaults(e)
     switch (e.key) {
         case 'Alt': setAlt(false); return;
@@ -180,28 +180,28 @@ function onKeyUp(
  * Prevent some keyboard shortcuts from triggering. Cannot blanket call e.preventDefault() since
  * that would disable typing input into all <input/>s
  */
-function preventCertainDefaults(e: KeyboardEvent){
+function preventCertainDefaults(e: KeyboardEvent) {
     const KEY = e.key.toUpperCase()
     const MODIFIERS = getMask(e)
 
-    for (const [MASK, KEY_SET] of BLACKLIST_KEYBINDINGS){
+    for (const [MASK, KEY_SET] of BLACKLIST_KEYBINDINGS) {
         if (MODIFIERS & MASK && KEY_SET.has(KEY))
             e.preventDefault()
-            return
+        return
     }
 }
 
 enum ModMask {
-    None  = 0,
-    Ctrl  = 1 << 0,
-    Alt   = 1 << 1,
+    None = 0,
+    Ctrl = 1 << 0,
+    Alt = 1 << 1,
     Shift = 1 << 2,
 }
 
 function getMask(e: KeyboardEvent): number {
     return (e.ctrlKey ? ModMask.Ctrl : 0) |
-           (e.altKey ? ModMask.Alt : 0) |
-           (e.shiftKey ? ModMask.Shift : 0);
+        (e.altKey ? ModMask.Alt : 0) |
+        (e.shiftKey ? ModMask.Shift : 0);
 }
 
 const BLACKLIST_KEYBINDINGS: Map<number, Set<string>> = new Map([

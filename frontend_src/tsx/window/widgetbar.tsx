@@ -10,28 +10,28 @@ const [selectedWidget, setSelectedWidget] = createSignal<icons | undefined>()
 
 interface widget_bar_props extends JSX.HTMLAttributes<HTMLDivElement> {
     panelDisplay: JSX.CSSProperties
-    showWidgetPanel: ()=>void
-    hideWidgetPanel: ()=>void
+    showWidgetPanel: () => void
+    hideWidgetPanel: () => void
 }
-export function WidgetBar(props:widget_bar_props){
+export function WidgetBar(props: widget_bar_props) {
 
     createEffect(() => {
-        props.panelDisplay.display === 'flex' && selectedWidget()? props.showWidgetPanel() : props.hideWidgetPanel()
+        props.panelDisplay.display === 'flex' && selectedWidget() ? props.showWidgetPanel() : props.hideWidgetPanel()
     })
 
     return <div class='layout_main layout_flex flex_col' style={props.style}>
-        <WidgetIcon icon={icons.frame_editor}/>
-        <WidgetIcon icon={icons.object_tree}/>
+        <WidgetIcon icon={icons.frame_editor} />
+        <WidgetIcon icon={icons.object_tree} />
     </div>
 }
 
-function WidgetIcon(props:{icon:icons} & JSX.SvgSVGAttributes<SVGSVGElement> ){
+function WidgetIcon(props: { icon: icons } & JSX.SvgSVGAttributes<SVGSVGElement>) {
     return (
         <Icon
             width={34} height={34}
-            classList={{widget_bar_icon:true}}
-            style={{margin:'4px', padding:'2px'}}
-            onClick={() => setSelectedWidget(selectedWidget() !== props.icon? props.icon : undefined)} 
+            classList={{ widget_bar_icon: true }}
+            style={{ margin: '4px', padding: '2px' }}
+            onClick={() => setSelectedWidget(selectedWidget() !== props.icon ? props.icon : undefined)}
             selected={selectedWidget() === props.icon}
             {...props}
         />
@@ -42,16 +42,16 @@ function WidgetIcon(props:{icon:icons} & JSX.SvgSVGAttributes<SVGSVGElement> ){
 
 // #region --------------------- Widget Panel Display ----------------------- */
 
-export function WidgetPanel(divProps:JSX.HTMLAttributes<HTMLDivElement> ){
+export function WidgetPanel(divProps: JSX.HTMLAttributes<HTMLDivElement>) {
     const resizePanel = WidgetPanelSizeCTX().setSize
     const [resizing, setResizing] = createSignal<boolean>(false)
     let ref = document.createElement('div')
 
-    const resizeWidgetPanel = (e:MouseEvent) => {
+    const resizeWidgetPanel = (e: MouseEvent) => {
         resizePanel(window.innerWidth - (e.clientX + WIDGET_BAR_WIDTH + WIDGET_PANEL_MARGIN))
     }
 
-    const onMouseDown = (e:MouseEvent) => {
+    const onMouseDown = (e: MouseEvent) => {
         if (e.target !== ref) return
         setResizing(true)
         // These do still cleanup when the move event sticks to the window despite lifting the mouse button
@@ -59,18 +59,18 @@ export function WidgetPanel(divProps:JSX.HTMLAttributes<HTMLDivElement> ){
         document.addEventListener('mouseup', () => {
             setResizing(false)
             document.removeEventListener('mousemove', resizeWidgetPanel)
-        }, {once:true})
+        }, { once: true })
     }
 
     return <div class='layout_main widget_panel' {...divProps} onMouseDown={onMouseDown}>
         <Switch>
-            <Match when={selectedWidget() === icons.frame_editor}><FrameViewer/></Match>
-            <Match when={selectedWidget() === icons.object_tree}><ObjectTree/></Match>
+            <Match when={selectedWidget() === icons.frame_editor}><FrameViewer /></Match>
+            <Match when={selectedWidget() === icons.object_tree}><ObjectTree /></Match>
         </Switch>
-        <div 
-            ref={ref} 
+        <div
+            ref={ref}
             class='widget_resize_handle'
-            style={{"background-color": resizing()? 'var(--hover-color)' : ""}}
+            style={{ "background-color": resizing() ? 'var(--hover-color)' : "" }}
         />
     </div>
 }

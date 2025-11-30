@@ -8,23 +8,23 @@ import { finalizeToolCreation } from "../tool_ui_support"
 import { TwoPointParameters, TwoPointPrimitive } from "./two_point_primitive"
 
 let mouseMoveController = new AbortController()
-export function cleanUpTwoPointTool(){ mouseMoveController.abort() }
+export function cleanUpTwoPointTool() { mouseMoveController.abort() }
 
-export function configureTwoPointPrimitiveUI<T extends TwoPointParameters>(e:MouseEvent, new_primitive: TwoPointPrimitive<T>): TwoPointPrimitive<T> | null {
+export function configureTwoPointPrimitiveUI<T extends TwoPointParameters>(e: MouseEvent, new_primitive: TwoPointPrimitive<T>): TwoPointPrimitive<T> | null {
     //Set First point to where this click originated
     let p = new_primitive.series.coordinateToPrice(e.offsetY)
     let t = new_primitive.chartApi.timeScale().coordinateToTime(e.offsetX)
-    
-    if (t === null || p === null){
+
+    if (t === null || p === null) {
         new_primitive.remove()
         console.warn('Failed to create Primitive, Price or Time invalid', new_primitive)
         return null
     }
     // Set both the points to the current value so it is displayed
     new_primitive.applyOptions({
-            p1:{time:t, value:p} as SingleValueData, 
-            p2:{time:t, value:p} as SingleValueData
-        } as Partial<T>
+        p1: { time: t, value: p } as SingleValueData,
+        p2: { time: t, value: p } as SingleValueData
+    } as Partial<T>
     )
 
     //Add Clean-up Logic for the remaining Event Listener
@@ -38,19 +38,19 @@ export function configureTwoPointPrimitiveUI<T extends TwoPointParameters>(e:Mou
 
     mouseMoveController.signal.addEventListener('abort', () => {
         new_primitive.chartApi.unsubscribeCrosshairMove(bound_update_ref)
-    }, {once: true})
+    }, { once: true })
 
     // mount 'click' listener on 'click' event so the second point is only confirmed w/ a second click.
     document.addEventListener('click', () => {
         new_primitive.chartApi.chartElement().addEventListener(
-            'click', confirmSecondPoint, {signal:mouseMoveController.signal}
+            'click', confirmSecondPoint, { signal: mouseMoveController.signal }
         )
-    }, {once: true})
+    }, { once: true })
 
     return new_primitive
 }
 
-function confirmSecondPoint(e:MouseEvent){
+function confirmSecondPoint(e: MouseEvent) {
     if (e.button !== 0) return //Left mouseBtn listener
 
     //All primitive tools need to call finalize once they are done.
@@ -60,12 +60,12 @@ function confirmSecondPoint(e:MouseEvent){
 
 
 function updateSecondPoint<T extends TwoPointParameters>(
-    this:TwoPointPrimitive<T>, timescale:ITimeScaleApi<Time>, param:MouseEventParams<Time>
-){
+    this: TwoPointPrimitive<T>, timescale: ITimeScaleApi<Time>, param: MouseEventParams<Time>
+) {
     if (!param.point) return
 
     let t = timescale.coordinateToTime(param.point.x)
     let p = this.series.coordinateToPrice(param.point.y)
     if (t && p)
-        this.applyOptions({p2:{ time: t, value: p } as SingleValueData} as Partial<T>)
+        this.applyOptions({ p2: { time: t, value: p } as SingleValueData } as Partial<T>)
 }

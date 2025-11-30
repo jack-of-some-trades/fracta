@@ -7,7 +7,7 @@ import { VertLine, VertLineOptions } from './vert_line';
 interface VertLineControllerOptions extends Partial<VertLineOptions> {
     autosend: boolean
     submit: () => void
-    update: (time:Time) => void
+    update: (time: Time) => void
 }
 
 /**
@@ -15,11 +15,11 @@ interface VertLineControllerOptions extends Partial<VertLineOptions> {
  */
 export class VertLineController extends VertLine {
 
-    private update: (time:Time) => void
+    private update: (time: Time) => void
     private submit: () => void
     private autosend: boolean
 
-    constructor(id:string, params:VertLineControllerOptions) {
+    constructor(id: string, params: VertLineControllerOptions) {
         super(id, params)
         this.autosend = params.autosend
         this.update = params.update
@@ -28,7 +28,7 @@ export class VertLineController extends VertLine {
     }
 
     //Overwrite Options Menu so you don't in-advertently open a menu from a menu tool
-    public displayOptionsMenu(): void {}
+    public displayOptionsMenu(): void { }
 
     onMouseDown(param: ChartingEvent): void {
         super.onMouseDown(param)
@@ -39,10 +39,10 @@ export class VertLineController extends VertLine {
         document.addEventListener('mouseup', () => {
             if (!this.autosend) this.submit() // If autosend was false, submit the change when the user releases the line.
             this.chartApi.unsubscribeCrosshairMove(this.onCrosshairControl)
-        },{once:true})
+        }, { once: true })
     }
 
-    private onCrosshairControl(param:MouseEventParams) {
+    private onCrosshairControl(param: MouseEventParams) {
         if (param.time) this.update(param.time)
     }
 }

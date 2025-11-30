@@ -7,13 +7,13 @@ import { charting_frame } from "./charting_frame";
 import { charting_pane } from "./charting_pane";
 import { PrimitiveBase, primitiveOptions } from "./primitive-plugins/primitive-base";
 import { PrimitiveSet } from "./primitive-plugins/primitive-set";
-import { primitives } from "./primitive-plugins/primitives";
+import { primitive_cls } from "./primitive-plugins/primitives";
 import * as s from "./series-plugins/series-base";
 
 const MAIN_TIMESERIES_ID = "i_XyzZy"
 const INDICATOR = Symbol('Indicator');
 export function isIndicator(obj: unknown): obj is indicator {
-    return ( obj !== null && typeof obj === 'object' && INDICATOR in obj )
+    return (obj !== null && typeof obj === 'object' && INDICATOR in obj)
 }
 
 export class indicator implements ReorderableSet {
@@ -31,7 +31,7 @@ export class indicator implements ReorderableSet {
     labelHtml: Accessor<string | undefined>
     setLabelHtml: Setter<string | undefined>
 
-    outputs:{[key:string]:string}
+    outputs: { [key: string]: string }
     menuId: string | undefined
     menuStruct: object | undefined
 
@@ -49,12 +49,12 @@ export class indicator implements ReorderableSet {
     branchProps: treeBranchInterface
 
     constructor(
-        id: string, 
-        type: string, 
+        id: string,
+        type: string,
         display_name: string,
-        outputs: {[key:string]:string}, 
+        outputs: { [key: string]: string },
         frame: charting_frame
-    ){
+    ) {
         this._id = id
         this._type = type
         this._name = display_name
@@ -68,31 +68,31 @@ export class indicator implements ReorderableSet {
 
         const orderables = createSignal<(s.SeriesBase_T | PrimitiveSet)[]>([])
         this.attached = orderables[0]; this.setAttached = orderables[1]
-        
+
         const labelHtml = createSignal<string | undefined>(undefined)
         this.labelHtml = labelHtml[0]; this.setLabelHtml = labelHtml[1]
 
         this.pane.attach(this)
 
         this.leafProps = {
-            id:this.id,
-            leafTitle:this.name,
+            id: this.id,
+            leafTitle: this.name,
             obj: this
         }
         this.branchProps = {
-            id:this.id,
+            id: this.id,
             branchTitle: this.name,
             dropDownMode: 'toggleable',
             reorderables: this.attached,
             reorder: this.reorder.bind(this),
-            moveTo: ()=>{}
+            moveTo: () => { }
         }
     }
 
-    setLabel(label:string){this.setLabelHtml(label !== ""? label : undefined)}
+    setLabel(label: string) { this.setLabelHtml(label !== "" ? label : undefined) }
 
     // TODO: Implement
-    move_to_pane(pane_index:number){}
+    move_to_pane(pane_index: number) { }
 
     delete() {
         //Clear All Sub-objects
@@ -105,23 +105,23 @@ export class indicator implements ReorderableSet {
         this.pane.detach(this)// ???
     }
 
-    setVisibility(arg:boolean){
+    setVisibility(arg: boolean) {
         this.visibilitySignal[1](arg)
         const _maps = [this.series, this.primitives]
         // This only works because the structure of primitives and series are similar enough
         for (let i = 0; i < _maps.length; i++)
 
-            if (arg) for (const [k, v] of _maps[i].entries()){
-                v.applyOptions({visible: this.visibilityMemory.get(k)??true})
+            if (arg) for (const [k, v] of _maps[i].entries()) {
+                v.applyOptions({ visible: this.visibilityMemory.get(k) ?? true })
             }
 
-            else for (const [k, v] of _maps[i].entries()){
+            else for (const [k, v] of _maps[i].entries()) {
                 this.visibilityMemory.set(k, v.options().visible)
-                v.applyOptions({visible: false})
+                v.applyOptions({ visible: false })
             }
     }
 
-    reorder(from:number, to:number){
+    reorder(from: number, to: number) {
         console.log(`Reorder Series from: ${from}, to: ${to}`)
     }
 
@@ -139,7 +139,7 @@ export class indicator implements ReorderableSet {
     //Functions marked as protected are done so it indicate the original intent
     //only encompassed being called from python, not from within JS.
 
-    protected add_series(_id: string, _type: s.Series_Type, _name:string|undefined = undefined) {
+    protected add_series(_id: string, _type: s.Series_Type, _name: string | undefined = undefined) {
         const _ser = new s.SeriesBase(_id, _name, _type, this)
         this.series.set(_id, _ser)
         this.setAttached([...this.attached(), _ser])
@@ -154,8 +154,8 @@ export class indicator implements ReorderableSet {
         this.setAttached(this.attached().filter((_ser) => _ser !== series))
     }
 
-    protected add_primitive(_id: string, _type: string, params:object) {
-        let primitive_type = primitives.get(_type)
+    protected add_primitive(_id: string, _type: string, params: object) {
+        let primitive_type = primitive_cls.get(_type)
         if (primitive_type === undefined) return
         let new_obj = new primitive_type(this._id + _id, params)
 
@@ -167,40 +167,40 @@ export class indicator implements ReorderableSet {
         let _obj = this.primitives.get(_id)
         if (_obj === undefined) return
 
-        this._frame.whitespace_series.detachPrimitive(_obj) 
+        this._frame.whitespace_series.detachPrimitive(_obj)
         this.primitives.delete(_id)
     }
-    
-    protected update_primitive(_id: string, params:object) {
+
+    protected update_primitive(_id: string, params: object) {
         this.primitives.get(_id)?.applyOptions(params, true)
     }
 
-    applyOptions(options:{[key: string]: any}, externalCall = false){
+    applyOptions(options: { [key: string]: any }, externalCall = false) {
         this.setOptions(options)
 
         if (!externalCall) // If the apply options generated from a UI action
-            window.api.set_indicator_options( 
-                this._frame.id.substring(0,6),  // Container ID
-                this._frame.id.substring(0,13), // Frame ID
-                this.id, 
+            window.api.set_indicator_options(
+                this._frame.id.substring(0, 6),  // Container ID
+                this._frame.id.substring(0, 13), // Frame ID
+                this.id,
                 options
             )
     }
 
-    protected set_menu_struct(menu_struct:object, options:object){
+    protected set_menu_struct(menu_struct: object, options: object) {
         this.menuStruct = menu_struct
         this.setOptions(options)
     }
 
     //#endregion
 
-    displayOptionsMenu(){
+    displayOptionsMenu() {
         generateOptionsMenu({
             id: `${this._frame.id}_${this._id}_options`,
-            title: this.type + " • " + this.name + (this.name !== '' ? " • " : '' )  + "Options",
+            title: this.type + " • " + this.name + (this.name !== '' ? " • " : '') + "Options",
             tabs: {
                 'Inputs': [this.menuStruct, this.options, this.applyOptions.bind(this)],
-                'Style': () => MultipleSeriesStyleEditor({series:this.series}),
+                'Style': () => MultipleSeriesStyleEditor({ series: this.series }),
             },
             pane: this._pane
         })

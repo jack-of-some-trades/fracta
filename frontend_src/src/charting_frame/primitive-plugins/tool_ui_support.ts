@@ -5,17 +5,17 @@ import { KeyboardCTX } from "../../../tsx/window/keyboard_listener"
 import { MouseEventKeys } from "../../types"
 import { isChartingFrame } from "../charting_frame"
 import { charting_pane } from "../charting_pane"
-import { isPrimitive, PrimitiveBase } from "./primitive-base"
+import { isPrimitive, PrimitiveBase, primitiveOptions } from "./primitive-base"
 
 
-export function selectTool(tool_key: icons){
+export function selectTool(tool_key: icons) {
     const p_tool = PRIMITIVE_TOOL_MAP.get(tool_key)
-    if (p_tool){
+    if (p_tool) {
         selectPrimitiveTool(p_tool)
         return
     }
     const s_tool = SIMPLE_TOOL_MAP.get(tool_key)
-    if (s_tool){
+    if (s_tool) {
         s_tool.execute()
         return
     }
@@ -23,12 +23,12 @@ export function selectTool(tool_key: icons){
     console.warn(`No Tool Associated with icon: ${tool_key}`)
 }
 
-export const TOOL_MAP = new ReactiveMap<icons, PrimitiveTool | SimpleTool> ([])
+export const TOOL_MAP = new ReactiveMap<icons, PrimitiveTool | SimpleTool>([])
 
 //# region ---- ---- ---- Simple Tools ---- ---- ---- 
 
-const SIMPLE_TOOL_MAP = new Map<icons, SimpleTool> ([])
-export function registerSimpleTool(tool: SimpleTool){ 
+const SIMPLE_TOOL_MAP = new Map<icons, SimpleTool>([])
+export function registerSimpleTool(tool: SimpleTool) {
     SIMPLE_TOOL_MAP.set(tool.icon, tool)
     TOOL_MAP.set(tool.icon, tool)
 }
@@ -43,7 +43,7 @@ type SimpleToolFunc = () => void
  *      Useful for singletion tools such as the Cursors, or Magnet Mode, etc..
  */
 export interface SimpleTool {
-    icon: icons, 
+    icon: icons,
     label: string,
     execute: SimpleToolFunc,
     selected?: Accessor<boolean>
@@ -68,18 +68,18 @@ export interface SimpleTool {
  * 
  */
 export interface PrimitiveTool {
-    icon: icons, 
+    icon: icons,
     label: string,
     create: ToolGeneratorFunc,
     eventType?: MouseEventKeys,
     cleanup: () => void,
 }
 
-type ToolGeneratorFunc = (pane:charting_pane, e:MouseEvent) => PrimitiveBase | null
+type ToolGeneratorFunc = (pane: charting_pane, e: MouseEvent) => PrimitiveBase<primitiveOptions> | null
 
-const PRIMITIVE_TOOL_MAP = new Map<icons, PrimitiveTool> ([])
-export function registerPrimitiveTool(tool: PrimitiveTool){ 
-    PRIMITIVE_TOOL_MAP.set(tool.icon, tool) 
+const PRIMITIVE_TOOL_MAP = new Map<icons, PrimitiveTool>([])
+export function registerPrimitiveTool(tool: PrimitiveTool) {
+    PRIMITIVE_TOOL_MAP.set(tool.icon, tool)
     TOOL_MAP.set(tool.icon, tool)
 }
 
@@ -90,13 +90,13 @@ const KB_SHORTCUTS = [{
     title: 'Primitive Tool Abort Controller'
 }]
 let creationController = new AbortController()
-const [activePrimitiveObj, setActivePrimitiveObj] = createSignal<PrimitiveBase | undefined>()
+const [activePrimitiveObj, setActivePrimitiveObj] = createSignal<PrimitiveBase<primitiveOptions> | undefined>()
 const [activePrimitiveTool, setActivePrimitiveTool] = createSignal<PrimitiveTool | undefined>()
 
 
-function createPrimitiveTool(pane: charting_pane, generateTool: ToolGeneratorFunc, e: MouseEvent){
+function createPrimitiveTool(pane: charting_pane, generateTool: ToolGeneratorFunc, e: MouseEvent) {
     const new_primitive = generateTool(pane, e)
-    if (isPrimitive(new_primitive)){
+    if (isPrimitive(new_primitive)) {
         setActivePrimitiveObj(new_primitive)
     } else {
         //Tool Generator encountered either could create, or is already done, creating the primitive
@@ -106,26 +106,26 @@ function createPrimitiveTool(pane: charting_pane, generateTool: ToolGeneratorFun
     creationController = new AbortController()
 }
 
-export function abortToolCreation(){
+export function abortToolCreation() {
     //Clean Up listeners used to add the tool
     creationController.abort()
     creationController = new AbortController()
 
     //Let the Tool clean-up anything it placed into the DOM
     let active_tool = activePrimitiveTool()
-    if(active_tool) {
+    if (active_tool) {
         active_tool.cleanup()
         setActivePrimitiveTool(undefined)
     }
 
     // Delete the Primitive Tool actively being created
     let active_tool_obj = activePrimitiveObj()
-    if(active_tool_obj) active_tool_obj.remove()
+    if (active_tool_obj) active_tool_obj.remove()
 
     finalizeToolCreation()
 }
 
-export function finalizeToolCreation(){
+export function finalizeToolCreation() {
     setActivePrimitiveObj(undefined)
     setActivePrimitiveTool(undefined)
     KeyboardCTX().detachHandler(KEYBOARD_HANDLER_ID)
@@ -135,7 +135,7 @@ export function finalizeToolCreation(){
 // Currently it is being invoked in container.ts / container.onHide()
 // createEffect(on(window.activeContainer, abortToolCreation))
 
-function selectPrimitiveTool(tool:PrimitiveTool){
+function selectPrimitiveTool(tool: PrimitiveTool) {
     // Kill any other tools still being created
     abortToolCreation()
 
@@ -145,12 +145,12 @@ function selectPrimitiveTool(tool:PrimitiveTool){
 
     //Tell all Charts in the visible window to listen for a click event
     window.activeContainer.frames.forEach((frame) => {
-        if(!isChartingFrame(frame)) return
+        if (!isChartingFrame(frame)) return
 
         frame.panes().forEach((pane) => {
             // Adding the listener to the _chartEl limits primitives from being generated on the time or price axes
             pane._chartEl?.addEventListener(
-                EventType, (e) => createPrimitiveTool(pane, ToolGenerator, e), {signal:creationController.signal}
+                EventType, (e) => createPrimitiveTool(pane, ToolGenerator, e), { signal: creationController.signal }
             )
             // Once at least one Listener has been added, indicate the tool is being created
             setActivePrimitiveTool(tool)
@@ -158,7 +158,7 @@ function selectPrimitiveTool(tool:PrimitiveTool){
     })
 
     // No event listeners were added, abort creation process.
-    if (!activePrimitiveTool()) return 
+    if (!activePrimitiveTool()) return
 
     KeyboardCTX().attachHandler(KEYBOARD_HANDLER_ID, KB_SHORTCUTS)
 }

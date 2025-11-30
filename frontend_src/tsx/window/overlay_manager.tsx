@@ -13,31 +13,31 @@ import { createStore } from "solid-js/store";
 //#region --------------------- Context Manager --------------------- //
 
 type OverlayContextProps = {
-    attachOverlay: (id:string, el:() => JSX.Element, showDisplay?:Signal<boolean> | boolean, autohide?:boolean|null) => void,
-    detachOverlay: (id:string) => void,
-    getDivReference:(id:string) => undefined | HTMLDivElement,
-    setDivReference:(id:string, el:HTMLDivElement) => void,
-    getDisplaySetter:(id:string)=>Setter<boolean>,
-    getDisplayAccessor:(id:string)=>Accessor<boolean>,
+    attachOverlay: (id: string, el: () => JSX.Element, showDisplay?: Signal<boolean> | boolean, autohide?: boolean | null) => void,
+    detachOverlay: (id: string) => void,
+    getDivReference: (id: string) => undefined | HTMLDivElement,
+    setDivReference: (id: string, el: HTMLDivElement) => void,
+    getDisplaySetter: (id: string) => Setter<boolean>,
+    getDisplayAccessor: (id: string) => Accessor<boolean>,
 }
-const default_ctx_args:OverlayContextProps = {
-    attachOverlay: () => {},
-    detachOverlay: () => {},
-    getDivReference:() => {return undefined},
-    setDivReference:() => {},
-    getDisplaySetter: () => () => {},
+const default_ctx_args: OverlayContextProps = {
+    attachOverlay: () => { },
+    detachOverlay: () => { },
+    getDivReference: () => { return undefined },
+    setDivReference: () => { },
+    getDisplaySetter: () => () => { },
     getDisplayAccessor: () => () => false,
 }
 
 let OverlayContext = createContext<OverlayContextProps>(default_ctx_args);
-export function OverlayCTX():OverlayContextProps { return useContext<OverlayContextProps>(OverlayContext) }
+export function OverlayCTX(): OverlayContextProps { return useContext<OverlayContextProps>(OverlayContext) }
 
 interface overlay_struct {
-    id:string,              // Id of the menu
-    el:() => JSX.Element    // The Menu itself, Should be an <OverlayDiv/> Factory
-    hide:boolean|null       // Auto Hide the menu on a non-contained click, On Null, don't hide on ESC.
+    id: string,              // Id of the menu
+    el: () => JSX.Element    // The Menu itself, Should be an <OverlayDiv/> Factory
+    hide: boolean | null       // Auto Hide the menu on a non-contained click, On Null, don't hide on ESC.
 }
-export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
+export function OverlayContextProvider(props: JSX.HTMLAttributes<HTMLElement>) {
     const [overlays, setOverlays] = createStore<overlay_struct[]>([])
     const displayMap = new Map<string, Signal<boolean>>()
     const divMap = new Map<string, HTMLDivElement>()
@@ -54,37 +54,37 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
      *          of the overlay's bounds are detected. undefined === true, null === always show overlay (will not hide on ESC.)
      */
     function attachOverlay(
-        id:string, 
-        el:() => JSX.Element, 
+        id: string,
+        el: () => JSX.Element,
         showDisplay: Signal<boolean> | boolean | undefined = undefined,
-        autohide: boolean|null=true,
-    ){
+        autohide: boolean | null = true,
+    ) {
         if (overlays.find((obj) => obj.id === id))
-            setOverlays(Array.from(overlays.filter((obj)=>obj.id !== id)))
-            //ID Present, Remove First to proc reactivity of object elements
+            setOverlays(Array.from(overlays.filter((obj) => obj.id !== id)))
+        //ID Present, Remove First to proc reactivity of object elements
 
         // Refine the input show varible into a Show signal w/ the correct default state.
-        if (showDisplay === undefined || typeof(showDisplay) === 'boolean') 
+        if (showDisplay === undefined || typeof (showDisplay) === 'boolean')
             showDisplay = createSignal(showDisplay ?? false)
         displayMap.set(id, showDisplay)
 
-        setOverlays([...overlays, {id:id, el:el, hide:autohide}])
+        setOverlays([...overlays, { id: id, el: el, hide: autohide }])
     }
-    function detachOverlay(id:string){
+    function detachOverlay(id: string) {
         divMap.delete(id)
         displayMap.delete(id)
         setOverlays(overlays.filter((overlay) => overlay.id !== id))
     }
-    function getDivReference(id:string){ return divMap.get(id)}
-    function setDivReference(id:string, el:HTMLDivElement){ divMap.set(id, el) }
+    function getDivReference(id: string) { return divMap.get(id) }
+    function setDivReference(id: string, el: HTMLDivElement) { divMap.set(id, el) }
 
-    function getDisplayAccessor(id:string):Accessor<boolean>{
+    function getDisplayAccessor(id: string): Accessor<boolean> {
         const display = displayMap.get(id)
-        return (display !== undefined)? display[0] : () => false
+        return (display !== undefined) ? display[0] : () => false
     }
-    function getDisplaySetter(id:string):Setter<boolean>{
+    function getDisplaySetter(id: string): Setter<boolean> {
         const display = displayMap.get(id)
-        return (display !== undefined)? display[1] : () => undefined
+        return (display !== undefined) ? display[1] : () => undefined
     }
 
     //#endregion
@@ -92,31 +92,31 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
     //#region ------------------- Global Event Listeners ------------------- //
 
     //This Listener checks all Overlay Elements and removes visibility if a mouse event occurs outside of a menu
-    document.body.addEventListener('mousedown', (e) => 
-        overlays.forEach(({id, hide}) => {
-                if (!hide) return // forEach equivalent to continue
+    document.body.addEventListener('mousedown', (e) =>
+        overlays.forEach(({ id, hide }) => {
+            if (!hide) return // forEach equivalent to continue
 
-                let el = getDivReference(id)
-                if (el && ! el.contains(e.target as Node))
-                    getDisplaySetter(id)(false)
-            }
+            let el = getDivReference(id)
+            if (el && !el.contains(e.target as Node))
+                getDisplaySetter(id)(false)
+        }
         )
     )
     document.body.addEventListener('keydown', (e) => {
-        if(e.key === 'Escape') 
-            Array.from(overlays).forEach(({id, hide}) => { if(hide !== null) getDisplaySetter(id)(false)})
+        if (e.key === 'Escape')
+            Array.from(overlays).forEach(({ id, hide }) => { if (hide !== null) getDisplaySetter(id)(false) })
     })
 
     //#endregion
 
-    
+
     const OverlayCTX = {
-        attachOverlay:attachOverlay,
-        detachOverlay:detachOverlay,
-        getDivReference:getDivReference,
-        setDivReference:setDivReference,
-        getDisplaySetter:getDisplaySetter,
-        getDisplayAccessor:getDisplayAccessor
+        attachOverlay: attachOverlay,
+        detachOverlay: detachOverlay,
+        getDivReference: getDivReference,
+        setDivReference: setDivReference,
+        getDisplaySetter: getDisplaySetter,
+        getDisplayAccessor: getDisplayAccessor
     }
 
     //Overwrite External, Globally Accessable, Context so anything can use this at any time.
@@ -126,7 +126,7 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
             {props.children}
 
             <div id='overlay_manager'>
-                <For each={overlays}>{({id, el}) =>
+                <For each={overlays}>{({ id, el }) =>
                     <Show when={getDisplayAccessor(id)()}>{el()}</Show>}
                 </For>
             </div>
@@ -138,7 +138,7 @@ export function OverlayContextProvider(props:JSX.HTMLAttributes<HTMLElement>) {
 
 //#region --------------------- Overlay Mounting Interface --------------------- //
 
-export type point = { x:number, y:number }
+export type point = { x: number, y: number }
 export enum location_reference {
     TOP_RIGHT,
     TOP_LEFT,
@@ -163,13 +163,13 @@ export enum location_reference {
  * @param oneshot : When true the given overlay div is detached once it is no longer visible leaving it to be garbage collected.
  */
 export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
-    id:string
+    id: string
     location: Accessor<point>
     location_ref: location_reference
     updateLocation?: () => void
-    drag_handle?:string
+    drag_handle?: string
     setLocation?: Setter<point>
-    bounding_client_id?:string
+    bounding_client_id?: string
     oneShot?: boolean
 }
 
@@ -178,29 +178,29 @@ export interface overlay_div_props extends JSX.HTMLAttributes<HTMLDivElement> {
  * Interface that should be used when mounting a component to the Overlay Manager.
  * This wrapper div sets the necessary Event Listeners for Displaying and Positioning the component
  */
-export function OverlayDiv(props:overlay_div_props){
-    let divRef : HTMLDivElement|undefined = undefined
-    let boundingClientRef : HTMLElement|undefined = undefined
+export function OverlayDiv(props: overlay_div_props) {
+    let divRef: HTMLDivElement | undefined = undefined
+    let boundingClientRef: HTMLElement | undefined = undefined
     let dragListenerSet = !(props.drag_handle && props.setLocation)
-    props.classList = {...props.classList, overlay:true}
+    props.classList = { ...props.classList, overlay: true }
     const [style, setStyle] = createSignal<JSX.CSSProperties>(initPosition(props.location_ref, props.location()))
     const [, divProps] = splitProps(props, ["id", "location", "setLocation", "location_ref", "updateLocation", "drag_handle", "bounding_client_id", "oneShot"])
-    
+
     //#region ------------------- Drag Handle Listeners ------------------- //
 
-    const move = (e:MouseEvent) => {
+    const move = (e: MouseEvent) => {
         if (e.target !== document.documentElement)
             //Only Move the location if the cursor is on the screen
             if (props.setLocation) props.setLocation({
-                x:props.location().x + e.movementX, 
-                y:props.location().y + e.movementY
+                x: props.location().x + e.movementX,
+                y: props.location().y + e.movementY
             })
     }
-    const mouseup = (e:MouseEvent) => {
-        if(e.button !== 0) return
-            
+    const mouseup = (e: MouseEvent) => {
+        if (e.button !== 0) return
+
         let div_ref = boundingClientRef ?? divRef
-        if (div_ref != undefined && props.setLocation != undefined){
+        if (div_ref != undefined && props.setLocation != undefined) {
             // Ensure the underlying location reference is where the Div is actually drawn at
             // (Dragging off-screen can separate the two)
             props.setLocation(
@@ -232,13 +232,15 @@ export function OverlayDiv(props:overlay_div_props){
             OverlayCTX().setDivReference(props.id, divRef)
 
             //If given, add a mouseDown drag listener
-            if (!dragListenerSet && props.drag_handle){
+            if (!dragListenerSet && props.drag_handle) {
                 let drag_handle = document.querySelector(props.drag_handle) as HTMLElement
                 if (drag_handle) {
-                    drag_handle.addEventListener('mousedown', (e)=>{ if(e.button === 0) {
-                        document.addEventListener('mousemove', move)
-                        document.addEventListener('mouseup', mouseup)
-                    }})
+                    drag_handle.addEventListener('mousedown', (e) => {
+                        if (e.button === 0) {
+                            document.addEventListener('mousemove', move)
+                            document.addEventListener('mouseup', mouseup)
+                        }
+                    })
                     drag_handle.classList.add("drag_handle")
                     dragListenerSet = true //Ensure only one listener is added to the drag handle
                 }
@@ -252,9 +254,9 @@ export function OverlayDiv(props:overlay_div_props){
         }))
 
         //Update Div Location when Location Changes (Preserve Reactivity of props.location)
-        createEffect(() => { 
+        createEffect(() => {
             let ref = boundingClientRef ?? divRef
-            let pos = getBoundedPosition(props.location(), ref?.getBoundingClientRect()) 
+            let pos = getBoundedPosition(props.location(), ref?.getBoundingClientRect())
             if (pos) setStyle(pos)
         })
 
@@ -284,64 +286,64 @@ export function OverlayDiv(props:overlay_div_props){
  *          outside the window
  * @param display_ref : The desired reference corner in which to draw the OverlayDiv from
  */
-function getBoundedPositionFunc(display_ref:location_reference):(pt:point, rect:DOMRect|undefined) => JSX.CSSProperties | undefined {
-    switch(display_ref){
+function getBoundedPositionFunc(display_ref: location_reference): (pt: point, rect: DOMRect | undefined) => JSX.CSSProperties | undefined {
+    switch (display_ref) {
         case (location_reference.TOP_LEFT):
-            return (pt:point, overlay_rect:DOMRect|undefined) => {
+            return (pt: point, overlay_rect: DOMRect | undefined) => {
                 const window_rect = document.querySelector('#overlay_manager')?.getBoundingClientRect()
                 if (!window_rect || !overlay_rect) return
 
                 return {
-                    top:`${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height - overlay_rect.height))}px`, 
-                    left:`${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width - overlay_rect.width))}px`
+                    top: `${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height - overlay_rect.height))}px`,
+                    left: `${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width - overlay_rect.width))}px`
                 }
             }
 
         case (location_reference.BOTTOM_LEFT):
-            return (pt:point, overlay_rect:DOMRect|undefined) => {
+            return (pt: point, overlay_rect: DOMRect | undefined) => {
                 const window_rect = document.querySelector('#overlay_manager')?.getBoundingClientRect()
                 if (!window_rect || !overlay_rect) return
 
                 return {
-                    bottom:`${Math.round(window_rect.height - Math.min(Math.max(pt.y, overlay_rect.height), window_rect.height))}px`,
-                    left:`${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width - overlay_rect.width))}px`
+                    bottom: `${Math.round(window_rect.height - Math.min(Math.max(pt.y, overlay_rect.height), window_rect.height))}px`,
+                    left: `${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width - overlay_rect.width))}px`
                 }
             }
 
         case (location_reference.TOP_RIGHT):
-            return (pt:point, overlay_rect:DOMRect|undefined) => {
+            return (pt: point, overlay_rect: DOMRect | undefined) => {
                 const window_rect = document.querySelector('#overlay_manager')?.getBoundingClientRect()
                 if (!window_rect || !overlay_rect) return
 
                 return {
-                    top:`${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height - overlay_rect.height))}px`,
-                    right:`${Math.round(window_rect.width - Math.min(Math.max(pt.x, overlay_rect.width), window_rect.width))}px`
-                    }
+                    top: `${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height - overlay_rect.height))}px`,
+                    right: `${Math.round(window_rect.width - Math.min(Math.max(pt.x, overlay_rect.width), window_rect.width))}px`
+                }
             }
 
         case (location_reference.BOTTOM_RIGHT):
-            return (pt:point, overlay_rect:DOMRect|undefined) => {
+            return (pt: point, overlay_rect: DOMRect | undefined) => {
                 const window_rect = document.querySelector('#overlay_manager')?.getBoundingClientRect()
                 if (!window_rect || !overlay_rect) return
 
                 return {
-                    bottom:`${Math.round(window_rect.height - Math.min(Math.max(pt.y, overlay_rect.height), window_rect.height))}px`,
-                    right:`${Math.round(window_rect.width - Math.min(Math.max(pt.x, overlay_rect.width), window_rect.width))}px`
+                    bottom: `${Math.round(window_rect.height - Math.min(Math.max(pt.y, overlay_rect.height), window_rect.height))}px`,
+                    right: `${Math.round(window_rect.width - Math.min(Math.max(pt.x, overlay_rect.width), window_rect.width))}px`
                 }
             }
 
         case (location_reference.CENTER):
-            return (pt:point, overlay_rect:DOMRect|undefined) => {
+            return (pt: point, overlay_rect: DOMRect | undefined) => {
                 const window_rect = document.querySelector('#overlay_manager')?.getBoundingClientRect()
                 if (!window_rect || !overlay_rect) return
-                const left_offset = overlay_rect.width/2
-                const top_offset = overlay_rect.height/2
+                const left_offset = overlay_rect.width / 2
+                const top_offset = overlay_rect.height / 2
                 const right_bound = window_rect.width - overlay_rect.width
                 const bottom_bound = window_rect.height - overlay_rect.height
 
                 return {
-                    top:`${Math.round(Math.min(Math.max(pt.y - top_offset, 0), bottom_bound))}px`,
-                    left:`${Math.round(Math.min(Math.max(pt.x - left_offset, 0), right_bound))}px`
+                    top: `${Math.round(Math.min(Math.max(pt.y - top_offset, 0), bottom_bound))}px`,
+                    left: `${Math.round(Math.min(Math.max(pt.x - left_offset, 0), right_bound))}px`
                 }
             }
     }
@@ -354,50 +356,50 @@ function getBoundedPositionFunc(display_ref:location_reference):(pt:point, rect:
  * @param display_ref : The reference corner OverlayDiv is positioned from.
  * @param rect : The DOM rect of the OverlayDiv's drag handle.
  */
-function getReferenceLocation(display_ref:location_reference, rect:DOMRect): point {
-    switch(display_ref){
+function getReferenceLocation(display_ref: location_reference, rect: DOMRect): point {
+    switch (display_ref) {
         case (location_reference.TOP_LEFT):
-            return {x:rect.left, y:rect.top}
+            return { x: rect.left, y: rect.top }
         case (location_reference.BOTTOM_LEFT):
-            return {x:rect.left, y:rect.bottom}
+            return { x: rect.left, y: rect.bottom }
         case (location_reference.TOP_RIGHT):
-            return {x:rect.right, y:rect.top}
+            return { x: rect.right, y: rect.top }
         case (location_reference.BOTTOM_RIGHT):
-            return {x:rect.right, y:rect.bottom}
+            return { x: rect.right, y: rect.bottom }
         case (location_reference.CENTER):
-            return {x:rect.left + Math.floor(rect.width/2), y:rect.top + Math.floor(rect.height/2)}
+            return { x: rect.left + Math.floor(rect.width / 2), y: rect.top + Math.floor(rect.height / 2) }
     }
 }
 
-function initPosition(display_ref:location_reference, pt:point): JSX.CSSProperties {
-    const window_rect = {width:window.innerWidth, height:window.innerHeight}
+function initPosition(display_ref: location_reference, pt: point): JSX.CSSProperties {
+    const window_rect = { width: window.innerWidth, height: window.innerHeight }
     // document.querySelector('#overlay_manager')?.getBoundingClientRect()
-    if (!window_rect) return {left:'-1px', top:'-1px'}
+    if (!window_rect) return { left: '-1px', top: '-1px' }
 
-    switch(display_ref){
+    switch (display_ref) {
         case (location_reference.CENTER):
         case (location_reference.TOP_LEFT):
             return {
-                top:`${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height ))}px`, 
-                left:`${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width ))}px`
+                top: `${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
+                left: `${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width))}px`
             }
 
         case (location_reference.BOTTOM_LEFT):
             return {
-                bottom:`${Math.round(window_rect.height - Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
-                left:`${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width))}px`
+                bottom: `${Math.round(window_rect.height - Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
+                left: `${Math.round(Math.min(Math.max(pt.x, 0), window_rect.width))}px`
             }
 
         case (location_reference.TOP_RIGHT):
             return {
-                top:`${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
-                right:`${Math.round(window_rect.width - Math.min(Math.max(pt.x, 0), window_rect.width))}px`
+                top: `${Math.round(Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
+                right: `${Math.round(window_rect.width - Math.min(Math.max(pt.x, 0), window_rect.width))}px`
             }
 
         case (location_reference.BOTTOM_RIGHT):
             return {
-                bottom:`${Math.round(window_rect.height - Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
-                right:`${Math.round(window_rect.width - Math.min(Math.max(pt.x, 0), window_rect.width))}px`
+                bottom: `${Math.round(window_rect.height - Math.min(Math.max(pt.y, 0), window_rect.height))}px`,
+                right: `${Math.round(window_rect.width - Math.min(Math.max(pt.x, 0), window_rect.width))}px`
             }
     }
 }

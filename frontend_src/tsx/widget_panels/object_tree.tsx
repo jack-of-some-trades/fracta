@@ -21,23 +21,23 @@ export type DropDownModes = 'auto' | 'always' | 'toggleable'
 
 export interface Orderable {
     [ORDERABLE]: true,
-    leafProps:treeLeafInterface
+    leafProps: treeLeafInterface
 }
 export interface OrderableSet {
     [ORDERABLE_SET]: true,
-    branchProps:treeBranchInterface
+    branchProps: treeBranchInterface
 }
-export interface ReorderableSet extends Orderable, OrderableSet {}
+export interface ReorderableSet extends Orderable, OrderableSet { }
 
 
 export function isOrderable(obj: unknown): obj is Orderable {
-    return ( obj !== null && typeof obj === 'object' && ORDERABLE in obj )
+    return (obj !== null && typeof obj === 'object' && ORDERABLE in obj)
 }
 export function isOrderableSet(obj: unknown): obj is OrderableSet {
-    return ( obj !== null && typeof obj === 'object' && ORDERABLE_SET in obj )
+    return (obj !== null && typeof obj === 'object' && ORDERABLE_SET in obj)
 }
 export function isReorderableSet(obj: unknown): obj is ReorderableSet {
-    return ( obj !== null && typeof obj === 'object' && (ORDERABLE in obj && ORDERABLE_SET in obj) )
+    return (obj !== null && typeof obj === 'object' && (ORDERABLE in obj && ORDERABLE_SET in obj))
 }
 
 //#endregion
@@ -49,27 +49,27 @@ export function isReorderableSet(obj: unknown): obj is ReorderableSet {
  * The Object Tree context is retrieved by the Object Tree Side Panel and Displayed
  * The Context should be Populated by the Frame so the Objects within can be rearranged
  */
-interface Tree_context_props { 
+interface Tree_context_props {
     mainBranch: Accessor<treeBranchInterface>,
     setMainBranch: Setter<treeBranchInterface>,
 }
-const default_tree_props:Tree_context_props = {
+const default_tree_props: Tree_context_props = {
     mainBranch: () => NULL_TREE_BRANCH_INTERFACE,
     setMainBranch: () => undefined,
 }
 
-let TreeContext = createContext<Tree_context_props>( default_tree_props )
-export function ObjectTreeCTX():Tree_context_props { return useContext(TreeContext) }
+let TreeContext = createContext<Tree_context_props>(default_tree_props)
+export function ObjectTreeCTX(): Tree_context_props { return useContext(TreeContext) }
 
-export function ObjTreeContext(props:JSX.HTMLAttributes<HTMLElement>){
+export function ObjTreeContext(props: JSX.HTMLAttributes<HTMLElement>) {
     const branchProps = createSignal<treeBranchInterface>(NULL_TREE_BRANCH_INTERFACE)
-    const ObjTreeCTX:Tree_context_props = {
+    const ObjTreeCTX: Tree_context_props = {
         mainBranch: branchProps[0],
         setMainBranch: branchProps[1],
     }
 
     TreeContext = createContext<Tree_context_props>(ObjTreeCTX)
-    return <TreeContext.Provider value={ObjTreeCTX} children={props.children}/>
+    return <TreeContext.Provider value={ObjTreeCTX} children={props.children} />
 }
 
 // #endregion
@@ -83,49 +83,49 @@ export function ObjTreeContext(props:JSX.HTMLAttributes<HTMLElement>){
  * of duck-typing
  */
 export interface treeBranchInterface {
-    id:string
+    id: string
     branchTitle: string
     dropDownMode: DropDownModes
-    moveTo: (obj:unknown)=>void
-    reorder: (from:number,to:number)=>void
+    moveTo: (obj: unknown) => void
+    reorder: (from: number, to: number) => void
     reorderables: Accessor<(Orderable | ReorderableSet | any)[]>
 }
 export interface treeLeafInterface {
-    id:string,
-    obj:Orderable,
+    id: string,
+    obj: Orderable,
     leafTitle: string
     // icon?
 
-    onLeftClick?: (e?:MouseEvent) => void
-    onRightClick?: (e?:MouseEvent) => void
+    onLeftClick?: (e?: MouseEvent) => void
+    onRightClick?: (e?: MouseEvent) => void
 }
 
-export const NULL_TREE_BRANCH_INTERFACE:treeBranchInterface = {
-    id:'',
+export const NULL_TREE_BRANCH_INTERFACE: treeBranchInterface = {
+    id: '',
     branchTitle: '',
     dropDownMode: 'auto',
-    moveTo: ()=>undefined,
-    reorder: ()=>undefined,
-    reorderables: ()=>[]
+    moveTo: () => undefined,
+    reorder: () => undefined,
+    reorderables: () => []
 }
 
 
-export function ObjectTree(){
+export function ObjectTree() {
     const ctx = ObjectTreeCTX()
-    
-    onMount(()=>{
+
+    onMount(() => {
         WidgetPanelSizeCTX().setMinSize(MIN_WIDTH)
         WidgetPanelSizeCTX().setMaxSize(MAX_WIDTH)
         WidgetPanelSizeCTX().setSize(DEFAULT_WIDTH)
     })
-    
+
     return <>
         <div class='object_tree_title'> Object Tree </div>
         <div class='object_tree'>
             <DragDropProvider onDragEnd={handleDrag} collisionDetector={closestCenter}>
-                <DragDropSensors/>
-                <ConstrainVerticalDrag/>
-                <OrderableSet {...ctx.mainBranch()} set_id={ctx.mainBranch().id + '_set'}/>
+                <DragDropSensors />
+                <ConstrainVerticalDrag />
+                <OrderableSet {...ctx.mainBranch()} set_id={ctx.mainBranch().id + '_set'} />
             </DragDropProvider>
         </div>
     </>
@@ -134,23 +134,23 @@ export function ObjectTree(){
 //#region --------------------- Object Tree Inner Elements --------------------- //
 
 interface orderableSetProps extends treeBranchInterface {
-    set_id:string
+    set_id: string
 }
 
 /** Orderable Set that it, itself is not Reorderable. */
-function OrderableSet(props: orderableSetProps){
+function OrderableSet(props: orderableSetProps) {
     const [ids, setIds] = createSignal<string[]>([])
 
-    createEffect(()=>{
+    createEffect(() => {
         setIds(Array.from(props.reorderables(), (obj) => obj.id))
     })
 
     return <SortableProvider ids={ids()}>
-        <For each={props.reorderables()}>{(obj:Orderable | ReorderableSet) => {
+        <For each={props.reorderables()}>{(obj: Orderable | ReorderableSet) => {
             if (isReorderableSet(obj))
-                return <ReorderableSet {...obj.branchProps} obj={obj} set_id={props.set_id} parent={props}/>
+                return <ReorderableSet {...obj.branchProps} obj={obj} set_id={props.set_id} parent={props} />
             else if (isOrderable(obj))
-                return <Orderable {...obj.leafProps} obj={obj} set_id={props.set_id} parent={props}/>
+                return <Orderable {...obj.leafProps} obj={obj} set_id={props.set_id} parent={props} />
             else
                 return undefined
         }}</For>
@@ -159,18 +159,18 @@ function OrderableSet(props: orderableSetProps){
 
 
 interface reorderableSetProps extends treeBranchInterface {
-    obj:ReorderableSet, parent: treeBranchInterface, set_id:string
+    obj: ReorderableSet, parent: treeBranchInterface, set_id: string
 }
 
 /** Set that contains reorderable things, and can be reordered itself */
-function ReorderableSet(props:reorderableSetProps){
+function ReorderableSet(props: reorderableSetProps) {
     const [dropDown, setDropDown] = createSignal<boolean>(props.dropDownMode !== 'toggleable')
     const [data,] = splitProps(props, ['id', 'obj', 'set_id', 'moveTo', 'reorder', 'parent'])
     const state = useDragDropContext()?.[0]
     const sortable = createSortable(props.id, data)
 
     return <div
-        class='reorderable_set' 
+        class='reorderable_set'
         ref={sortable.ref}
         style={{
             ...transformStyle(sortable.transform),
@@ -178,31 +178,31 @@ function ReorderableSet(props:reorderableSetProps){
             "transition": state?.active.draggable ? "transform .025s ease-in-out" : undefined
         }}
     >
-        <div 
+        <div
             {...sortable.dragActivators} class={'orderable_set_header'}
-            onclick = {handleLeftClick.bind(undefined, props.obj.leafProps)}
-            oncontextmenu = {handleRightClick.bind(undefined, props.obj.leafProps)}
+            onclick={handleLeftClick.bind(undefined, props.obj.leafProps)}
+            oncontextmenu={handleRightClick.bind(undefined, props.obj.leafProps)}
         >
-            <div class='text branch_title' innerText={props.branchTitle}/>
+            <div class='text branch_title' innerText={props.branchTitle} />
             <Show when={props.dropDownMode === 'toggleable'}>
                 <div class='drop_down_selector' onClick={() => setDropDown(!dropDown())}>
-                    <Icon icon={icons.menu_arrow_ns} style={{rotate:dropDown()?'180deg':'0deg'}}/>
+                    <Icon icon={icons.menu_arrow_ns} style={{ rotate: dropDown() ? '180deg' : '0deg' }} />
                 </div>
             </Show>
         </div>
         <Show when={dropDown()}>
-            <OrderableSet {...props.obj.branchProps} set_id={props.obj.branchProps.id + '_set'}/>
+            <OrderableSet {...props.obj.branchProps} set_id={props.obj.branchProps.id + '_set'} />
         </Show>
     </div>
 }
 
 interface OrderableProps extends treeLeafInterface {
-    obj:Orderable, parent: treeBranchInterface, set_id:string
+    obj: Orderable, parent: treeBranchInterface, set_id: string
 }
 
 
 /** Single Item that can have it's order changed. */
-function Orderable(props:OrderableProps){
+function Orderable(props: OrderableProps) {
     //Sortable is both a Draggable & a Droppable that auto reorders
     const sortable = createSortable(props.id, {
         'id': props.id,
@@ -214,9 +214,9 @@ function Orderable(props:OrderableProps){
 
     //@ts-ignore
     return <div use:sortable
-        onclick = {handleLeftClick.bind(undefined, props)}
-        oncontextmenu = {handleRightClick.bind(undefined, props)}
-        classList={{'orderable':true, 'text':true}}
+        onclick={handleLeftClick.bind(undefined, props)}
+        oncontextmenu={handleRightClick.bind(undefined, props)}
+        classList={{ 'orderable': true, 'text': true }}
         innerText={props.leafTitle}
         style={{
             "opacity": sortable.isActiveDraggable ? '100' : undefined,
@@ -227,10 +227,10 @@ function Orderable(props:OrderableProps){
 
 //#endregion
 
-function handleDrag({draggable, droppable}:any){
-    if (draggable === undefined || droppable === undefined) return 
+function handleDrag({ draggable, droppable }: any) {
+    if (draggable === undefined || droppable === undefined) return
 
-    if (draggable.data?.set_id == droppable.data?.set_id){
+    if (draggable.data?.set_id == droppable.data?.set_id) {
         console.log('same group : Reorder')
         droppable.data?.parent?.reorder(draggable.data?.obj, droppable.data?.obj)
     } else {
@@ -239,7 +239,7 @@ function handleDrag({draggable, droppable}:any){
     }
 }
 
-function handleRightClick(obj: treeLeafInterface, e:MouseEvent){
+function handleRightClick(obj: treeLeafInterface, e: MouseEvent) {
     e.preventDefault()
     if (e.button == 2 && obj.onRightClick) {
         e.stopPropagation()
@@ -247,7 +247,7 @@ function handleRightClick(obj: treeLeafInterface, e:MouseEvent){
     }
 }
 
-function handleLeftClick(obj: treeLeafInterface, e:MouseEvent){
+function handleLeftClick(obj: treeLeafInterface, e: MouseEvent) {
     if (e.button == 0 && obj.onLeftClick) {
         e.stopPropagation()
         obj.onLeftClick(e)

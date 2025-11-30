@@ -20,7 +20,7 @@ export const TrendLineTool: PrimitiveTool = {
     cleanup: cleanUpTwoPointTool
 }
 
-function createTrendLine(pane:charting_pane, e: MouseEvent){
+function createTrendLine(pane: charting_pane, e: MouseEvent) {
     const new_line = new TrendLine('')
     pane._attachSeriesPrimitive(new_line)
     return configureTwoPointPrimitiveUI(e, new_line)
@@ -28,7 +28,7 @@ function createTrendLine(pane:charting_pane, e: MouseEvent){
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface TrendLineOptions extends TwoPointParameters, CanvasStrokeStyles {}
+export interface TrendLineOptions extends TwoPointParameters, CanvasStrokeStyles { }
 
 const defaultOptions: TrendLineOptions = {
     p1: null,
@@ -41,8 +41,8 @@ const defaultOptions: TrendLineOptions = {
 
 export class TrendLine extends TwoPointPrimitive<TrendLineOptions> {
 
-    constructor(id:string, params?:Partial<TrendLineOptions>) {
-        super(id, TOOL_NAME, TrendLineRenderer, {...defaultOptions, ...params})    
+    constructor(id: string, params?: Partial<TrendLineOptions>) {
+        super(id, TOOL_NAME, TrendLineRenderer, { ...defaultOptions, ...params })
     }
 
     public displayOptionsMenu(): void {
@@ -90,14 +90,14 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
     }
 
     hitTest(x: number, y: number): HoveredItem | null {
-        if (  
+        if (
             !this.get('tangible') || !this.get('visible')
             || this.line === null || this.ctx === null
             || this._c1 === null || this._c2 === null
         ) return null
 
         this._hovered = undefined //Assume it isn't hovered. Will correct if not.
-        
+
         if (!( //Course X range Check
             x + 10 > this._c1.x && x - 10 < this._c2.x ||
             x - 10 < this._c1.x && x + 10 > this._c2.x
@@ -111,7 +111,7 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
         //Only check to a square around the point since it's much faster
         if (Math.abs(this._c1.x - x) < 10 && Math.abs(this._c1.y - y) < 10) {
             this._hovered = HIT_RESULT.P1
-            return { 
+            return {
                 cursorStyle: 'grab',
                 externalId: this._source,
                 hitResult: HIT_RESULT.P1,
@@ -144,18 +144,18 @@ class TrendLineRenderer extends TwoPointRenderer<TrendLineOptions> {
 
 
 const DATA_MENU_STRUCT = {
-    "p1": [ 
+    "p1": [
         "point",
         {
-            "default": {time:"01-01-1970", value:100},
+            "default": { time: "01-01-1970", value: 100 },
             "autosend": true,
             "title": "Point #1"
         }
     ],
-    "p2": [ 
+    "p2": [
         "point",
         {
-            "default": {time:"01-01-1970", value:100},
+            "default": { time: "01-01-1970", value: 100 },
             "autosend": true,
             "title": "Point #2"
         }

@@ -4,7 +4,7 @@ var cssBGFillColor = getComputedStyle(document.body).getPropertyValue('--layout-
 var cssAccentColor = getComputedStyle(document.body).getPropertyValue('--accent-color');
 var cssFont = getComputedStyle(document.body).getPropertyValue('--font');
 
-export function reloadComputedCanvasStyle(){
+export function reloadComputedCanvasStyle() {
     cssBGFillColor = getComputedStyle(document.body).getPropertyValue('--layout-main-fill');
     cssAccentColor = getComputedStyle(document.body).getPropertyValue('--accent-color');
     cssFont = getComputedStyle(document.body).getPropertyValue('--font');

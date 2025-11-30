@@ -9,24 +9,24 @@ import { finalizeToolCreation } from "../tool_ui_support"
 import { OnePointParameters, OnePointPrimitive } from "./one-point-primitive"
 
 let mouseMoveController = new AbortController()
-export function cleanUpOnePointTool(){ mouseMoveController.abort() }
+export function cleanUpOnePointTool() { mouseMoveController.abort() }
 
-export function configureOnePointPrimitiveUI<T extends OnePointParameters>(e:MouseEvent, new_primitive: OnePointPrimitive<T>): OnePointPrimitive<T> | null {
+export function configureOnePointPrimitiveUI<T extends OnePointParameters>(e: MouseEvent, new_primitive: OnePointPrimitive<T>): OnePointPrimitive<T> | null {
     //Set First point to where this click originated
     let p = new_primitive.series.coordinateToPrice(e.offsetY)
     let t = new_primitive.chartApi.timeScale().coordinateToTime(e.offsetX)
-    
-    if (t === null || p === null){
+
+    if (t === null || p === null) {
         new_primitive.remove()
         console.warn('Failed to create Primitive, Price or Time invalid', new_primitive)
         return null
     }
-    new_primitive.applyOptions({p1:{time:t, value:p} as SingleValueData} as Partial<T>)
-    
+    new_primitive.applyOptions({ p1: { time: t, value: p } as SingleValueData } as Partial<T>)
+
     if (KeyboardCTX().ctrl()) {
         // If Ctrl was held, finalize the primitive creation immediately
         // Notably without calling primitive.remove()
-        return null 
+        return null
     }
 
     //Add Clean-up Logic for the remaining Event Listener
@@ -40,19 +40,19 @@ export function configureOnePointPrimitiveUI<T extends OnePointParameters>(e:Mou
 
     mouseMoveController.signal.addEventListener('abort', () => {
         new_primitive.chartApi.unsubscribeCrosshairMove(bound_update_ref)
-    }, {once: true})
+    }, { once: true })
 
     // mount 'click' listener on 'click' event so the second point is only confirmed w/ a second click.
     document.addEventListener('click', () => {
         new_primitive.chartApi.chartElement().addEventListener(
-            'click', confirmPoint, {signal:mouseMoveController.signal}
+            'click', confirmPoint, { signal: mouseMoveController.signal }
         )
-    }, {once: true})
+    }, { once: true })
 
     return new_primitive
 }
 
-function confirmPoint(e:MouseEvent){
+function confirmPoint(e: MouseEvent) {
     if (e.button !== 0) return //Left mouseBtn listener
 
     //All primitive tools need to call finalize once they are done.
@@ -62,12 +62,12 @@ function confirmPoint(e:MouseEvent){
 
 
 function updatePoint<T extends OnePointParameters>(
-    this:OnePointPrimitive<T>, timescale:ITimeScaleApi<Time>, param:MouseEventParams<Time>
-){
+    this: OnePointPrimitive<T>, timescale: ITimeScaleApi<Time>, param: MouseEventParams<Time>
+) {
     if (!param.point) return
 
     let t = timescale.coordinateToTime(param.point.x)
     let p = this.series.coordinateToPrice(param.point.y)
     if (t && p)
-        this.applyOptions({p1:{ time: t, value: p } as SingleValueData} as Partial<T>)
+        this.applyOptions({ p1: { time: t, value: p } as SingleValueData } as Partial<T>)
 }

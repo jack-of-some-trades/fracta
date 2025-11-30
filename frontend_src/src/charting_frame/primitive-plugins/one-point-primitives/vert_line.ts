@@ -21,7 +21,7 @@ export const VertLineTool: PrimitiveTool = {
     cleanup: cleanUpOnePointTool
 }
 
-function createVLine(pane:charting_pane, e: MouseEvent){
+function createVLine(pane: charting_pane, e: MouseEvent) {
     const new_line = new VertLine('')
     pane._attachSeriesPrimitive(new_line)
     return configureOnePointPrimitiveUI(e, new_line)
@@ -29,7 +29,7 @@ function createVLine(pane:charting_pane, e: MouseEvent){
 
 /* --------------------- Primitive Options ----------------------- */
 
-export interface VertLineOptions extends OnePointParameters, CanvasStrokeStyles {}
+export interface VertLineOptions extends OnePointParameters, CanvasStrokeStyles { }
 
 const defaultOptions: VertLineOptions = {
     p1: null,
@@ -41,8 +41,8 @@ const defaultOptions: VertLineOptions = {
 
 export class VertLine extends OnePointPrimitive<VertLineOptions> {
 
-    constructor(id:string, params?:Partial<VertLineOptions>){
-        super(id, TOOL_NAME, VertLineRenderer, {...defaultOptions, ...params})    
+    constructor(id: string, params?: Partial<VertLineOptions>) {
+        super(id, TOOL_NAME, VertLineRenderer, { ...defaultOptions, ...params })
     }
 
     public displayOptionsMenu(): void {
@@ -78,7 +78,7 @@ class VertLineRenderer extends OnePointRenderer<VertLineOptions> {
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {
-                    let _midpoint = {x: this._c1.x, y:Math.floor(ctx.canvas.height/2) as Coordinate}
+                    let _midpoint = { x: this._c1.x, y: Math.floor(ctx.canvas.height / 2) as Coordinate }
                     draw_dot(ctx, _midpoint, this._source.selected())
                 }
                 this.stroke = line
@@ -92,13 +92,13 @@ class VertLineRenderer extends OnePointRenderer<VertLineOptions> {
         this._hovered = undefined //Assume it isn't hovered. Will correct if not.
 
         //Course X range Check
-        if (Math.abs(this._c1.x - x) > 10) 
+        if (Math.abs(this._c1.x - x) > 10)
             return null
 
         //Point Check
-        if (Math.abs(this._c1.y - y) < 10){
+        if (Math.abs(this._c1.y - y) < 10) {
             this._hovered = HIT_RESULT.P1
-            return { 
+            return {
                 cursorStyle: 'grab',
                 externalId: this._source,
                 hitResult: HIT_RESULT.P1,
@@ -106,7 +106,7 @@ class VertLineRenderer extends OnePointRenderer<VertLineOptions> {
             }
         } else {
             this._hovered = HIT_RESULT.Stroke
-            return { 
+            return {
                 cursorStyle: 'grab',
                 externalId: this._source,
                 hitResult: HIT_RESULT.Stroke,

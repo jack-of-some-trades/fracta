@@ -3,7 +3,7 @@ import { tf, ticker } from "../types"
 import { updateTabFunc } from "./container"
 
 export abstract class frame {
-    type:string = 'abstract'
+    type: string = 'abstract'
 
     _id: string
     updateTab: updateTabFunc
@@ -30,11 +30,11 @@ export abstract class frame {
 
     get id(): string { return this._id }
 
-    refreshSize(){}
-    onShow(){}//{console.log(`Show ${this.id}`)}
-    onHide(){}//{console.log(`Hide ${this.id}`)}
-    onActivation(){}//{console.log(`Activate ${this.id}`)}
-    onDeactivation(){}//{console.log(`Deactivate ${this.id}`)}
+    refreshSize() { }
+    onShow() { }//{console.log(`Show ${this.id}`)}
+    onHide() { }//{console.log(`Hide ${this.id}`)}
+    onActivation() { }//{console.log(`Activate ${this.id}`)}
+    onDeactivation() { }//{console.log(`Deactivate ${this.id}`)}
 
     /**
      * Update Global 'active_frame' reference to this instance. 
@@ -42,7 +42,7 @@ export abstract class frame {
     assignActiveFrame() {
         if (window.activeFrame === this) return
         //Deactivate old Window
-        if (window.activeFrame){
+        if (window.activeFrame) {
             window.activeFrame.setActive(false)
             window.activeFrame.onDeactivation()
         }

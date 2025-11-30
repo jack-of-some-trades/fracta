@@ -15,16 +15,16 @@ type ValueOf<T> = T[keyof T]
 type OptionTypeMap = {
     // group: {[key:string]: inline | MenuEntry}
     // inline: {[key:string]: MenuEntry}
-	boolean:  boolean;
-	string:   string;
-	number:   number;
-    range:    number;
-	enum:     string[];
-	color:    string;             // rgba() or hex
-	source:   string;             // "[indicator_id]:[output_function_name]"
-	timestamp: string | number;   // Unix or ISO timestamp
+    boolean: boolean;
+    string: string;
+    number: number;
+    range: number;
+    enum: string[];
+    color: string;             // rgba() or hex
+    source: string;             // "[indicator_id]:[output_function_name]"
+    timestamp: string | number;   // Unix or ISO timestamp
 }
- 
+
 /**
  * Menu_struct is a nested object whose structure defines how input options should be grouped
  * and what input type each argument is.
@@ -47,9 +47,9 @@ type OptionTypeMap = {
  * An Example of a Menu Struct can be seen @ EOF
  */
 type menuStruct = object
-type optionObject = {[key: string]: any}
-type optionMenuTuple = [menuStruct | undefined, optionObject, (options:optionObject) => void]
-type optionsTab = ( () => JSXElement ) | optionMenuTuple | undefined
+type optionObject = { [key: string]: any }
+type optionMenuTuple = [menuStruct | undefined, optionObject, (options: optionObject) => void]
+type optionsTab = (() => JSXElement) | optionMenuTuple | undefined
 
 /**
  * @id : Id of the overlayDiv that will be created.
@@ -62,7 +62,7 @@ type optionsTab = ( () => JSXElement ) | optionMenuTuple | undefined
 interface options_menu_props {
     id: string
     title: string
-    tabs: {[key: string]: optionsTab},
+    tabs: { [key: string]: optionsTab },
     pane: charting_pane
 }
 
@@ -70,30 +70,30 @@ interface options_menu_props {
  * Helper Function that attaches the desired to OptionsMenu to the screen and handles 
  * oneShot cleanup. Call Anytime you wish to show the desired menu.
  */
-export function generateOptionsMenu(props:options_menu_props){
+export function generateOptionsMenu(props: options_menu_props) {
     OverlayCTX().attachOverlay(
         props.id,
-        () => <OptionsMenu {...props}/>,
+        () => <OptionsMenu {...props} />,
         true, //Show Display
         false //Auto Hide
     )
 }
 
-function OptionsMenu(props:options_menu_props){
-    const [location, setLocation] = createSignal<point>({x:0, y:0})
-    const position_menu = () => {setLocation({x:window.innerWidth*0.7, y:window.innerHeight*0.2})}
+function OptionsMenu(props: options_menu_props) {
+    const [location, setLocation] = createSignal<point>({ x: 0, y: 0 })
+    const position_menu = () => { setLocation({ x: window.innerWidth * 0.7, y: window.innerHeight * 0.2 }) }
 
-    let compiled_tabs:{[key:string]: () => JSXElement } = {}
+    let compiled_tabs: { [key: string]: () => JSXElement } = {}
     for (const [key, value] of Object.entries(props.tabs)) {
-        if (Array.isArray(value)){
+        if (Array.isArray(value)) {
             let _ms = value[0]
-            if (_ms)  
-                compiled_tabs[key] = () => <OptionsForm 
-                    id = {props.id}
-                    pane = {props.pane} 
-                    menu_struct = {_ms} 
-                    options = {value[1]} 
-                    on_submit = {value[2]} 
+            if (_ms)
+                compiled_tabs[key] = () => <OptionsForm
+                    id={props.id}
+                    pane={props.pane}
+                    menu_struct={_ms}
+                    options={value[1]}
+                    on_submit={value[2]}
                 />
         }
         else if (value !== undefined)
@@ -103,14 +103,14 @@ function OptionsMenu(props:options_menu_props){
     //The following call requires that the overlayCTX.attachOverlay() must always be given an element generating function
     const displaySetter = OverlayCTX().getDisplaySetter(props.id)
     const close_menu = () => displaySetter(false)
-    
+
     return (
         <OverlayDiv
             id={props.id}
             oneShot={true} // Always clean these up once closed
             location={location}
             setLocation={setLocation}
-            classList={{options_menu:true}}
+            classList={{ options_menu: true }}
             location_ref={location_reference.CENTER}
             updateLocation={position_menu}
             drag_handle={`#${props.id}>.title_box`}
@@ -118,12 +118,12 @@ function OptionsMenu(props:options_menu_props){
         >
             <div class="title_box">
                 <h2>{props.title}</h2>
-                <Icon icon={icons.close} force_reload={true} onClick={close_menu}/>
+                <Icon icon={icons.close} force_reload={true} onClick={close_menu} />
             </div>
 
             <NavigatorMenu
                 overlay_id={props.id}
-                style={{padding:"2px 6px", margin:"12px", "margin-top":'0px', "border-bottom":"2px solid var(--background-fill)"}}
+                style={{ padding: "2px 6px", margin: "12px", "margin-top": '0px', "border-bottom": "2px solid var(--background-fill)" }}
                 tabs={compiled_tabs}
             />
         </OverlayDiv>
@@ -158,39 +158,39 @@ interface options_form_props {
 }
 
 /** Form to wrap around all of the generated options inputs */
-function OptionsForm(props:options_form_props){
+function OptionsForm(props: options_form_props) {
     const [passDown,] = splitProps(props, ['options', 'pane', 'id'])
 
     let form = document.createElement('form')
     const requestSubmit = () => form.requestSubmit()
-    const wrappedSubmit = (e:Event) => {
+    const wrappedSubmit = (e: Event) => {
         let opts = packageInput(e)
         if (opts)
             props.on_submit(opts)
     }
 
     return <div class="form_wrapper">
-        <form 
+        <form
             ref={form}
             class='input_form'
             onSubmit={wrappedSubmit}
-            onKeyPress={(e) => {if(e.key === "Enter") requestSubmit()}}
+            onKeyPress={(e) => { if (e.key === "Enter") requestSubmit() }}
         >
-            <For each={Object.entries(props.menu_struct)}>{([key, [type, params]]) => 
+            <For each={Object.entries(props.menu_struct)}>{([key, [type, params]]) =>
                 <Switch fallback={<>
-                        <Input key={key} type={type} params={params} requestSubmit={requestSubmit} {...passDown}/>
-                    </>}>
+                    <Input key={key} type={type} params={params} requestSubmit={requestSubmit} {...passDown} />
+                </>}>
                     <Match when={type === "group"}>
-                        <Group title={key} params={params} requestSubmit={requestSubmit} {...passDown}/>
+                        <Group title={key} params={params} requestSubmit={requestSubmit} {...passDown} />
                     </Match>
                     <Match when={type === "inline"}>
-                        <Inline title={key} params={params} requestSubmit={requestSubmit} {...passDown}/>
+                        <Inline title={key} params={params} requestSubmit={requestSubmit} {...passDown} />
                     </Match>
                 </Switch>
             }</For>
         </form>
         <div class="footer">
-            <input type="submit" value={"Apply"} onclick={requestSubmit}/>
+            <input type="submit" value={"Apply"} onclick={requestSubmit} />
         </div>
     </div>
 }
@@ -199,18 +199,18 @@ function OptionsForm(props:options_form_props){
  * Invoked when the form is submitted, It query's all <input/> tags and uses the [#Id : Value] of each to
  * construct an object of the new options to be sent back to Python.
  */
-function packageInput(e:Event): optionObject | undefined {
+function packageInput(e: Event): optionObject | undefined {
     e.preventDefault();
-    if (e.target !== null){
+    if (e.target !== null) {
         let nodes = Array.from((e.target as HTMLFormElement).querySelectorAll("input, select"))
         //Filter out all the input tags within the Color Picker. (they're id-less)
-        nodes = nodes.filter((node) => node.id !== "") 
+        nodes = nodes.filter((node) => node.id !== "")
 
         return Object.fromEntries(
             Array.from(nodes as HTMLInputElement[], (node) => {
-                switch(node.getAttribute('type')){
+                switch (node.getAttribute('type')) {
                     case ("checkbox"): return [node.id, node.checked]
-                    case ("number"): case("range"): return [node.id, parseFloat(node.value)]
+                    case ("number"): case ("range"): return [node.id, parseFloat(node.value)]
                     case ("datetime-local"): return [node.id, DateStringToUnix(node.value)]
                     case ("point"): return [node.id, JSON.parse(node.value)]
                     default: return [node.id, node.value]
@@ -231,15 +231,15 @@ interface section_props {
     requestSubmit: () => void
 }
 
-function Group(props:section_props){
+function Group(props: section_props) {
     const [passDown,] = splitProps(props, ["options", "requestSubmit", "pane", 'id'])
-    return  (
+    return (
         <div class="group">
-            <h3 innerText={props.title}/>
-            <For each={Object.entries(props.params)}>{([key, [type, params]]) => 
+            <h3 innerText={props.title} />
+            <For each={Object.entries(props.params)}>{([key, [type, params]]) =>
                 <Switch fallback={<>
-                        <Input key={key} type={type} params={params} {...passDown}/>
-                    </>}>
+                    <Input key={key} type={type} params={params} {...passDown} />
+                </>}>
                     <Match when={type === "inline"}>
                         <Inline title={key} params={params} {...passDown} />
                     </Match>
@@ -249,12 +249,12 @@ function Group(props:section_props){
     )
 }
 
-function Inline(props:section_props){
+function Inline(props: section_props) {
     const [passDown,] = splitProps(props, ["options", "requestSubmit", "pane", 'id'])
-    return  (
+    return (
         <div class="inline">
-            <For each={Object.entries(props.params)}>{([key, [type, params]]) => 
-                <Input key={key} type={type} params={params} {...passDown}/>
+            <For each={Object.entries(props.params)}>{([key, [type, params]]) =>
+                <Input key={key} type={type} params={params} {...passDown} />
             }</For>
         </div>
     )
@@ -264,7 +264,7 @@ function Inline(props:section_props){
 
 // #region --------------------- Generic Input El ----------------------- */
 
-interface input_switch_props extends input_props {type:string}
+interface input_switch_props extends input_props { type: string }
 interface input_props {
     id: string
     key: string
@@ -278,7 +278,7 @@ interface input_props {
 //Metaclass _parse_arg[_param] functions throw into the menu_struct for each argument
 interface inputParams {
     title: string
-    default : any
+    default: any
     autosend: boolean
     tooltip?: string
     options?: Array<any>
@@ -293,32 +293,32 @@ interface inputParams {
     controller?: boolean
 }
 
-function Input(props: input_switch_props){
-    const [,inputProps] = splitProps(props, ['type'])
+function Input(props: input_switch_props) {
+    const [, inputProps] = splitProps(props, ['type'])
 
     return <div class="input_block">
-        <label for={props.key} innerText={props.params.title + (props.params.title !== ""? ": ": "")}/>
+        <label for={props.key} innerText={props.params.title + (props.params.title !== "" ? ": " : "")} />
         <Show when={props.params.options && props.type !== "enum"}>
             <datalist id={props.key + "_datalist"}>
                 <For each={props.params.options}>{(option) =>
-                    <option value={option}/>
+                    <option value={option} />
                 }</For>
-            </datalist> 
+            </datalist>
         </Show>
         <Switch>
-            <Match when={props.type === "bool"}><BoolInput {...inputProps}/></Match>
-            <Match when={props.type === "enum"}><EnumInput {...inputProps}/></Match>
-            <Match when={props.type === "point"}><PointInput {...inputProps}/></Match>
-            <Match when={props.type === "source"}><SourceInput {...inputProps}/></Match>
-            <Match when={props.type === "number"}><NumberInput {...inputProps}/></Match>
-            <Match when={props.type === "string"}><StringInput {...inputProps}/></Match>
-            <Match when={props.type === "timestamp"}><TimeInput {...inputProps}/></Match>
-            <Match when={props.type === "color"}><ColorInputWrap {...inputProps}/></Match>
+            <Match when={props.type === "bool"}><BoolInput {...inputProps} /></Match>
+            <Match when={props.type === "enum"}><EnumInput {...inputProps} /></Match>
+            <Match when={props.type === "point"}><PointInput {...inputProps} /></Match>
+            <Match when={props.type === "source"}><SourceInput {...inputProps} /></Match>
+            <Match when={props.type === "number"}><NumberInput {...inputProps} /></Match>
+            <Match when={props.type === "string"}><StringInput {...inputProps} /></Match>
+            <Match when={props.type === "timestamp"}><TimeInput {...inputProps} /></Match>
+            <Match when={props.type === "color"}><ColorInputWrap {...inputProps} /></Match>
         </Switch>
         <Show when={props.params.tooltip}>
             <span class="tooltip">
-                <TextIcon text="?"/>
-                <span class="tooltiptext" innerHTML={props.params.tooltip}/>
+                <TextIcon text="?" />
+                <span class="tooltiptext" innerHTML={props.params.tooltip} />
             </span>
         </Show>
     </div>
@@ -328,32 +328,32 @@ function Input(props: input_switch_props){
 
 // #region --------------------- Specific Input Types ----------------------- */
 
-function BoolInput(props: input_props){
-    return <input 
-        id={props.key} 
+function BoolInput(props: input_props) {
+    return <input
+        id={props.key}
         type="checkbox"
         checked={(props.options[props.key] ?? props.params.default) ?? false}
-        onInput={props.params.autosend? props.requestSubmit: undefined}
+        onInput={props.params.autosend ? props.requestSubmit : undefined}
     />
 }
 
-function StringInput(props: input_props){
-    return <input 
-        id={props.key} 
-        type="text" 
-        value={props.options[props.key]  ?? props.params.default } 
-        onInput={props.params.autosend? props.requestSubmit: undefined}
+function StringInput(props: input_props) {
+    return <input
+        id={props.key}
+        type="text"
+        value={props.options[props.key] ?? props.params.default}
+        onInput={props.params.autosend ? props.requestSubmit : undefined}
     />
 }
 
-function PointInput(props: input_props){
+function PointInput(props: input_props) {
     let time_ref = document.createElement('input')
     let value_ref = document.createElement('input')
     let object_ref = document.createElement('input')
 
     let input_pt = props.options[props.key] ?? props.params.default
     let step = props.params.step ?? 0.01 // default to 0.01 accuracy
-    let rounded_val = Math.round((input_pt.value) * 1/step) * step 
+    let rounded_val = Math.round((input_pt.value) * 1 / step) * step
 
     const updateHiddenTag = () => {
         const pt = {
@@ -366,24 +366,24 @@ function PointInput(props: input_props){
 
     return <div class="input_block">
         {/* Invisible Input Tag that actually gets read when the input is packaged */}
-        <input 
+        <input
             id={props.key}
             ref={object_ref}
-            style={{display:"none"}}
+            style={{ display: "none" }}
             type="point" // Defaults to a string type since 'point' isn't known.
             value={JSON.stringify(input_pt)}
         />
 
         {/* Visible Time & Value input tags. Tags get filtered out of the form @ submit since id='' */}
-        <span innerText={'{ Time:'}/>
-        <input 
+        <span innerText={'{ Time:'} />
+        <input
             ref={time_ref}
             type="datetime-local"
             value={UnixToString(input_pt.time)}
             onInput={updateHiddenTag}
         />
-        <span innerText={' Value:'}/>
-        <input 
+        <span innerText={' Value:'} />
+        <input
             ref={value_ref}
             type="number"
             value={rounded_val}
@@ -392,11 +392,11 @@ function PointInput(props: input_props){
             step={props.params.error ? step : 'any'}
             onInput={updateHiddenTag}
         />
-        <span innerText={' }'}/>
+        <span innerText={' }'} />
     </div>
 }
 
-function TimeInput(props: input_props){
+function TimeInput(props: input_props) {
     const [ref, setRef] = createSignal<HTMLInputElement | undefined>()
     let defaultTime = props.options[props.key] ?? props.params.default
 
@@ -404,17 +404,17 @@ function TimeInput(props: input_props){
         // TODO: This only works at the moment because it's only pulling the time. If it were to pull the price
         // then it would break once the orinating primitve and this primitive are placed on two different price scales.
         let controller = new VertLineController(
-            props.id + '_' + props.key +'_cntrlr', 
+            props.id + '_' + props.key + '_cntrlr',
             {
-                p1: {time: defaultTime, value: 0},
+                p1: { time: defaultTime, value: 0 },
                 autosend: props.params.autosend,
                 submit: props.requestSubmit,
-                update: (time:Time) => {
+                update: (time: Time) => {
                     const _ref = ref()
-                    if (!_ref) return 
-                    
+                    if (!_ref) return
+
                     _ref.value = UnixToString(time as number)
-                    if (props.params.autosend) props.requestSubmit() 
+                    if (props.params.autosend) props.requestSubmit()
                 }
             }
         )
@@ -423,68 +423,68 @@ function TimeInput(props: input_props){
         onCleanup(() => controller.remove())
     }
 
-    return <input 
+    return <input
         id={props.key}
-        ref = {setRef} 
-        type="datetime-local" 
+        ref={setRef}
+        type="datetime-local"
         value={UnixToString(defaultTime)}
-        onInput={props.params.autosend? props.requestSubmit : undefined}
+        onInput={props.params.autosend ? props.requestSubmit : undefined}
     />
 }
 
-function NumberInput(props: input_props){    
+function NumberInput(props: input_props) {
     let input_val = props.options[props.key] ?? props.params.default
     let step = props.params.step ?? 0.01 // default to 0.01 accuracy
-    let rounded_val = Math.round((input_val) * 1/step) * step 
+    let rounded_val = Math.round((input_val) * 1 / step) * step
 
     return (
-        <input id={props.key}  type={props.params.slider ? 'range' : 'number'}
+        <input id={props.key} type={props.params.slider ? 'range' : 'number'}
             value={rounded_val}
             max={props.params.max}
             min={props.params.min}
             step={props.params.error ? step : 'any'} // Only Error if desired.
             list={props.params.options ? props.key + "_datalist" : undefined}
-            onInput={props.params.autosend? props.requestSubmit : undefined}
+            onInput={props.params.autosend ? props.requestSubmit : undefined}
         />
     )
 }
 
-function EnumInput(props: input_props){
+function EnumInput(props: input_props) {
     return <span class="select-span">
         <select
-            id={props.key} 
-            onInput={props.params.autosend? props.requestSubmit: undefined}
+            id={props.key}
+            onInput={props.params.autosend ? props.requestSubmit : undefined}
         >
             <For each={props.params.options}>{(option) =>
-                <option 
+                <option
                     value={option}
                     innerText={option}
-                    selected={option == (props.options[props.key] ?? props.params.default)? true : undefined}
+                    selected={option == (props.options[props.key] ?? props.params.default) ? true : undefined}
                 />
             }</For>
         </select>
-        <Icon icon={icons.menu_arrow_ns}/>
+        <Icon icon={icons.menu_arrow_ns} />
     </span>
 }
 
-function ColorInputWrap(props: input_props){
+function ColorInputWrap(props: input_props) {
     return (
-        <ColorInput 
+        <ColorInput
             id={props.key}
-            input_id={props.key} 
+            input_id={props.key}
             init_color={props.options[props.key] ?? props.params.default}
             class="color_input_wrapper"
-            onInput={props.params.autosend? props.requestSubmit: undefined}
+            onInput={props.params.autosend ? props.requestSubmit : undefined}
         />
     )
 }
 
-function SourceInput(props: input_props){
+function SourceInput(props: input_props) {
     return <span class="select-span">
-        <select 
-            id={props.key} 
-            attr:type="source" 
-            onInput={props.params.autosend? props.requestSubmit: undefined}
+        <select
+            id={props.key}
+            attr:type="source"
+            onInput={props.params.autosend ? props.requestSubmit : undefined}
         >
             {/* <For each={props.sources()}>{({indicator, function_name, source_type}) => {
                 if (props.indicator_id === indicator.id)
@@ -506,7 +506,7 @@ function SourceInput(props: input_props){
             }
             }</For> */}
         </select>
-        <Icon icon={icons.menu_arrow_ns}/>
+        <Icon icon={icons.menu_arrow_ns} />
     </span>
 }
 

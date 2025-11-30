@@ -36,24 +36,24 @@ const UTILBAR_WIDTH = 38
  * Each object's value is an HTMLDiv's Styling Object that's applied to their respective Div.
  */
 interface layout_struct {
-    center:{width:string, height:string, top:string, left:string},
-    titlebar:{width:string, height:string, top:string, left:string},
-    topbar:{display:string, width:string, height:string, top:string, left:string},
-    toolbar:{display:string, width:string, height:string, top:string, left:string},
-    widgetbar:{display:string, width:string, height:string, top:string, right:string},
-    widgetpanel:{display:string, width:string, height:string, top:string, right:string},
-    utilbar:{display:string, width:string, height:string, bottom:string, left:string},
+    center: { width: string, height: string, top: string, left: string },
+    titlebar: { width: string, height: string, top: string, left: string },
+    topbar: { display: string, width: string, height: string, top: string, left: string },
+    toolbar: { display: string, width: string, height: string, top: string, left: string },
+    widgetbar: { display: string, width: string, height: string, top: string, right: string },
+    widgetpanel: { display: string, width: string, height: string, top: string, right: string },
+    utilbar: { display: string, width: string, height: string, bottom: string, left: string },
 }
 
 //Any value of -1px is dynamically set upon resize event
-const layout_default:layout_struct = {
-    center:{width:'-1px', height:'-1px', top:`${TITLE_HEIGHT + TOP_HEIGHT + MARGIN + CENTER_PADDING}px`, left:`${TOOLBAR_WIDTH + MARGIN + CENTER_PADDING}px`},
-    titlebar:{width:'100vw', height:'38px', top:'0px', left:'0px'},
-    topbar:{display:'flex', width:'100vw', height:'38px', top:`${TITLE_HEIGHT}px`, left:'0px'},
-    toolbar:{display:'flex', width:`${TOOLBAR_WIDTH}px`, height:'-1px', top:`${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, left:'0px'},
-    widgetbar:{display:'flex', width:`${WIDGET_BAR_WIDTH}px`, height:'-1px', top:`${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, right:'0px'},
-    widgetpanel:{display:'none', width:'-1px', height:'-1px', top:`${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, right:`${WIDGET_BAR_WIDTH + WIDGET_PANEL_MARGIN}px`},
-    utilbar:{display:'flex', width:'-1px', height:`${UTILBAR_WIDTH}px`, bottom:'0px', left:`${TOOLBAR_WIDTH + MARGIN}px`},
+const layout_default: layout_struct = {
+    center: { width: '-1px', height: '-1px', top: `${TITLE_HEIGHT + TOP_HEIGHT + MARGIN + CENTER_PADDING}px`, left: `${TOOLBAR_WIDTH + MARGIN + CENTER_PADDING}px` },
+    titlebar: { width: '100vw', height: '38px', top: '0px', left: '0px' },
+    topbar: { display: 'flex', width: '100vw', height: '38px', top: `${TITLE_HEIGHT}px`, left: '0px' },
+    toolbar: { display: 'flex', width: `${TOOLBAR_WIDTH}px`, height: '-1px', top: `${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, left: '0px' },
+    widgetbar: { display: 'flex', width: `${WIDGET_BAR_WIDTH}px`, height: '-1px', top: `${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, right: '0px' },
+    widgetpanel: { display: 'none', width: '-1px', height: '-1px', top: `${TITLE_HEIGHT + TOP_HEIGHT + MARGIN}px`, right: `${WIDGET_BAR_WIDTH + WIDGET_PANEL_MARGIN}px` },
+    utilbar: { display: 'flex', width: '-1px', height: `${UTILBAR_WIDTH}px`, bottom: '0px', left: `${TOOLBAR_WIDTH + MARGIN}px` },
 }
 
 export enum LAYOUT_SECTIONS {
@@ -69,31 +69,31 @@ export enum LAYOUT_SECTIONS {
 /**
  * Top Level Component for the Entire Window.
  */
-export function Wrapper(){
+export function Wrapper() {
     const [layout, set_layout] = createStore(layout_default)
     const widgetPanelWidth = WidgetPanelSizeCTX().size
 
-    onMount(() => { 
+    onMount(() => {
         //Add Resize listener
         window.addEventListener('resize', () => resize(window.innerWidth, window.innerHeight, layout, set_layout))
         resize(window.innerWidth, window.innerHeight, layout, set_layout) //Set initial size
     });
 
     //Resize when visibility changes & when Widget_Panel changes size
-    createEffect(() => {resize(window.innerWidth, window.innerHeight, layout, set_layout)})
-    createEffect(on(widgetPanelWidth, () => {resize(window.innerWidth, window.innerHeight, layout, set_layout)}))
+    createEffect(() => { resize(window.innerWidth, window.innerHeight, layout, set_layout) })
+    createEffect(on(widgetPanelWidth, () => { resize(window.innerWidth, window.innerHeight, layout, set_layout) }))
 
     //Functions to be passed to the Titlebar
     const title_bar_props = {
-        show_section:show_section_unbound.bind(undefined, set_layout),
-        hide_section:hide_section_unbound.bind(undefined, set_layout),
+        show_section: show_section_unbound.bind(undefined, set_layout),
+        hide_section: hide_section_unbound.bind(undefined, set_layout),
     }
 
     //Functions to be passed to the WidgetBar
     const widget_bar_props = {
         panelDisplay: layout.widgetbar,
-        showWidgetPanel:show_section_unbound.bind(undefined, set_layout, LAYOUT_SECTIONS.WIDGET_PANEL),
-        hideWidgetPanel:hide_section_unbound.bind(undefined, set_layout, LAYOUT_SECTIONS.WIDGET_PANEL),
+        showWidgetPanel: show_section_unbound.bind(undefined, set_layout, LAYOUT_SECTIONS.WIDGET_PANEL),
+        hideWidgetPanel: hide_section_unbound.bind(undefined, set_layout, LAYOUT_SECTIONS.WIDGET_PANEL),
     }
 
 
@@ -103,13 +103,13 @@ export function Wrapper(){
     return <>
         <GlobalContexts>
             <div id='layout_wrapper' class='wrapper'>
-                <Container style={layout.center}/>
-                <TitleBar style={layout.titlebar} {...title_bar_props}/>
-                <TopBar style={layout.topbar}/>
-                <ToolBar style={layout.toolbar}/>
-                <WidgetBar style={layout.widgetbar} {...widget_bar_props}/>
-                <WidgetPanel style={layout.widgetpanel}/>
-                <div class='layout_main' style={layout.utilbar}/>
+                <Container style={layout.center} />
+                <TitleBar style={layout.titlebar} {...title_bar_props} />
+                <TopBar style={layout.topbar} />
+                <ToolBar style={layout.toolbar} />
+                <WidgetBar style={layout.widgetbar} {...widget_bar_props} />
+                <WidgetPanel style={layout.widgetpanel} />
+                <div class='layout_main' style={layout.utilbar} />
             </div>
         </GlobalContexts>
     </>
@@ -118,21 +118,21 @@ export function Wrapper(){
 /**
  * Dump Location for any Contexts that are created else where and need to be placed into the window.
  */
-function GlobalContexts(props:JSX.HTMLAttributes<HTMLElement>){
+function GlobalContexts(props: JSX.HTMLAttributes<HTMLElement>) {
     return <>
         <ColorContext>
-        <ToolBoxContext>
-        <ObjTreeContext>
-        <KeyboardListener>
-        <PanelResizeContext widget={true}>
-        <OverlayContextProvider>
-        <ContextMenuOverlayProvider/>
-            {props.children}
-        </OverlayContextProvider>
-        </PanelResizeContext>
-        </KeyboardListener>
-        </ObjTreeContext>
-        </ToolBoxContext>
+            <ToolBoxContext>
+                <ObjTreeContext>
+                    <KeyboardListener>
+                        <PanelResizeContext widget={true}>
+                            <OverlayContextProvider>
+                                <ContextMenuOverlayProvider />
+                                {props.children}
+                            </OverlayContextProvider>
+                        </PanelResizeContext>
+                    </KeyboardListener>
+                </ObjTreeContext>
+            </ToolBoxContext>
         </ColorContext>
     </>
 }
@@ -140,13 +140,13 @@ function GlobalContexts(props:JSX.HTMLAttributes<HTMLElement>){
 
 //#region -------------- Interactive Layout Functions -------------- //
 
-function resize(width:number, height:number, layout:layout_struct, set_layout:SetStoreFunction<layout_struct>){
+function resize(width: number, height: number, layout: layout_struct, set_layout: SetStoreFunction<layout_struct>) {
     const widgetPanelWidth = WidgetPanelSizeCTX().size()
     let side_bar_height = height - TITLE_HEIGHT
     let center_height = height - TITLE_HEIGHT
     let center_width = width
 
-    if (layout.topbar.display === 'flex'){
+    if (layout.topbar.display === 'flex') {
         side_bar_height -= (TOP_HEIGHT + MARGIN)
         center_height -= (TOP_HEIGHT + MARGIN)
     }
@@ -171,7 +171,7 @@ function resize(width:number, height:number, layout:layout_struct, set_layout:Se
     // Perform initial resize to desired size. If the Desired rect were not passed,
     // each panel would query it's div for the size and it would be the old panel size.
     if (window.activeContainer) window.activeContainer.refreshSize(new DOMRect(0, 0, center_width, center_height))
-        
+
     let func = WidgetPanelSizeCTX().resizeFunc()
     if (func !== undefined) func(new DOMRect(0, 0, widgetPanelWidth, center_height))
 
@@ -183,7 +183,7 @@ function resize(width:number, height:number, layout:layout_struct, set_layout:Se
     if (window.activeContainer) setTimeout(() => window.activeContainer.refreshSize(), 0)
 }
 
-function show_section_unbound(set_layout:SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
+function show_section_unbound(set_layout: SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
     switch (section) {
         case (LAYOUT_SECTIONS.TOOL_BAR):
             set_layout('center', 'left', `${TOOLBAR_WIDTH + MARGIN + CENTER_PADDING}px`)
@@ -209,7 +209,7 @@ function show_section_unbound(set_layout:SetStoreFunction<layout_struct>, sectio
     if (window.activeContainer) window.activeContainer.refreshSize()
 }
 
-function hide_section_unbound(set_layout:SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
+function hide_section_unbound(set_layout: SetStoreFunction<layout_struct>, section: LAYOUT_SECTIONS) {
     switch (section) {
         case (LAYOUT_SECTIONS.TOOL_BAR):
             set_layout('center', 'left', `${CENTER_PADDING}px`)
@@ -241,43 +241,43 @@ function hide_section_unbound(set_layout:SetStoreFunction<layout_struct>, sectio
 //#region -------------- Panel Resize Context -------------- //
 
 //Resize Context for Widget & Util Panels
-interface resize_context_props { 
+interface resize_context_props {
     size: Accessor<number>,
-    setSize: (width:number) => void,
+    setSize: (width: number) => void,
     setMinSize: Setter<number>,
     setMaxSize: Setter<number>,
-    resizeFunc: Accessor<(rect:DOMRect)=>void>,
-    setResizeFunc: Setter<(rect:DOMRect)=>void>,
+    resizeFunc: Accessor<(rect: DOMRect) => void>,
+    setResizeFunc: Setter<(rect: DOMRect) => void>,
 }
 
-const default_resize_props:resize_context_props = {
-    size: ()=>0,
-    setSize: ()=>{},
-    setMinSize: ()=>{},
-    setMaxSize: ()=>{},
-    resizeFunc:  ()=>()=>{},
-    setResizeFunc: ()=>{},
+const default_resize_props: resize_context_props = {
+    size: () => 0,
+    setSize: () => { },
+    setMinSize: () => { },
+    setMaxSize: () => { },
+    resizeFunc: () => () => { },
+    setResizeFunc: () => { },
 }
 
-let widgetResizeContext = createContext<resize_context_props>( default_resize_props )
-export function WidgetPanelSizeCTX():resize_context_props { return useContext(widgetResizeContext) }
+let widgetResizeContext = createContext<resize_context_props>(default_resize_props)
+export function WidgetPanelSizeCTX(): resize_context_props { return useContext(widgetResizeContext) }
 
-let utilResizeContext = createContext<resize_context_props>( default_resize_props )
-export function UtilPanelSizeCTX():resize_context_props { return useContext(utilResizeContext) }
+let utilResizeContext = createContext<resize_context_props>(default_resize_props)
+export function UtilPanelSizeCTX(): resize_context_props { return useContext(utilResizeContext) }
 
-function PanelResizeContext(props:JSX.HTMLAttributes<HTMLElement> & {widget:boolean}){
-    const PanelFunc = createSignal((rect:DOMRect)=>{})
+function PanelResizeContext(props: JSX.HTMLAttributes<HTMLElement> & { widget: boolean }) {
+    const PanelFunc = createSignal((rect: DOMRect) => { })
     const PanelSize = createSignal<number>(DEFAULT_WIDGET_PANEL_WIDTH)
     const MinPanelSize = createSignal<number>(MIN_WIDGET_PANEL_WIDTH)
     const MaxPanelSize = createSignal<number>(MAX_WIDGET_PANEL_WIDTH)
-    
-    const ResizeCTX:resize_context_props = {
+
+    const ResizeCTX: resize_context_props = {
         size: PanelSize[0],
         //Bound the size of the widget panel
-        setSize: (v:number)=>{PanelSize[1](Math.max(Math.min(v, MaxPanelSize[0]()), MinPanelSize[0]()))},
+        setSize: (v: number) => { PanelSize[1](Math.max(Math.min(v, MaxPanelSize[0]()), MinPanelSize[0]())) },
         setMinSize: MinPanelSize[1],
         setMaxSize: MaxPanelSize[1],
-        resizeFunc:  PanelFunc[0],
+        resizeFunc: PanelFunc[0],
         setResizeFunc: PanelFunc[1],
     }
 

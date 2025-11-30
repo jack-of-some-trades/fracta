@@ -17,8 +17,8 @@ export const MIN_PANE_HEIGHT = 30
  * manage the ability to order indicators/primitives within a pane.
  */
 export class charting_pane implements ReorderableSet {
-    [ORDERABLE]:true = true;
-    [ORDERABLE_SET]:true = true;
+    [ORDERABLE]: true = true;
+    [ORDERABLE_SET]: true = true;
 
     _pane: lwc.IPaneApi<lwc.Time>
     _frame: charting_frame
@@ -41,8 +41,8 @@ export class charting_pane implements ReorderableSet {
     shortcuts: keyboardShortcut[]
     ctxMenuStruct: contextMenuItem[][]
     ctxMenuCleaner = new AbortController()
-    
-    constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>){
+
+    constructor(frame: charting_frame, pane: lwc.IPaneApi<lwc.Time>) {
         this._pane = pane
         this._frame = frame
 
@@ -62,8 +62,8 @@ export class charting_pane implements ReorderableSet {
 
         this.leafProps = {
             obj: this,
-            id:this.id,
-            leafTitle:this.name
+            id: this.id,
+            leafTitle: this.name
         }
         this.branchProps = {
             id: this.id,
@@ -77,7 +77,7 @@ export class charting_pane implements ReorderableSet {
         this.shortcuts = deriveShortcuts(this.ctxMenuStruct)
     }
 
-    
+
     onActivation() { // When the Pane has been clicked on
         console.log('activate pane', this.paneIndex)
         KeyboardCTX().attachHandler(this.id, this.shortcuts)
@@ -88,8 +88,8 @@ export class charting_pane implements ReorderableSet {
         KeyboardCTX().detachHandler(this.id)
     }
 
-    get id():string { return String(this._pane.paneIndex()) }
-    get name(): string {return 'Pane #' + String(this.id)}
+    get id(): string { return String(this._pane.paneIndex()) }
+    get name(): string { return 'Pane #' + String(this.id) }
     get frame(): charting_frame { return this._frame }
     get paneIndex(): number { return this._pane.paneIndex() }
     get paneApi(): lwc.IPaneApi<lwc.Time> { return this._pane }
@@ -110,7 +110,7 @@ export class charting_pane implements ReorderableSet {
         if (_el) return _el as HTMLTableCellElement
     }
 
-    _updatePaneEl(){
+    _updatePaneEl() {
         requestAnimationFrame(() => {
             this.setPaneEl(this._paneEl)
             this._recordStretchFactor()
@@ -119,9 +119,9 @@ export class charting_pane implements ReorderableSet {
             this.ctxMenuCleaner.abort()
             this.ctxMenuCleaner = new AbortController()
             this._paneEl?.addEventListener(
-                'contextmenu', 
+                'contextmenu',
                 MenuContextListener.bind(this.ctxMenuStruct),
-                {signal: this.ctxMenuCleaner.signal, capture:true}
+                { signal: this.ctxMenuCleaner.signal, capture: true }
             )
         })
     }
@@ -131,9 +131,9 @@ export class charting_pane implements ReorderableSet {
         this._frame.reorderPanes(this.paneIndex, index)
     }
 
-    _recordStretchFactor() { this.stretchFactorMemory = this.paneApi.getStretchFactor() } 
+    _recordStretchFactor() { this.stretchFactorMemory = this.paneApi.getStretchFactor() }
 
-    _minimizePane(){ 
+    _minimizePane() {
         // This is a bit bugged at the moment due to how lwc renders when setting height
         this.paneApi.setHeight(MIN_PANE_HEIGHT)
         this.setMaximized(false); this.setMinimized(true);
@@ -152,22 +152,22 @@ export class charting_pane implements ReorderableSet {
     }
 
     // TODO: Expand this functionality to match primitive base if pane Primitives become more readily used.
-    _attachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.attachPrimitive(primitive) }
-    _detachPanePrimitive(primitive: lwc.IPanePrimitive){ this._pane.detachPrimitive(primitive) }
-    _attachSeriesPrimitive(primitive: PrimitiveBase_T){ this.series_primitives?.attachPrimitive(primitive) }
-    _detachSeriesPrimitive(primitive: PrimitiveBase_T){ this.series_primitives?.detachPrimitive(primitive) }
+    _attachPanePrimitive(primitive: lwc.IPanePrimitive) { this._pane.attachPrimitive(primitive) }
+    _detachPanePrimitive(primitive: lwc.IPanePrimitive) { this._pane.detachPrimitive(primitive) }
+    _attachSeriesPrimitive(primitive: PrimitiveBase_T) { this.series_primitives?.attachPrimitive(primitive) }
+    _detachSeriesPrimitive(primitive: PrimitiveBase_T) { this.series_primitives?.detachPrimitive(primitive) }
     _addSeries(type: SeriesDefinitions): SeriesApi { return this._pane.addSeries(type) }
     _addCustomSeries(impl: lwc.ICustomSeriesPaneView): SeriesApi { return this._pane.addCustomSeries(impl) }
     _priceScale(scale: string): lwc.IPriceScaleApi { return this._pane.priceScale(scale) }
 
-    indicators(): indicator[] { return this.attached().filter((obj) => isIndicator(obj))}
-    primitiveSets(): PrimitiveSet[] { return this.attached().filter((obj) => isPrimitiveSet(obj))}
+    indicators(): indicator[] { return this.attached().filter((obj) => isIndicator(obj)) }
+    primitiveSets(): PrimitiveSet[] { return this.attached().filter((obj) => isPrimitiveSet(obj)) }
 
-    attach(obj: indicator | PrimitiveSet){
+    attach(obj: indicator | PrimitiveSet) {
         this.setAttached([...this.attached(), obj])
     }
-    
-    detach(obj: indicator | PrimitiveSet){
+
+    detach(obj: indicator | PrimitiveSet) {
         this.setAttached([...this.attached().filter(_obj => _obj !== obj)])
     }
 
@@ -175,13 +175,13 @@ export class charting_pane implements ReorderableSet {
         console.log(`Reorder Indicators: from: ${from}, to: ${to}`)
     }
 
-    moveToPane(obj: indicator | PrimitiveSet | any){
+    moveToPane(obj: indicator | PrimitiveSet | any) {
 
     }
 }
 
 
-function generateContextMenuStruct(pane:charting_pane):contextMenuItem[][] {
+function generateContextMenuStruct(pane: charting_pane): contextMenuItem[][] {
     return [[
         {
             icon: icons.menu_arrow_sn,

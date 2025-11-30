@@ -18,10 +18,10 @@ declare global {
 
     //Allow Global Control over the Topbar Display
     var topbar: {
-        setSeries : (_:Series_Type) => void,
-        setTimeframe : (_:tf) => void,
-        setLayout : (_:Container_Layouts) => void,
-        setTicker : (_:string) => void,
+        setSeries: (_: Series_Type) => void,
+        setTimeframe: (_: tf) => void,
+        setLayout: (_: Container_Layouts) => void,
+        setTicker: (_: string) => void,
     }
 
     var reloadComputedCanvasStyle: () => void
@@ -37,7 +37,7 @@ declare global {
 //declare global Attributes for JSX objects
 declare module "solid-js" {
     namespace JSX {
-        interface ExplicitAttributes{
+        interface ExplicitAttributes {
             active: string
             selected: string
             target: string
@@ -55,10 +55,10 @@ window.api = new PyApi();
 window.Container_Layouts = Container_Layouts
 //Allow Global Control over the Topbar Display. Functions will be overwritten as window is rendered
 window.topbar = {
-    setSeries : (_:Series_Type) => {},
-    setTimeframe : (_:tf) => {},
-    setLayout : (_:Container_Layouts) => {},
-    setTicker : (_:string) => {},
+    setSeries: (_: Series_Type) => { },
+    setTimeframe: (_: tf) => { },
+    setLayout: (_: Container_Layouts) => { },
+    setTicker: (_: string) => { },
 }
 
 render(Wrapper, document.body)

@@ -12,12 +12,12 @@ import { default_layout_ctx_args, Layout, layout_display } from "./layouts";
 let ContainerContext = createContext(default_layout_ctx_args);
 export function ContainerCTX() { return useContext(ContainerContext) }
 
-export function Container(props : {style: JSX.CSSProperties}){
+export function Container(props: { style: JSX.CSSProperties }) {
     const [divRef, setDivRef] = createSignal(document.createElement('div'))
 
     const [style, setStyle] = createSignal<string>('')
     const [displays, setDisplays] = createSignal<layout_display[]>([])
-    const getSize = () => {return divRef().getBoundingClientRect()}
+    const getSize = () => { return divRef().getBoundingClientRect() }
 
     const ctx_args = {
         getSize: getSize,

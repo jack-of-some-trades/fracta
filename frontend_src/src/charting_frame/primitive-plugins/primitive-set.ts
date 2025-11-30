@@ -3,7 +3,7 @@ import { Accessor, createEffect, createSignal, Setter } from "solid-js"
 import { DropDownModes, ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../../tsx/widget_panels/object_tree"
 import { charting_frame } from "../charting_frame"
 import { charting_pane } from "../charting_pane"
-import { PrimitiveBase } from "./primitive-base"
+import { PrimitiveBase, primitiveOptions } from "./primitive-base"
 
 
 /** 
@@ -21,13 +21,13 @@ import { PrimitiveBase } from "./primitive-base"
 
 const PRIMITIVE_SET = Symbol('PrimitiveSet');
 export function isPrimitiveSet(obj: unknown): obj is PrimitiveSet {
-    return ( obj !== null && typeof obj === 'object' && PRIMITIVE_SET in obj )
+    return (obj !== null && typeof obj === 'object' && PRIMITIVE_SET in obj)
 }
 
 export class PrimitiveSet implements ReorderableSet {
-    [ORDERABLE]:true = true;
-    [ORDERABLE_SET]:true = true;
-    [PRIMITIVE_SET]:true = true;
+    [ORDERABLE]: true = true;
+    [ORDERABLE_SET]: true = true;
+    [PRIMITIVE_SET]: true = true;
     dropDownMode: DropDownModes = 'auto'
 
     private _id: string
@@ -36,19 +36,19 @@ export class PrimitiveSet implements ReorderableSet {
     private _pane: charting_pane
     private _frame: charting_frame
 
-    primitives: Accessor<PrimitiveBase[]>
-    setPrimitives: Setter<PrimitiveBase[]>
+    primitives: Accessor<PrimitiveBase<primitiveOptions>[]>;
+    setPrimitives: Setter<PrimitiveBase<primitiveOptions>[]>;
 
     leafProps: treeLeafInterface
     branchProps: treeBranchInterface
 
-    constructor(pane:charting_pane) {
+    constructor(pane: charting_pane) {
         this._pane = pane
         this._frame = pane.frame
         this._series = this._pane.paneApi.addSeries(
-            LineSeries, 
+            LineSeries,
             {
-                color:'transparent', 
+                color: 'transparent',
                 autoscaleInfoProvider: () => null
             }
         )
@@ -56,7 +56,7 @@ export class PrimitiveSet implements ReorderableSet {
         this._id = ''
         this._name = undefined
 
-        const sig = createSignal<PrimitiveBase[]>([])
+        const sig = createSignal<PrimitiveBase<primitiveOptions>[]>([])
         this.primitives = sig[0]; this.setPrimitives = sig[1];
 
         // Auto Update the underlying series data with the frame so all primitives
@@ -69,18 +69,18 @@ export class PrimitiveSet implements ReorderableSet {
             obj: this
         }
         this.branchProps = {
-            id:this.id,
+            id: this.id,
             branchTitle: 'Primitive Set',
             dropDownMode: 'auto',
             reorderables: this.primitives,
             reorder: this.reorderPrimitives.bind(this),
-            moveTo: ()=>{}
+            moveTo: () => { }
         }
     }
 
     get id(): string { return this._id }
     get name(): string { return this._name ?? '' }
-    get length(): number {return this.primitives().length}
+    get length(): number { return this.primitives().length }
     get pane(): charting_pane { return this._pane }
     get frame(): charting_frame { return this._frame }
 
@@ -88,20 +88,20 @@ export class PrimitiveSet implements ReorderableSet {
     get _primitiveWrapperArray(): SeriesPrimitiveWrapper[] { return this._series.Jn.kh }
     //@ts-ignore: _series.Jn.kh[].ah === seriesAPI._series._primitives[].PrimitiveBase for Lightweight-Charts v5.0.8
     get _primitives(): PrimitiveBase[] { return Array.from(this._primitiveWrapperArray, (wrapper) => wrapper.ah) }
-    
-    attachPrimitive(primitive: PrimitiveBase) {
+
+    attachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
         primitive.setParent(this)
         this._series.attachPrimitive(primitive)
         this.setPrimitives([...this.primitives(), primitive])
     }
 
-    detachPrimitive(primitive: PrimitiveBase) {
+    detachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
         primitive.setParent(undefined)
         this._series.detachPrimitive(primitive)
         this.setPrimitives(this.primitives().filter((prim) => prim.id !== primitive._id))
     }
 
-    reorderPrimitives(from:number, to:number){ 
+    reorderPrimitives(from: number, to: number) {
         this._primitiveWrapperArray.splice(to, 0, ...this._primitiveWrapperArray.splice(from, 1))
         //Set the Reactive Primitive array to what is stored internally to the lightweight charts series.
         this.setPrimitives(this._primitives)

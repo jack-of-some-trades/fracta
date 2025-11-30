@@ -20,7 +20,7 @@ export const HorizRayTool: PrimitiveTool = {
     cleanup: cleanUpOnePointTool
 }
 
-function createRay(pane:charting_pane, e: MouseEvent){
+function createRay(pane: charting_pane, e: MouseEvent) {
     const new_line = new HorizRay('')
     pane._attachSeriesPrimitive(new_line)
     return configureOnePointPrimitiveUI(e, new_line)
@@ -43,8 +43,8 @@ const defaultOptions: HorizRayOptions = {
 
 export class HorizRay extends OnePointPrimitive<HorizRayOptions> {
 
-    constructor(id:string, params?:Partial<HorizRayOptions>) {
-        super(id, TOOL_NAME, HorizRayRenderer, {...defaultOptions, ...params})
+    constructor(id: string, params?: Partial<HorizRayOptions>) {
+        super(id, TOOL_NAME, HorizRayRenderer, { ...defaultOptions, ...params })
     }
 
     public displayOptionsMenu(): void {
@@ -76,7 +76,7 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
 
                 let line = new Path2D()
                 line.moveTo(this._c1.x, this._c1.y)
-                line.lineTo( this.options.right ? ctx.canvas.width + 1 : -1 , this._c1.y)
+                line.lineTo(this.options.right ? ctx.canvas.width + 1 : -1, this._c1.y)
                 ctx.stroke(line)
 
                 if (this._hovered !== undefined || this._source.selected()) {
@@ -93,13 +93,13 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
         this._hovered = undefined //Assume it isn't hovered. Will correct if not.
 
         //Course X range Check
-        if (this.options.right ? this._c1.x - 10 > x : this._c1.x + 10 < x) 
+        if (this.options.right ? this._c1.x - 10 > x : this._c1.x + 10 < x)
             return null
 
         //Point Check
-        if (Math.abs(this._c1.x - x) < 10 && Math.abs(this._c1.y - y) < 10){
+        if (Math.abs(this._c1.x - x) < 10 && Math.abs(this._c1.y - y) < 10) {
             this._hovered = HIT_RESULT.P1
-            return { 
+            return {
                 cursorStyle: 'grab',
                 externalId: this._source,
                 hitResult: HIT_RESULT.P1,
@@ -108,16 +108,16 @@ class HorizRayRenderer extends OnePointRenderer<HorizRayOptions> {
         }
 
         //Trace Check
-        if ( Math.abs(this._c1.y - y) < Math.max(this.options.width, 8) ){
+        if (Math.abs(this._c1.y - y) < Math.max(this.options.width, 8)) {
             this._hovered = HIT_RESULT.Stroke
-            return { 
+            return {
                 cursorStyle: 'grab',
                 externalId: this._source,
                 hitResult: HIT_RESULT.Stroke,
                 zOrder: 'normal'
             }
         }
-        
+
         return null
     }
 }
@@ -135,7 +135,7 @@ const MENU_STRUCT = {
     "p1": [
         "point",
         {
-            "default": {time: "01-01-1970", value: 100},
+            "default": { time: "01-01-1970", value: 100 },
             "autosend": true,
             "step": 0.01,
             "title": "Ray Origin"

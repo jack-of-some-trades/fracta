@@ -23,11 +23,11 @@ const RESIZE_HANDLE_WIDTH = 8
  * @MIN_FRAME_HEIGHT : [0, 1] Represents the minimum fraction of a window's Height a single frame can be.
  */
 interface layout_constants {
-    MIN_FRAME_WIDTH:number
-    MIN_FRAME_HEIGHT:number
+    MIN_FRAME_WIDTH: number
+    MIN_FRAME_HEIGHT: number
 }
 
-const default_layout_constants:layout_constants = {
+const default_layout_constants: layout_constants = {
     MIN_FRAME_WIDTH: 0.15,
     MIN_FRAME_HEIGHT: 0.1,
 }
@@ -39,10 +39,10 @@ export enum Orientation {
 }
 
 interface rect {
-    top:number,
-    left:number,
-    width:number,
-    height:number
+    top: number,
+    left: number,
+    width: number,
+    height: number
 }
 
 export interface flex_frame {
@@ -53,7 +53,7 @@ export interface flex_frame {
     resize_pos: flex_frame[],
     resize_neg: flex_frame[],
     orientation: Orientation,
-    mouseDown: (e:MouseEvent) => void
+    mouseDown: (e: MouseEvent) => void
 }
 
 export enum Container_Layouts {
@@ -110,10 +110,10 @@ export function num_frames(layout: Container_Layouts | undefined): number {
  * Creates a flex_frame for a Widget. Widget Created Seprately
  */
 function widget_section(flex_width: number, flex_height: number): flex_frame {
-    let new_section:flex_frame = {
-        rect:{top:0, left:0, width:0, height:0},
-        style:'',
-        mouseDown: () => {},
+    let new_section: flex_frame = {
+        rect: { top: 0, left: 0, width: 0, height: 0 },
+        style: '',
+        mouseDown: () => { },
         flex_width: flex_width,
         flex_height: flex_height,
         orientation: Orientation.null,
@@ -127,16 +127,16 @@ function widget_section(flex_width: number, flex_height: number): flex_frame {
  * Creates a flex_frame for use as a separator between frame elements
  */
 function separator_section(
-    type: Orientation, 
-    size: number, 
-    divRect:Accessor<DOMRect>, 
-    resize: ()=>void,
+    type: Orientation,
+    size: number,
+    divRect: Accessor<DOMRect>,
+    resize: () => void,
     layout_params: layout_constants,
 ): flex_frame {
-    let new_section:flex_frame = {
-        rect:{top:0, left:0, width:0, height:0},
-        style:'',
-        mouseDown: () => {},
+    let new_section: flex_frame = {
+        rect: { top: 0, left: 0, width: 0, height: 0 },
+        style: '',
+        mouseDown: () => { },
         flex_height: (type === Orientation.Vertical ? size : 0),
         flex_width: (type === Orientation.Horizontal ? size : 0),
         orientation: type,
@@ -175,10 +175,10 @@ function separator_section(
  * This only changes the %. The call to resize it what resizes everything
  */
 function resize_flex_horizontal(
-    MIN_SIZE:number, 
-    divRect:Accessor<DOMRect>, 
-    resize: ()=>void, 
-    separator: flex_frame, 
+    MIN_SIZE: number,
+    divRect: Accessor<DOMRect>,
+    resize: () => void,
+    separator: flex_frame,
     e: MouseEvent
 ) {
     //flex total is the total percentage of the screen that the left & Right frames occupy
@@ -216,10 +216,10 @@ function resize_flex_horizontal(
  * This only changes the %. The call to resize it what resizes everything
  */
 function resize_flex_vertical(
-    MIN_SIZE:number, 
-    divRect:Accessor<DOMRect>, 
-    resize: ()=>void, 
-    separator: flex_frame, 
+    MIN_SIZE: number,
+    divRect: Accessor<DOMRect>,
+    resize: () => void,
+    separator: flex_frame,
     e: MouseEvent
 ) {
     let flex_total = separator.resize_pos[0].flex_height + separator.resize_neg[0].flex_height
@@ -252,7 +252,7 @@ function resize_flex_vertical(
  * Resize all the flex_frame sections based on the given total container dimensions
  * 
  */
-export function resize_sections(divRect:Accessor<DOMRect>, frames:flex_frame[]) {
+export function resize_sections(divRect: Accessor<DOMRect>, frames: flex_frame[]) {
     let width = divRect().width
     let height = divRect().height
     if (width <= 0 || height <= 0) return
@@ -264,31 +264,31 @@ export function resize_sections(divRect:Accessor<DOMRect>, frames:flex_frame[]) 
             let ref_rect = section.resize_pos[0]?.rect
             top = ref_rect?.top
             left = ref_rect?.left + ref_rect?.width
-            new_rect= {
+            new_rect = {
                 top: top ?? 0,
                 left: left ?? 0,
                 width: RESIZE_HANDLE_WIDTH,
                 height: Math.round(height * section.flex_height),
             }
-            frames[i].style = 
-            `{top:${new_rect.top}px; left:${new_rect.left-HALF_WIDTH}px; width:${new_rect.width}px; height:${new_rect.height}px}`
+            frames[i].style =
+                `{top:${new_rect.top}px; left:${new_rect.left - HALF_WIDTH}px; width:${new_rect.width}px; height:${new_rect.height}px}`
 
         } else if (section.orientation === Orientation.Horizontal) {    //Horizontal Separators
             let ref_rect = section.resize_pos[0]?.rect
             top = ref_rect?.top + ref_rect?.height
             left = ref_rect?.left
-            new_rect= {
+            new_rect = {
                 top: top ?? 0,
                 left: left ?? 0,
                 width: Math.round(width * section.flex_width),
                 height: RESIZE_HANDLE_WIDTH,
             }
-            frames[i].style = 
-            `{top:${new_rect.top-HALF_WIDTH}px; left:${new_rect.left}px; width:${new_rect.width}px; height:${new_rect.height}px}`
-        
+            frames[i].style =
+                `{top:${new_rect.top - HALF_WIDTH}px; left:${new_rect.left}px; width:${new_rect.width}px; height:${new_rect.height}px}`
+
 
         } else {                                                        //Frame Widget
-            if (section.resize_pos[0]?.orientation === Orientation.Horizontal){
+            if (section.resize_pos[0]?.orientation === Orientation.Horizontal) {
                 top = section.resize_pos[0]?.rect.top
                 left = section.resize_pos[1]?.rect.left
             } else {
@@ -302,12 +302,12 @@ export function resize_sections(divRect:Accessor<DOMRect>, frames:flex_frame[]) 
                 width: Math.round(width * section.flex_width),
                 height: Math.round(height * section.flex_height),
             }
-            frames[i].style = 
-            `{top:${new_rect.top}px; left:${new_rect.left}px; width:${new_rect.width}px; height:${new_rect.height}px}`
+            frames[i].style =
+                `{top:${new_rect.top}px; left:${new_rect.left}px; width:${new_rect.width}px; height:${new_rect.height}px}`
         }
         //Commit the new sizing to the object, Style is used by the display, rect is used by other sizing
         frames[i].rect = new_rect
-        
+
     })
 }
 
@@ -323,12 +323,12 @@ export function resize_sections(divRect:Accessor<DOMRect>, frames:flex_frame[]) 
  * @param layout_params: Optional argument that sets the Minimum Frame Size
  */
 export function layout_switch(
-    layout: Container_Layouts, 
-    divRect:Accessor<DOMRect>, 
-    resize: ()=>void, 
-    layout_params:layout_constants = default_layout_constants,
+    layout: Container_Layouts,
+    divRect: Accessor<DOMRect>,
+    resize: () => void,
+    layout_params: layout_constants = default_layout_constants,
 ): flex_frame[] {
-    
+
     switch (layout) {
         case Container_Layouts.DOUBLE_VERT: {
             let f1 = widget_section(0.5, 1)
@@ -369,7 +369,7 @@ export function layout_switch(
             f2.resize_pos.push(s1)
 
             return [f1, s1, f2]
-        } 
+        }
 
         case Container_Layouts.TRIPLE_VERT: {
             let f1 = widget_section(0.333, 1)
@@ -383,11 +383,11 @@ export function layout_switch(
             s2.resize_pos.push(f2)
             s2.resize_neg.push(f3)
 
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
 
-            return [f1, s1, f2, s2, f3 ]
+            return [f1, s1, f2, s2, f3]
         }
 
         case Container_Layouts.TRIPLE_VERT_LEFT: {
@@ -405,8 +405,8 @@ export function layout_switch(
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s1, s2)
 
-            return [f1, s1, f2, s2, f3 ]
-        } 
+            return [f1, s1, f2, s2, f3]
+        }
 
         case Container_Layouts.TRIPLE_VERT_RIGHT: {
             let f1 = widget_section(0.5, 0.5)
@@ -419,11 +419,11 @@ export function layout_switch(
             s1.resize_neg.push(f2)
             s2.resize_pos.push(f1, f2, s1)
             s2.resize_neg.push(f3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
 
-            return [f1, s1, f2, s2, f3 ]
+            return [f1, s1, f2, s2, f3]
         }
 
         case Container_Layouts.TRIPLE_HORIZ: {
@@ -437,11 +437,11 @@ export function layout_switch(
             s1.resize_neg.push(f2)
             s2.resize_pos.push(f2)
             s2.resize_neg.push(f3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
 
-            return [f1, s1, f2, s2, f3 ]
+            return [f1, s1, f2, s2, f3]
         }
 
         case Container_Layouts.TRIPLE_HORIZ_TOP: {
@@ -455,11 +455,11 @@ export function layout_switch(
             s1.resize_neg.push(f2, f3, s2)
             s2.resize_pos.push(f2)
             s2.resize_neg.push(f3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s1, s2)
 
-            return [f1, s1, f2, s2, f3 ]
+            return [f1, s1, f2, s2, f3]
         }
 
         case Container_Layouts.TRIPLE_HORIZ_BOTTOM: {
@@ -473,11 +473,11 @@ export function layout_switch(
             s1.resize_neg.push(f2)
             s2.resize_pos.push(f1, f2, s1)
             s2.resize_neg.push(f3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
 
-            return [f1, s1, f2, s2, f3 ]
+            return [f1, s1, f2, s2, f3]
         }
 
         case Container_Layouts.QUAD_SQ_H: {
@@ -495,7 +495,7 @@ export function layout_switch(
             s3.resize_neg.push(f4)
             s2.resize_pos.push(f1, f2, s1)
             s2.resize_neg.push(f3, f4, s3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s2, s3)
@@ -518,7 +518,7 @@ export function layout_switch(
             s3.resize_neg.push(f4)
             s2.resize_pos.push(f1, f2, s1)
             s2.resize_neg.push(f3, f4, s3)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s2, s3)
@@ -541,7 +541,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f3)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s3)
@@ -564,7 +564,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f3)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s3)
@@ -587,7 +587,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f3)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s1, s2)
             f4.resize_pos.push(s1, s3)
@@ -610,7 +610,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f1, f2, f3, s1, s2)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s3)
@@ -633,7 +633,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f3)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s1, s2)
             f4.resize_pos.push(s1, s3)
@@ -656,7 +656,7 @@ export function layout_switch(
             s2.resize_neg.push(f3)
             s3.resize_pos.push(f1, f2, f3, s1, s2)
             s3.resize_neg.push(f4)
-            
+
             f2.resize_pos.push(s1)
             f3.resize_pos.push(s2)
             f4.resize_pos.push(s3)

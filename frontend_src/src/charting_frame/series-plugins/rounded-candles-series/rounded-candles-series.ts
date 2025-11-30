@@ -72,12 +72,12 @@ export class RoundedCandleSeriesImpl<TData extends RoundedCandleSeriesData>
 }
 
 
-export function RoundedCandleHitTest(this:SeriesBase_T, params: MouseEventParams, data:RoundedCandleSeriesData): boolean {
+export function RoundedCandleHitTest(this: SeriesBase_T, params: MouseEventParams, data: RoundedCandleSeriesData): boolean {
 	const localY = params.sourceEvent?.localY
-	if (localY === undefined || !data ) return false
-	
+	if (localY === undefined || !data) return false
+
 	const high = this.priceToCoordinate(data.high as number)
 	const low = this.priceToCoordinate(data.low as number)
-	
-	return ((high && low) && (high <= localY && low >= localY)) ?? false 
+
+	return ((high && low) && (high <= localY && low >= localY)) ?? false
 }

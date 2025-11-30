@@ -15,7 +15,7 @@ export type updateTabFunc = (
 
 // This Must Match FrameTypes Enum in window.py
 type frame_subclasses = typeof charting_frame
-const FrameTypes:{[key:number]: frame_subclasses} = {
+const FrameTypes: { [key: number]: frame_subclasses } = {
     2: charting_frame
 }
 
@@ -24,7 +24,7 @@ const FrameTypes:{[key:number]: frame_subclasses} = {
  * can be created, though, all instances share the same Container.tsx Element. TSX Element
  * is controlled through the Context Functions
  */
-export class container{
+export class container {
     id: string
     layout: Container_Layouts | undefined
 
@@ -39,8 +39,8 @@ export class container{
     updateTab: updateTabFunc
 
     constructor(
-        id:string, 
-        updateFunc:updateTabFunc
+        id: string,
+        updateFunc: updateTabFunc
     ) {
         this.id = id
         this.updateTab = updateFunc
@@ -50,42 +50,42 @@ export class container{
         this.setDisplay = ContainerCTX().setDisplay
     }
 
-    onShow(){
+    onShow() {
         this.setDisplay(this.display)
         if (this.layout !== undefined) window.topbar.setLayout(this.layout)
-        for(let i = 0; i < num_frames(this.layout);i++) this.frames[i].onShow() 
+        for (let i = 0; i < num_frames(this.layout); i++) this.frames[i].onShow()
     }
-    onHide(){ 
-        for(let i = 0; i < num_frames(this.layout);i++) this.frames[i].onHide() 
-        
+    onHide() {
+        for (let i = 0; i < num_frames(this.layout); i++) this.frames[i].onHide()
+
         // TODO: This should be a solidJS effect in tools_ui, but until the
         // activeContainer and activeFrame are signals this is far more simple
         abortToolCreation()
     }
-    remove(){ }
+    remove() { }
 
     /**
      * Resize all the child Elements based on the size of the container's Div. 
      */
-    refreshSize(container_rect?:DOMRect) {
+    refreshSize(container_rect?: DOMRect) {
         // Calculate the new sizes of all the frames
-        resize_sections(container_rect? ()=>container_rect : this.divRect, this.flexFrames)
+        resize_sections(container_rect ? () => container_rect : this.divRect, this.flexFrames)
 
         // Put all the resizing info into a style tag. Long-story short, putting this info into
         // a reactive 'style' tag for each JSX.Element div is a damn pain.
         let style = ""
         this.flexFrames.forEach((frame, i) => {
             style += `
-            div.frame:nth-child(${i+2})${frame.style}`
+            div.frame:nth-child(${i + 2})${frame.style}`
         })
         this.setStyle(style)
         this.refreshFrameSizes()
     }
 
-    private refreshFrameSizes(){
+    private refreshFrameSizes() {
         // Resize all contents of each *visible* Frames. 
         // This is in an animation frame to ensure whatever Style Change Invoked the resize takes effect first
-        requestAnimationFrame(()=>{
+        requestAnimationFrame(() => {
             for (let i = 0; i < num_frames(this.layout); i++)
                 this.frames[i].refreshSize()
         })
@@ -97,7 +97,7 @@ export class container{
      * Will Require a UI Element for display and Frame type Selection. Alternatively, set up a
      * add_[type]_frame method for each type of frame and don't allow frame type manipulation.
      */
-    protected add_frame(new_id: string, type:number): frame {
+    protected add_frame(new_id: string, type: number): frame {
         //Logging an error instead of throwing one because when thrown nothing is displayed in the console.
         if (type == 1) console.error('Cannot Create an instance of an Abstract Frame')
 
@@ -111,7 +111,7 @@ export class container{
      * the current layout needs fewer frames than the current number of frames that exist. It also
      * assumes that python will remove the global reference to this frame so it can be garbage collected.
      */
-    protected remove_frame(frame_id:string){
+    protected remove_frame(frame_id: string) {
         let frame_index = this.frames.findIndex((f) => f.id === frame_id)
         if (frame_index === -1) return
         this.reorderFrames(frame_index, this.frames.length - 1)
@@ -131,7 +131,7 @@ export class container{
     protected set_layout(layout: Container_Layouts) {
         // ------------ Create Layout Template ------------
         this.flexFrames = layout_switch(layout, this.divRect, this.refreshSize.bind(this))
-        let layout_displays:layout_display[] = []
+        let layout_displays: layout_display[] = []
 
         // ------------ Reorder the list of frames based on target Els ------------ //
         // Todo: query the list of targeted frames and reorder this.frames[] so that
@@ -147,11 +147,11 @@ export class container{
                     flex_frame.mouseDown = frame.assignActiveFrame.bind(frame)
 
                     layout_displays.push({
-                        orientation:flex_frame.orientation, 
-                        mouseDown:flex_frame.mouseDown,
-                        element:frame.element,
-                        el_active:frame.active, 
-                        el_target:frame.target
+                        orientation: flex_frame.orientation,
+                        mouseDown: flex_frame.mouseDown,
+                        element: frame.element,
+                        el_active: frame.active,
+                        el_target: frame.target
                     })
                 } else throw new Error("Not Enough Frames to change to the desired layout")
 
@@ -160,15 +160,15 @@ export class container{
                 //how many chart frames have be observed in the flex_frames[] loop
             } else {                                            // Separator Object
                 layout_displays.push({
-                    orientation:flex_frame.orientation,
-                    mouseDown:flex_frame.mouseDown,
-                    element:undefined,
-                    el_active:()=>false, 
-                    el_target:()=>false
+                    orientation: flex_frame.orientation,
+                    mouseDown: flex_frame.mouseDown,
+                    element: undefined,
+                    el_active: () => false,
+                    el_target: () => false
                 })
             }
         })
-        
+
         // ------------ Apply the new Display to the <Container/> ------------
         this.layout = layout
         this.setDisplay(layout_displays)
@@ -181,19 +181,19 @@ export class container{
         window.topbar.setLayout(layout)
     }
 
-    reorderFrames(from:number, to:number){
+    reorderFrames(from: number, to: number) {
         this.frames.splice(to, 0, ...this.frames.splice(from, 1))
 
         //Construct new layout_displays for the moved frames
         //(i*2) only works because the display[] is ordered and alternates frames/Separators
-        for(let i = Math.min(from, to); i*2 < this.display.length; i++){
+        for (let i = Math.min(from, to); i * 2 < this.display.length; i++) {
             let frame = this.frames[i]
-            this.display[i*2] = {
-                orientation:Orientation.null, 
-                mouseDown:frame.assignActiveFrame.bind(frame),
-                element:frame.element,
-                el_active:frame.active, 
-                el_target:frame.target
+            this.display[i * 2] = {
+                orientation: Orientation.null,
+                mouseDown: frame.assignActiveFrame.bind(frame),
+                element: frame.element,
+                el_active: frame.active,
+                el_target: frame.target
             }
         }
 

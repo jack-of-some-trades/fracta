@@ -13,16 +13,16 @@ const MIN_WIDTH = 156
 const MAX_WIDTH = 468
 const DEFAULT_WIDTH = 200
 
-export function FrameViewer(){
+export function FrameViewer() {
     //Displays used in a keyed show tag so the <For/> tag updates when the container does.
     const displays = ContainerCTX().displays
-    
-    const [ids, setIds] = createSignal(Array.from(activeContainer.frames, (f)=>f.id))
-    createEffect(on(displays, () => setIds(Array.from(activeContainer.frames, (f)=>f.id))))
-  
-    const getTagName = (id:string) => FRAME_NAME_MAP.get(activeContainer.frames.find((f)=>f.id === id)?.type ?? "") ?? ""
 
-    onMount(()=>{
+    const [ids, setIds] = createSignal(Array.from(activeContainer.frames, (f) => f.id))
+    createEffect(on(displays, () => setIds(Array.from(activeContainer.frames, (f) => f.id))))
+
+    const getTagName = (id: string) => FRAME_NAME_MAP.get(activeContainer.frames.find((f) => f.id === id)?.type ?? "") ?? ""
+
+    onMount(() => {
         WidgetPanelSizeCTX().setMinSize(MIN_WIDTH)
         WidgetPanelSizeCTX().setMaxSize(MAX_WIDTH)
         WidgetPanelSizeCTX().setSize(DEFAULT_WIDTH)
@@ -34,21 +34,21 @@ export function FrameViewer(){
             <DraggableSelection
                 ids={ids}
                 overlay_child={
-                    ({id}) => OverlayItemTag({
-                        tag_id:()=>id, 
-                        tag_name:()=>getTagName(id)
+                    ({ id }) => OverlayItemTag({
+                        tag_id: () => id,
+                        tag_name: () => getTagName(id)
                     })
                 }
                 reorder_function={activeContainer.reorderFrames.bind(activeContainer)}
             >
-                <For each={ids()}>{(tag_id)=>{
+                <For each={ids()}>{(tag_id) => {
                     let frame = activeContainer.frames.find((f) => f.id === tag_id)
-                    return <SelectableItemTag 
-                        tag_id={()=>tag_id}
+                    return <SelectableItemTag
+                        tag_id={() => tag_id}
                         tag_name={() => getTagName(tag_id)}
-                        onClick={()=>frame?.assignActiveFrame()}
+                        onClick={() => frame?.assignActiveFrame()}
                     >
-                        <FrameDeleteBtn id={tag_id}/>
+                        <FrameDeleteBtn id={tag_id} />
                     </SelectableItemTag>
                 }}</For>
             </DraggableSelection>
@@ -58,21 +58,21 @@ export function FrameViewer(){
 
 //#region ------------------ Specific Frame Tags ------------------
 
-const FRAME_NAME_MAP = new Map<string,string>([
+const FRAME_NAME_MAP = new Map<string, string>([
     ['abstract', 'Abstract Frame'],
     ['charting_frame', 'Charting Frame']
 ])
 
-function FrameDeleteBtn(props:{id:string}){
+function FrameDeleteBtn(props: { id: string }) {
     //Don't allow the frame to be deleted if the layout would no longer have enough supporting frames
-    if ( activeContainer.frames.length <= num_frames(activeContainer.layout) ) return
-    return <Icon icon={icons.close} onClick={() => window.api.remove_frame(activeContainer.id, props.id)}/>
+    if (activeContainer.frames.length <= num_frames(activeContainer.layout)) return
+    return <Icon icon={icons.close} onClick={() => window.api.remove_frame(activeContainer.id, props.id)} />
 }
 
-function AbstractFrameTag(props:{frame:frame}){
+function AbstractFrameTag(props: { frame: frame }) {
     return undefined
 }
 
-function ChartingFrameTag(props:{frame:charting_frame}){
+function ChartingFrameTag(props: { frame: charting_frame }) {
     return undefined
 }

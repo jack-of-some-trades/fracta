@@ -22,14 +22,14 @@ export interface TwoPointParameters extends primitiveOptions {
 	p2: SingleValueData | null
 }
 
-export type TwoPointRenderer_T<T extends TwoPointParameters> = new(source: TwoPointPrimitive<T>) => TwoPointRenderer<T>
+export type TwoPointRenderer_T<T extends TwoPointParameters> = new (source: TwoPointPrimitive<T>) => TwoPointRenderer<T>
 
 /* --------------------- Primitive Main Class ----------------------- */
 
 export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends PrimitiveBase<T> {
 	protected _paneView: TwoPointRenderer<T>;
 
-	constructor(id:string, type:string, renderer: TwoPointRenderer_T<T>, params:T) {
+	constructor(id: string, type: string, renderer: TwoPointRenderer_T<T>, params: T) {
 		super(id, type, undefined)
 		this._options = params
 		this._paneView = new renderer(this)
@@ -65,7 +65,7 @@ export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends Pr
 
 	hitTest(x: number, y: number): PrimitiveHoveredItem | null {
 		// Alter return type to silence error while maintaining better hit detection
-		return this._paneView.hitTest(x, y)	as PrimitiveHoveredItem | null
+		return this._paneView.hitTest(x, y) as PrimitiveHoveredItem | null
 	}
 
 	/* Move P1, P2, or both */
@@ -78,17 +78,17 @@ export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends Pr
 		if (this._paneView._hovered == HIT_RESULT.Stroke) {
 			//Binding a point object so that x & y can update inside function call 
 			update_func = this._mouseMoveWholeLine.bind(
-				this, {x:param.logical,y:param.sourceEvent.localY}
+				this, { x: param.logical, y: param.sourceEvent.localY }
 			)
-		} else if (this._paneView._hovered == HIT_RESULT.P1){
+		} else if (this._paneView._hovered == HIT_RESULT.P1) {
 			update_func = this._mouseMoveEndPoint.bind(this, true)
-		} else if (this._paneView._hovered == HIT_RESULT.P2){
+		} else if (this._paneView._hovered == HIT_RESULT.P2) {
 			update_func = this._mouseMoveEndPoint.bind(this, false)
 		} else return
 
 		const chart = this.chartApi
 		const pressedMove = chart.options().handleScroll.valueOf() as HandleScrollOptions | boolean
-		const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove :  pressedMove.pressedMouseMove
+		const pressedMoveReEnable = typeof (pressedMove) == 'boolean' ? pressedMove : pressedMove.pressedMouseMove
 
 		//Remove Scrolling effect
 		chart.applyOptions({ handleScroll: { pressedMouseMove: false } })
@@ -99,22 +99,22 @@ export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends Pr
 			chart.unsubscribeCrosshairMove(update_func)
 			//Reenable Scrolling effect if it was set prior to clicking
 			chart.applyOptions({ handleScroll: { pressedMouseMove: pressedMoveReEnable } })
-		},{once:true})
+		}, { once: true })
 	}
 
-	private _mouseMoveEndPoint(p1: boolean, param: MouseEventParams<Time>){
+	private _mouseMoveEndPoint(p1: boolean, param: MouseEventParams<Time>) {
 		if (!param.sourceEvent) return
 		let t = this.chartApi.timeScale().coordinateToTime(param.sourceEvent.localX)
 		let p = this.series.coordinateToPrice(param.sourceEvent.localY)
 
 		if (t && p)
 			if (p1)
-				this.applyOptions({p1:{ time: t, value: p } as SingleValueData} as Partial<T>)
+				this.applyOptions({ p1: { time: t, value: p } as SingleValueData } as Partial<T>)
 			else
-				this.applyOptions({p2:{ time: t, value: p } as SingleValueData} as Partial<T>) 
+				this.applyOptions({ p2: { time: t, value: p } as SingleValueData } as Partial<T>)
 	}
 
-	private _mouseMoveWholeLine(last_point:point , param: MouseEventParams<Time>){
+	private _mouseMoveWholeLine(last_point: point, param: MouseEventParams<Time>) {
 		if (!param.logical || !param.sourceEvent || !this.p1 || !this.p2) return
 		let dx = param.logical - last_point.x as Logical
 		let dy = param.sourceEvent.localY - last_point.y as Coordinate
@@ -123,7 +123,7 @@ export abstract class TwoPointPrimitive<T extends TwoPointParameters> extends Pr
 		let p2 = this.movePoint(this.p2, dx, dy)
 
 		if (!p1 || !p2) return
-		this.applyOptions({p1:p1, p2:p2} as Partial<T>)
+		this.applyOptions({ p1: p1, p2: p2 } as Partial<T>)
 		last_point.x = param.logical
 		last_point.y = param.sourceEvent.localY
 	}
@@ -150,8 +150,8 @@ export abstract class TwoPointRenderer<T extends TwoPointParameters> implements 
 	ctx: CanvasRenderingContext2D | null = null
 
 	constructor(source: TwoPointPrimitive<T>) { this._source = source }
-    get options():T { return this._source._options }
-    get<K extends keyof T>(key: K): T[K] { return this._source.get(key) }
+	get options(): T { return this._source._options }
+	get<K extends keyof T>(key: K): T[K] { return this._source.get(key) }
 	renderer() { return this }
 
 	abstract draw(target: CanvasRenderingTarget2D): void
@@ -169,8 +169,8 @@ export abstract class TwoPointRenderer<T extends TwoPointParameters> implements 
 
 		// Crucial step to ensure something gets drawn. timeToCoordinate() only returns a value if
 		// that exact time exists on the chart. if it doesn't, we need to manually binary search for the closest time.
-		if ( x1 === null ) x1 = this._source.nearestBarCoordinate(this._source.p1.time)
-		if ( x2 === null ) x2 = this._source.nearestBarCoordinate(this._source.p2.time)
+		if (x1 === null) x1 = this._source.nearestBarCoordinate(this._source.p1.time)
+		if (x2 === null) x2 = this._source.nearestBarCoordinate(this._source.p2.time)
 
 		if (x1 === null || x2 === null || y1 === null || y2 === null) {
 			this._c1 = null
