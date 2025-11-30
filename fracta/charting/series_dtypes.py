@@ -213,13 +213,21 @@ class RoundedCandleData(OhlcData):
 
 
 @dataclass
-class SingleValueData(WhitespaceData):
+class Point(WhitespaceData):
+    """
+    A single point on a time chart. Really, this is SingleValueData as defined by LWC, 
+    but this library defines SingleValueData as having a volume param.
+    """
+
+    value: Optional[float] = None
+
+@dataclass
+class SingleValueData(Point):
     """
     Represents a data point of a single-value series.
     Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/SingleValueData
     """
 
-    value: Optional[float] = None
     volume: Optional[float] = None  # Added by this library
 
 

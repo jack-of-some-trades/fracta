@@ -8,6 +8,7 @@ from logging import getLogger
 from dataclasses import asdict, dataclass
 from typing import Any, ClassVar, Optional, TYPE_CHECKING, Protocol, Type
 
+from fracta.charting.series_dtypes import Point
 from fracta.charting.series_options import (
     CanvasLineCap,
     CanvasLineJoin,
@@ -17,7 +18,7 @@ from fracta.charting.series_options import (
 )
 
 from ..js_cmd import JS_CMD
-from ..types import Color, Time
+from ..types import Color
 
 if TYPE_CHECKING:
     from .indicator import Indicator
@@ -31,7 +32,7 @@ class OptsSyncIntercept(Protocol):
 
 
 def bootstrap_dataclass[T: "PrimitiveOptions"](cls: type[T]) -> type[T]:
-    "Decorator to make a dataclass and bootstrap the dataclass fields"
+    "Decorator to make a dataclass and bootstrap the dataclass __fields__ property."
     cls = dataclass(cls)
     cls.__fields__ = set(getattr(cls, "__dataclass_fields__", {}).keys()) - {"__fields__"}
     return cls
@@ -120,7 +121,7 @@ class PrimitiveBase[T: PrimitiveOptions]:
         logger.debug("Deleteing %s: %s", self.__class__.__name__, self._js_id)
 
     def reset(self):
-        "Reset the state back to how it existed at the time initilization"
+        "Reset the state back to how it existed at the time initialization"
         self.apply_options(self.__init_state__)
 
     def delete(self):
@@ -130,7 +131,7 @@ class PrimitiveBase[T: PrimitiveOptions]:
         self._fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self._ids))
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name not in self._opts.__fields__:
+        if name not in self.__options_cls__.__fields__:
             return super().__setattr__(name, value)
 
         # Handle _opts specific fields.
@@ -140,7 +141,7 @@ class PrimitiveBase[T: PrimitiveOptions]:
         )
 
     def __getattr__(self, name: str) -> None:
-        if name in self._opts.__fields__:
+        if name in self.__options_cls__.__fields__:
             return self._opts[name]
 
         return object.__getattribute__(self, name)
@@ -164,10 +165,10 @@ class PrimitiveBase[T: PrimitiveOptions]:
         "The full set of options that describe the primitive's current state"
         return deepcopy(self._opts)
 
-    def apply_options(self, opts: dict[str, Any]):
+    def apply_options(self, opts: dict[str, Any] | T):
         "Apply the given set of options to a primitive. Best used when updating multiple params at once."
         self._opts.apply_options(opts)
-        self._fwd_queue.put((JS_CMD.UPDATE_PRIMITIVE_OPTS, *self._ids, asdict(self._opts)))
+        self._fwd_queue.put((JS_CMD.UPDATE_PRIMITIVE_OPTS, *self._ids, self._opts))
 
     def __sync_options__(self, opts: dict[str, Any]):
         "Hook for UI Inputs to sync the changed options back to python"
@@ -181,15 +182,6 @@ class PrimitiveBase[T: PrimitiveOptions]:
 # endregion
 
 # region ---- ---- ---- ---- Basic Primitive Options ---- ---- ---- ----
-
-
-@dataclass
-class Point:
-    "A single point on a time chart"
-
-    time: Optional[Time] = None
-    value: Optional[float] = None
-
 
 @dataclass
 class CanvasStrokeStyles:
@@ -226,7 +218,7 @@ class TwoPointOptions(PrimitiveOptions):
 
 
 @bootstrap_dataclass
-class TrendlineOptions(PrimitiveOptions):
+class TrendlineOptions(TwoPointOptions, CanvasStrokeStyles, CanvasTextStyles):
     "Data & Style Options for a Trendline Primitive"
 
 

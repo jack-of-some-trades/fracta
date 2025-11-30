@@ -26,7 +26,7 @@ from .indicator_meta import (
 )
 
 from .. import py_window as win
-from . import primative as pr
+from . import primitive as pr
 from . import series_common as sc
 from ..util import ID_Dict, is_dunder
 from ..js_cmd import JS_CMD
