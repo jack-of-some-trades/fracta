@@ -291,6 +291,8 @@ class Timeseries(Indicator):
         if self.main_data is None or data_update.time < self.main_data.curr_bar_open_time:  # type: ignore
             return
 
+        data_update = self.main_data.conform_timezone(data_update)
+
         # ------------------ Determine if Data Should be Aggregated or Appended ------------------
         new_bar = False
         if data_update.time < self.main_data.next_bar_time:  # type: ignore

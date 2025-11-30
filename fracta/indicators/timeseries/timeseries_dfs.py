@@ -3,6 +3,7 @@
 from __future__ import annotations
 import logging
 from math import inf
+from zoneinfo import ZoneInfo
 from typing import Dict, Optional, Any
 
 import pandas as pd
@@ -166,11 +167,32 @@ class TimeseriesDF:
             return
 
         _standardize_names(pandas_df)
+        self.calendar = CALENDARS.request_calendar(
+            exchange,
+            pd.Timestamp(pandas_df["time"].iloc[0]),
+            pd.Timestamp(pandas_df["time"].iloc[-1]),
+        )
+        self._tz = CALENDARS.get_tz(self.calendar)
+        pandas_df["time"] = pd.to_datetime(pandas_df["time"])
+
+        # Check if data is Daily (all times are midnight)
+        # Check only the first few rows to see if they are normalized (00:00:00)
+        is_daily = (pandas_df["time"].iloc[:10].dt.normalize() == pandas_df["time"].iloc[:10]).all()
+
+        if is_daily and self.calendar != "24/7":
+            # Align to Market Open
+            pandas_df["time"] = CALENDARS.get_open_times(self.calendar, pd.DatetimeIndex(pandas_df["time"]))
+
         # Set Consistent Time format (Pd.Timestamp, UTC, TZ Aware)
-        pandas_df["time"] = pd.to_datetime(pandas_df["time"], utc=True)
+        # TZ naive timestamps are first localized to the timezone of the calendar, then converted to UTC
+        if pandas_df["time"].dt.tz is None:
+            pandas_df["time"] = pandas_df["time"].dt.tz_localize(self.tz)
+        elif pandas_df["time"].dt.tz != "UTC":
+            pandas_df["time"] = pandas_df["time"].dt.tz_convert("UTC")
+
         self._pd_tf = determine_timedelta(pandas_df["time"])
         self._tf = TF.from_timedelta(self._pd_tf)
-        self.calendar = CALENDARS.request_calendar(exchange, pandas_df["time"].iloc[0], pandas_df["time"].iloc[-1])
+
         # Drop Duplicate Timestamps & set the index to the time column
         self.df = pandas_df[~pandas_df["time"].duplicated(keep="first")].set_index("time")
 
@@ -189,6 +211,11 @@ class TimeseriesDF:
     def columns(self) -> set[str]:
         "Column Names within the Dataframe"
         return set(self.df.columns)
+
+    @property
+    def tz(self) -> ZoneInfo:
+        "Timezone of the series data returned as a pandas Timedelta"
+        return self._tz
 
     @property
     def ext(self) -> bool | None:
@@ -238,6 +265,21 @@ class TimeseriesDF:
         return self.df.index  # type:ignore
 
     # endregion
+
+    def conform_timezone(self, data: sd.AnyBasicData):
+        """
+        Conform the timezone of the data to the timezone of the calendar.
+        If the timeframe is daily or longer, and the timestamp is at midnight, it will be aligned to the market open.
+        """
+        # Whitespace data __post_init__ will ensure time is timestamp & UTC Time.
+        if self.calendar == "24/7":
+            return data
+
+        if self._pd_tf >= pd.Timedelta(days=1) and data.time == data.time.normalize():
+            # Align to Market Open if passed a Daily Bar
+            data.time = CALENDARS.get_open_times(self.calendar, pd.DatetimeIndex([data.time]))[0]
+
+        return data
 
     def _mark_ext(self, force_rth: bool = False):
         if "rth" in self.columns:
@@ -367,7 +409,7 @@ class LTF_DF:
 
 class WhitespaceDF:
     """
-    Pandas DataFrame Wrapper to Generate Whitespace for Lightweight PyCharts
+    Pandas DataFrame Wrapper to Generate Whitespace for the Fracta Frontend
 
     Whitespace ahead of a series is useful to be able to extend drawings into that space.
     Without the whitespace, nothing can be drawn in that area.

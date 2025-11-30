@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import logging
+from zoneinfo import ZoneInfo
 from functools import partial
 from importlib import import_module
 from types import ModuleType
@@ -128,6 +129,12 @@ class Calendars:
             f"{start = }, {end = }, {periods = }, schedule = {self.schedule_cache[calendar]}"
         )
 
+    def get_tz(self, calendar: str) -> ZoneInfo:
+        "Return the timezone of the given calendar"
+        if calendar == "24/7":
+            return ZoneInfo("UTC")
+        return self.mkt_cache[calendar].tz
+
     def request_calendar(self, exchange: Optional[str], start: pd.Timestamp, end: pd.Timestamp) -> str:
         "Request a Calendar & Schedule be Cached. Returns a token to access the cached calendar"
         if mcal is None or exchange is None:
@@ -164,8 +171,8 @@ class Calendars:
         if sched.index[0] > start.tz_localize(None):
             # Extend Start of Schedule with an additional buffer
             extra_dates = cal.schedule(
-                    start, sched.index[0] - pd.Timedelta("1D"), market_times="all", force_special_times=False
-                )
+                start, sched.index[0] - pd.Timedelta("1D"), market_times="all", force_special_times=False
+            )
             sched = pd.concat([extra_dates, sched])
         if sched.index[-1] < end.normalize().tz_localize(None):
             # Extend End of Schedule with an additional buffer
@@ -273,6 +280,25 @@ class Calendars:
                 closed="left",
             ).iloc[0]
         )
+
+    def get_open_times(self, calendar: str, dates: pd.DatetimeIndex) -> pd.DatetimeIndex:
+        "Return the market open times for the given dates using the specified calendar."
+        if mcal is None or calendar == "24/7":
+            return dates
+
+        # Pull all valid dates from the schedule.
+        schedule = self.schedule_cache[calendar]
+        normalized_dates = dates.normalize().tz_localize(None)
+        valid_dates = normalized_dates.intersection(schedule.index)
+
+        if len(valid_dates) != len(normalized_dates):
+            raise ValueError(
+                "Cannot get Market Open times. Some dates are not in the schedule: "
+                f"{normalized_dates.difference(valid_dates)}"
+            )
+
+        # Retrieve open times
+        return pd.DatetimeIndex(schedule.loc[valid_dates, "market_open"])
 
 
 # Initialize the shared Calendars sudo-singleton instance
