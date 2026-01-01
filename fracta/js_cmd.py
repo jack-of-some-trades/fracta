@@ -3,15 +3,15 @@ Implementations of Command Functions that return formatted Javascript ready for 
 All Functions wave been rolled-up into VIEW_CMD_ROLODEX that Maps {JS_CMD: Function}
 """
 
-from math import floor
+from dataclasses import asdict, is_dataclass
 from enum import Enum, IntEnum, auto
-from typing import Any, Optional, Protocol
 from json import JSONEncoder, dumps
-from dataclasses import is_dataclass, asdict
+from math import floor
+from typing import Any, Optional, Protocol
 
 from pandas import DataFrame, Timestamp, notnull
 
-from .types import Color, j_func, TF
+from .types import TF, Color, j_func
 
 # @pylint: disable=invalid-name, line-too-long, missing-function-docstring
 
@@ -83,7 +83,7 @@ class JS_CMD(IntEnum):
     SET_FRAME_TIMEFRAME = auto()
     SET_FRAME_SERIES_TYPE = auto()
     CREATE_INDICATOR = auto()
-    DELETE_INDICATOR = auto()
+    REMOVE_INDICATOR = auto()
 
     # Pane Commands
 
@@ -117,6 +117,8 @@ class JS_CMD(IntEnum):
     REMOVE_ALL_SERIES_PRICELINES = auto()
 
     # Primitives
+    ADD_PRIMITIVE_SET = auto()
+    REMOVE_PRIMITIVE_SET = auto()
     ADD_PRIMITIVE = auto()
     REMOVE_PRIMITIVE = auto()
     UPDATE_PRIMITIVE_OPTS = auto()
@@ -307,8 +309,8 @@ def create_indicator(
     return f"{frame_id}.create_indicator('{indicator_id}','{indicator_type}','{name}', {dump(outputs)});"
 
 
-@register_js_cmd(JS_CMD.DELETE_INDICATOR)
-def delete_indicator(frame_id: str, indicator_id: str) -> str:
+@register_js_cmd(JS_CMD.REMOVE_INDICATOR)
+def remove_indicator(frame_id: str, indicator_id: str) -> str:
     return f"{frame_id}.delete_indicator('{indicator_id}');"
 
 
@@ -459,37 +461,54 @@ def remove_all_pricelines(frame_id: str, indicator_id: str, series_id: str) -> s
 # region ------------------------ Primitives ------------------------ #
 
 
+@register_js_cmd(JS_CMD.ADD_PRIMITIVE_SET)
+def add_primitive_set(frame_id: str, set_id: str, name: str, pane_index: int) -> str:
+    return f"{frame_id}.create_primitive_set('{set_id}', '{name}', {pane_index});"
+
+
+@register_js_cmd(JS_CMD.REMOVE_PRIMITIVE_SET)
+def remove_primitive_set(frame_id: str, set_id: str) -> str:
+    return f"{frame_id}.remove_primitive_set('{set_id}');"
+
+
+# Retreives an indicator object from a frame to manipulate
+def primitive_set_preamble(frame_id: str, primitive_set_id: str) -> str:
+    # _ind is a workspace var defined at the window level in index.ts for use here
+    # originally only used for indicators, but adapted to also reference primitive groups
+    return f"_set = {frame_id}.attached.get('{primitive_set_id}');"
+
+
 @register_js_cmd(JS_CMD.ADD_PRIMITIVE)
-def add_ind_primitive(
+def add_primitive(
     frame_id: str,
-    parent_id: str,
+    primitive_set_id: str,
     primitive_id: str,
     primitive_type: str,
     args: dict[str, Any],
 ) -> str:
     return (
-        indicator_preamble(frame_id, parent_id)
-        + f"_ind.add_primitive('{primitive_id}','{primitive_type}', {dump(args)});"
+        primitive_set_preamble(frame_id, primitive_set_id)
+        + f"_set.addPrimitive('{primitive_id}','{primitive_type}', {dump(args)});"
     )
 
 
 @register_js_cmd(JS_CMD.REMOVE_PRIMITIVE)
-def remove_ind_primitive(
+def remove_primitive(
     frame_id: str,
-    parent_id: str,
+    primitive_set_id: str,
     primitive_id: str,
 ) -> str:
-    return indicator_preamble(frame_id, parent_id) + f"_ind.remove_primitive('{primitive_id}');"
+    return primitive_set_preamble(frame_id, primitive_set_id) + f"_set.removePrimitive('{primitive_id}');"
 
 
 @register_js_cmd(JS_CMD.UPDATE_PRIMITIVE_OPTS)
-def update_ind_primitive(
+def update_primitive_opts(
     frame_id: str,
-    parent_id: str,
+    primitive_set_id: str,
     primitive_id: str,
     args: dict[str, Any],
 ) -> str:
-    return indicator_preamble(frame_id, parent_id) + f"_ind.update_primitive('{primitive_id}', {dump(args)});"
+    return primitive_set_preamble(frame_id, primitive_set_id) + f"_set.updatePrimitive('{primitive_id}', {dump(args)});"
 
 
 # endregion

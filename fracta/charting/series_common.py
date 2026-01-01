@@ -5,45 +5,52 @@ Classes that handle the implementation of Abstract and Specific Chart Series Obj
 Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeriesApi
 """
 
+import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
-import logging
-from weakref import ref
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype
 
+from ..py_window import FrontendObject
+from ..js_cmd import JS_CMD
 from ..types import JS_Color, Time
 from ..util import ID_Dict
 
-from ..js_cmd import JS_CMD
 from . import series_dtypes as sd
+from . import primitive as pr
+
+if TYPE_CHECKING:
+    from .indicator import Indicator
 
 # pylint: disable = unused-import
 # Importing the following into Local Namespace so they can be reimported
 # directly from anything that imports series_common
 from .chart_options import PriceScaleOptions
-from .series_dtypes import ArgMap, AreaArgMap, BaselineArgMap, BarArgMap, CandleArgMap
+from .series_dtypes import (
+    AreaArgMap,
+    ArgMap,
+    BarArgMap,
+    BaselineArgMap,
+    CandleArgMap,
+    standardize_time_format,
+)
 from .series_options import (
     AnySeriesOptions,
+    AreaStyleOptions,
+    BarStyleOptions,
+    BaselineStyleOptions,
+    CandlestickStyleOptions,
+    HistogramStyleOptions,
+    LineStyle,
+    LineStyleOptions,
+    LineType,
     PriceFormat,
     PriceLineSource,
-    LineStyle,
-    LineType,
-    SeriesOptionsCommon,
-    LineStyleOptions,
-    HistogramStyleOptions,
-    AreaStyleOptions,
-    BaselineStyleOptions,
-    BarStyleOptions,
-    CandlestickStyleOptions,
     RoundedCandleStyleOptions,
+    SeriesOptionsCommon,
 )
-
-
-if TYPE_CHECKING:
-    from .indicator import Indicator
 
 logger = logging.getLogger("fracta_log")
 
@@ -103,17 +110,14 @@ class Marker:
     convention that can be filtered against.
     """
 
-    def __post_init__(self):  # Ensure Consistent Time Format (UTC, TZ Aware).
-        self.time = pd.Timestamp(self.time)
-        if self.time.tzinfo is not None:
-            self.time = self.time.tz_convert("UTC")
-        else:
-            self.time = self.time.tz_localize("UTC")
+    def __post_init__(self):  # Ensure Consistent Time Format (pd.Timestamp,UTC, TZ Aware).
+        self.time = standardize_time_format(self.time)
 
     _js_id: Optional[str] = field(default=None, init=False, repr=False)
     time: Time
     shape: MarkerShape = MarkerShape.Circle
     position: MarkerLoc = MarkerLoc.Below
+    # I would have liked to use 'uid', but 'id' is the variable name used by the Lightweight-Charts API
     id: Optional[str] = None
     size: Optional[int] = 1
     color: Optional[JS_Color] = None
@@ -135,6 +139,7 @@ class PriceLine:
 
     _js_id: Optional[str] = field(default=None, init=False, repr=False)
     title: str = ""
+    # I would have liked to use 'uid', but 'id' is the variable name used by the Lightweight-Charts API
     id: Optional[str] = None
     price: float = 0
     color: Optional[JS_Color] = None
@@ -152,7 +157,7 @@ class PriceLine:
 # endregion
 
 
-class SeriesCommon:
+class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
     """
     Baseclass to define the common functionality of all series types. This object provides
     direct access to a lightweight-charts ISeriesAPI Object. This Object is mutable between
@@ -165,29 +170,32 @@ class SeriesCommon:
 
     def __init__(
         self,
-        indicator: "Indicator",
+        parent: "Indicator",
         series_type: sd.SeriesType,
         options: SeriesOptionsCommon | dict = SeriesOptionsCommon(),
         *,
         name: Optional[str] = None,
+        pane_index: Optional[int] = None,
         arg_map: ArgMap | dict[str, str] = {"close": "value", "value": "close"},
+        js_id: Optional[str] = None,
     ):
-        if isinstance(options, SeriesOptionsCommon):
-            self._options = options.as_dict
-        else:
-            self._options = options
+        FrontendObject.__init__(self, parent, parent._associate_series(self, js_id))
+        pr.PrimitiveHolder.__init__(self)
+
+        if pane_index is None:
+            pane_index = parent.pane_index
+        self._pane_index = pane_index
+
+        self._options = options.as_dict if isinstance(options, SeriesOptionsCommon) else options
+        self.__init_options__ = self._options.copy()
 
         self._series_type = self._series_type_check_(series_type)
         self._series_data_cls = self._series_type.cls
         self._series_ohlc_derived = sd.SeriesType.OHLC_Derived(self._series_type)
 
-        self._js_id = indicator._series.generate_id(self)
-        # Tuple of Ids to make addressing through Queue easier: order = (frame, indicator, series)
-        self._ids = indicator.parent_frame.js_id, indicator.js_id, self._js_id
-
         # Collection of Sub-Object Ids to provide automatic ID Generation
-        self._markers = ID_Dict("m")
-        self._pricelines = ID_Dict("pl")
+        self._markers = ID_Dict[Marker]("m")
+        self._pricelines = ID_Dict[PriceLine]("pl")
 
         if isinstance(arg_map, ArgMap):
             self._value_map = arg_map.as_dict
@@ -203,26 +211,37 @@ class SeriesCommon:
             if "close" not in arg_map:
                 self._value_map["close"] = "value"
 
-        # Make _series reference a Weakref since this is a child obj.
-        self._parent_series = ref(indicator._series)
-        self._fwd_queue = indicator._fwd_queue
-
-        self._fwd_queue.put((JS_CMD.ADD_SERIES, *self._ids, self._series_type, name))
+        self.fwd_queue.put((JS_CMD.ADD_SERIES, *self.ids, self._series_type, name))
         self.apply_options(self._options)
 
     def __del__(self):
         logger.debug("Deleteing %s: %s", self.__class__.__name__, self._js_id)
 
+    def __contains__(self, item: str) -> bool:
+        return item in self._markers or item in self._pricelines or item in self._primitives
+
+    def get(self, _js_id: str) -> Marker | PriceLine | pr.PrimitiveBase:
+        "Return the object that matches either given js_id"
+        if _js_id.startswith("m_"):
+            return self._markers[_js_id]
+        elif _js_id.startswith("pl_"):
+            return self._pricelines[_js_id]
+        elif _js_id.startswith("p_"):
+            return self._primitives[_js_id]
+        raise KeyError(f"Key '{_js_id}' isn't a valid Marker, Priceline, or Primitive JS_ID")
+
     def delete(self):
         "Remove the Object from the screen"
-        if (parent_dict := self._parent_series()) is not None:
-            parent_dict.pop(self._js_id)  # Ensure all references are gone
-        self._fwd_queue.put((JS_CMD.REMOVE_SERIES, *self._ids))
+        self.parent._deassociate_series(self)
 
-    @property
-    def js_id(self) -> str:
-        "Immutable Copy of the Object's Javascript_ID"
-        return self._js_id
+    def reset(self, reset_options: bool = False):
+        "Remove All displayed Data, Clear Markers and Pricelines, and reset options to defaults."
+        if reset_options:  # TBD if this is actually a functionality that is desired.
+            self.apply_options(self.__init_options__)
+
+        self.fwd_queue.put((JS_CMD.CLEAR_SERIES_DATA, *self.ids))
+        self.remove_all_markers()
+        self.remove_all_pricelines()
 
     @property
     def options(self) -> dict:
@@ -299,7 +318,7 @@ class SeriesCommon:
         if len(set(tmp_df.columns).intersection({"value", "close"})) == 0:
             logger.warning(
                 "Series %s of type %s doesn't know what to display!",
-                self._ids,
+                self.ids,
                 self._series_type,
             )
 
@@ -320,13 +339,7 @@ class SeriesCommon:
         "Sets the Data of the Series to the given data set. All irrlevant data is ignored"
         # Set display type so data.json() only passes relevant information
         xfer_df = self._to_transfer_dataframe_(data)
-        self._fwd_queue.put((JS_CMD.SET_SERIES_DATA, *self._ids, xfer_df))
-
-    def clear_data(self):
-        "Remove All displayed Data. This does not remove/delete the Series Object."
-        self._fwd_queue.put((JS_CMD.CLEAR_SERIES_DATA, *self._ids))
-        self.remove_all_markers()
-        self.remove_all_pricelines()
+        self.fwd_queue.put((JS_CMD.SET_SERIES_DATA, *self.ids, xfer_df))
 
     def update_data(
         self, data: sd.AnySeriesData
@@ -343,7 +356,7 @@ class SeriesCommon:
                 data_dict["value"] = data_dict["close"]
             data = self._series_data_cls.from_dict(data_dict)
 
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: AnySeriesOptions | dict):
         """
@@ -356,7 +369,7 @@ class SeriesCommon:
             self._options = options.as_dict
         else:
             self._options = options
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_OPTS, *self._ids, options))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_OPTS, *self.ids, options))
 
     def apply_scale_options(self, options: PriceScaleOptions | dict):
         """
@@ -366,7 +379,7 @@ class SeriesCommon:
         The Argument can be a PriceScaleOptions instance or a dict formatted to the lwc api spec.
         https://tradingview.github.io/lightweight-charts/docs/api/interfaces/PriceScaleOptions
         """
-        self._fwd_queue.put((JS_CMD.UPDATE_PRICE_SCALE_OPTS, *self._ids, options))
+        self.fwd_queue.put((JS_CMD.UPDATE_PRICE_SCALE_OPTS, *self.ids, options))
 
     def change_series_type(
         self,
@@ -379,10 +392,10 @@ class SeriesCommon:
         self._series_data_cls = self._series_type.cls
         self._series_ohlc_derived = sd.SeriesType.OHLC_Derived(self._series_type)
 
-        self._fwd_queue.put(
+        self.fwd_queue.put(
             (
                 JS_CMD.CHANGE_SERIES_TYPE,
-                *self._ids,
+                *self.ids,
                 series_type,
                 self._to_transfer_dataframe_(data),
             )
@@ -391,8 +404,35 @@ class SeriesCommon:
     # TODO: Multi-pane implementation
     # def change_pane(self, new_pane: str): ...
 
-    # region ---- ---- ---- ---- Markers and Pricelines ---- ---- ---- ----
+    # region ---- ---- ---- ---- Primitives ---- ---- ---- ----
     # pylint: disable=protected-access
+
+    def attach_primitive(self, primitive: pr.PrimitiveBase, js_id: Optional[str] = None):
+        # TODO: Fix this improper assignment of JS_ID once primitive move functionality is finalized
+        if js_id is None:
+            primitive._js_id = self._primitives.generate_id(primitive)
+        else:
+            # Rename the JS_ID of the primitive if there was an ID collision
+            primitive._js_id = self._primitives.affix_id(js_id, primitive)
+
+        # TODO: adjust this to a MOVE_PRIMITIVE command when necessary, probably adding a new command type
+        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *self.ids, primitive.js_id, primitive._type, primitive._args))
+
+    def detach_primitive(self, primitive: pr.PrimitiveBase):
+        if primitive.js_id is not None and primitive.js_id in self._primitives:
+            self._primitives.pop(primitive.js_id)
+            self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self.ids, primitive.js_id))
+
+    def move_primitive(self, primitive: pr.PrimitiveBase):
+        raise NotImplementedError("Primitive Move Functionality is not yet implemented")
+
+    # endregion
+
+    # region ---- ---- ---- ---- Markers ---- ---- ---- ----
+
+    def marker(self, _id: str | int) -> Marker:
+        "Return the marker that matches either the given js_id, or the marker index #"
+        return self._markers[_id]
 
     @property
     def markers(self) -> list[Marker]:
@@ -412,13 +452,13 @@ class SeriesCommon:
         else:
             marker._js_id = self._markers.generate_id(marker)
 
-        self._fwd_queue.put((JS_CMD.ADD_SERIES_MARKER, *self._ids, marker._js_id, marker))
+        self.fwd_queue.put((JS_CMD.ADD_SERIES_MARKER, *self.ids, marker._js_id, marker))
 
     def remove_marker(self, marker: Marker):
         "Remove the given Marker from the series"
         if marker._js_id is not None and marker._js_id in self._markers:
             self._markers.pop(marker._js_id)
-            self._fwd_queue.put((JS_CMD.REMOVE_SERIES_MARKER, *self._ids, marker._js_id))
+            self.fwd_queue.put((JS_CMD.REMOVE_SERIES_MARKER, *self.ids, marker._js_id))
 
     def update_marker(self, marker: Marker):
         "Update the Options of the given Marker"
@@ -430,10 +470,10 @@ class SeriesCommon:
             )
             self.add_marker(marker)
         else:
-            self._fwd_queue.put(
+            self.fwd_queue.put(
                 (
                     JS_CMD.UPDATE_SERIES_MARKER,
-                    *self._ids,
+                    *self.ids,
                     marker._js_id,
                     marker,
                 )
@@ -441,17 +481,25 @@ class SeriesCommon:
 
     def filter_markers(self, key: MarkerSelectors, value: Any):
         "Remove all the markers that match the given key:value pair"
-        keys = [k for k, v in self._markers.items() if v.getattr(key, None) == value]
+        keys = [k for k, v in self._markers.items() if getattr(v, key, None) == value]
 
         for k in keys:
             self._markers.pop(k)
 
-        self._fwd_queue.put((JS_CMD.FILTER_SERIES_MARKERS, *self._ids, keys))
+        self.fwd_queue.put((JS_CMD.FILTER_SERIES_MARKERS, *self.ids, keys))
 
     def remove_all_markers(self):
         "Remove All Markers from this series. Cannot be undone."
-        self._markers = ID_Dict("m")
-        self._fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_MARKERS, *self._ids))
+        self._markers.clear()
+        self.fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_MARKERS, *self.ids))
+
+    # endregion
+
+    # region ---- ---- ---- ---- Pricelines ---- ---- ---- ----
+
+    def priceline(self, _id: str | int) -> PriceLine:
+        "Return the priceline that matches either the given js_id, or the priceline index #"
+        return self._pricelines[_id]
 
     @property
     def pricelines(self) -> list[PriceLine]:
@@ -471,13 +519,13 @@ class SeriesCommon:
         else:
             priceline._js_id = self._pricelines.generate_id(priceline)
 
-        self._fwd_queue.put((JS_CMD.ADD_SERIES_PRICELINE, *self._ids, priceline._js_id, priceline))
+        self.fwd_queue.put((JS_CMD.ADD_SERIES_PRICELINE, *self.ids, priceline._js_id, priceline))
 
     def remove_priceline(self, priceline: PriceLine):
         "Remove the given Priceline from the series"
         if priceline._js_id is not None and priceline._js_id in self._pricelines:
             self._pricelines.pop(priceline._js_id)
-            self._fwd_queue.put((JS_CMD.REMOVE_SERIES_PRICELINE, *self._ids, priceline._js_id))
+            self.fwd_queue.put((JS_CMD.REMOVE_SERIES_PRICELINE, *self.ids, priceline._js_id))
 
     def update_priceline(self, priceline: PriceLine):
         "Update the Options of the given Priceline"
@@ -489,10 +537,10 @@ class SeriesCommon:
             )
             self.add_priceline(priceline)
         else:
-            self._fwd_queue.put(
+            self.fwd_queue.put(
                 (
                     JS_CMD.UPDATE_SERIES_PRICELINE,
-                    *self._ids,
+                    *self.ids,
                     priceline._js_id,
                     priceline,
                 )
@@ -500,17 +548,17 @@ class SeriesCommon:
 
     def filter_pricelines(self, key: PriceLineSelectors, value: Any):
         "Remove all the pricelines that match the given key:value pair"
-        keys = [k for k, v in self._pricelines.items() if v.getattr(key, None) == value]
+        keys = [k for k, v in self._pricelines.items() if getattr(v, key, None) == value]
 
         for k in keys:
             self._pricelines.pop(k)
 
-        self._fwd_queue.put((JS_CMD.FILTER_SERIES_PRICELINES, *self._ids, keys))
+        self.fwd_queue.put((JS_CMD.FILTER_SERIES_PRICELINES, *self.ids, keys))
 
     def remove_all_pricelines(self):
         "Remove All Pricelines from this series. Cannot be undone."
-        self._pricelines = ID_Dict("pl")
-        self._fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_PRICELINES, *self._ids))
+        self._pricelines.clear()
+        self.fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_PRICELINES, *self.ids))
 
     # pylint: enable=protected-access
     # endregion
@@ -546,7 +594,7 @@ class LineSeries(SeriesCommon):
         return LineStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.LineData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: LineStyleOptions | dict):
         super().apply_options(options)
@@ -583,7 +631,7 @@ class HistogramSeries(SeriesCommon):
         return HistogramStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: HistogramStyleOptions | dict):
         super().apply_options(options)
@@ -620,7 +668,7 @@ class AreaSeries(SeriesCommon):
         return AreaStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.AreaData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: AreaStyleOptions | dict):
         super().apply_options(options)
@@ -657,7 +705,7 @@ class BaselineSeries(SeriesCommon):
         return BaselineStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.BaselineData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: BaselineStyleOptions | dict):
         super().apply_options(options)
@@ -694,7 +742,7 @@ class BarSeries(SeriesCommon):
         return BarStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: BarStyleOptions | dict):
         super().apply_options(options)
@@ -731,7 +779,7 @@ class CandlestickSeries(SeriesCommon):
         return CandlestickStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: CandlestickStyleOptions | dict):
         super().apply_options(options)
@@ -768,7 +816,7 @@ class RoundedCandleSeries(SeriesCommon):
         return RoundedCandleStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self._fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self._ids, data))
+        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
 
     def apply_options(self, options: RoundedCandleStyleOptions | dict):
         super().apply_options(options)

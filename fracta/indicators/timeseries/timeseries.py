@@ -1,12 +1,12 @@
 """Series Indicator that receives raw Timeseries Data and filters it"""
 
-from logging import getLogger
 from dataclasses import dataclass
+from logging import getLogger
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     Optional,
-    Any,
     get_args,
 )
 
@@ -14,24 +14,25 @@ import pandas as pd
 from numpy import nan
 
 from fracta import (
-    Color,
-    Ticker,
     TF,
+    AnyBasicData,
     AnyBasicSeriesType,
+    Color,
     HistogramData,
     SeriesType,
-    AnyBasicData,
     SingleValueData,
+    Ticker,
 )
-from .timeseries_dfs import LTF_DF, TimeseriesDF, WhitespaceDF
+
 from ...charting import series_common as sc
 from ...charting.indicator import (
     Indicator,
     IndicatorOptions,
-    output_property,
     default_output_property,
+    output_property,
     param,
 )
+from .timeseries_dfs import LTF_DF, TimeseriesDF, WhitespaceDF
 
 if TYPE_CHECKING:
     from ...charting.charting_frame import ChartingFrame
@@ -130,13 +131,13 @@ class Timeseries(Indicator):
         # Dunder to allow specific permissions to the main source of a data for a Frame.
         # Because _ids can't be duplicated and this _id is reserved on frame creation,
         # the user can never accidentally set the _js_id to be __special_id__.
-        self.__frame_primary_src__ = self._js_id == self.parent_frame.indicators.prefix + Timeseries.__special_id__
+        self.__frame_primary_src__ = self._js_id == self.parent._indicators.prefix + Timeseries.__special_id__
 
         if opts is None:
             opts = SeriesIndicatorOptions()
 
         if self.__frame_primary_src__:
-            self.parent_frame.__set_displayed_series_type__(opts.series_type)
+            self.parent.__set_displayed_series_type__(opts.series_type)
 
         self.opts = opts
         self.timeframe = None
@@ -169,12 +170,12 @@ class Timeseries(Indicator):
         if ticker is not None:
             self.ticker = ticker
             if self.__frame_primary_src__:
-                self.parent_frame.__set_displayed_symbol__(ticker)
+                self.parent.__set_displayed_symbol__(ticker)
 
         if timeframe is not None:
             self.timeframe = timeframe
             if self.__frame_primary_src__:
-                self.parent_frame.__set_displayed_timeframe__(timeframe)
+                self.parent.__set_displayed_timeframe__(timeframe)
 
         if self.ticker is not None and self.timeframe is not None:
             self.events.data_request(
@@ -239,7 +240,7 @@ class Timeseries(Indicator):
             self.clear_data()
 
         if self.__frame_primary_src__:
-            self.parent_frame.__set_displayed_symbol__(self.ticker)
+            self.parent.__set_displayed_symbol__(self.ticker)
 
         # ---------------- Initialize Series DataFrame ----------------
         if not isinstance(data, pd.DataFrame):
@@ -262,15 +263,15 @@ class Timeseries(Indicator):
         # ---------------- Set the frame's Whitespace Series if needed ----------------
         if self.__frame_primary_src__:
             self.whitespace_data = WhitespaceDF(self.main_data)
-            self.parent_frame.__set_whitespace__(
+            self.parent.__set_whitespace__(
                 self.whitespace_data.df,
                 SingleValueData(self.main_data.curr_bar_open_time, 0),
             )
 
         if self.__frame_primary_src__:
             # Only do this once everything else has completed and not Error'd.
-            self.parent_frame.autoscale_timeaxis()
-            self.parent_frame.__set_displayed_timeframe__(self.main_data.timeframe)
+            self.parent.autoscale_timeaxis()
+            self.parent.__set_displayed_timeframe__(self.main_data.timeframe)
 
         # ---------------- Inform all Indicators that New Data is Available ----------------
         self._watcher.set = True
@@ -322,13 +323,13 @@ class Timeseries(Indicator):
                         data_update.time,
                     )
                     self.whitespace_data = WhitespaceDF(self.main_data)
-                    self.parent_frame.__set_whitespace__(
+                    self.parent.__set_whitespace__(
                         self.whitespace_data.df,
                         SingleValueData(self.main_data.curr_bar_open_time, 0),
                     )
                 else:
                     # Lengthen Whitespace Data to keep 500bar Buffer
-                    self.parent_frame.__update_whitespace__(
+                    self.parent.__update_whitespace__(
                         self.whitespace_data.extend(),
                         SingleValueData(self.main_data.curr_bar_open_time, 0),
                     )
@@ -350,14 +351,14 @@ class Timeseries(Indicator):
 
         if self.__frame_primary_src__:
             self.whitespace_data = None
-            self.parent_frame.__clear_whitespace__()
+            self.parent.__clear_whitespace__()
 
         self.events.close_socket(series=self)
 
-        super().clear_data()
+        super().reset()
 
         # Notify Observers to propagate the Data Clear Event
-        self._notify_observers_clear()
+        self._notify_observers_reset()
 
     # endregion
 
@@ -473,7 +474,7 @@ class Timeseries(Indicator):
 
         # Update window display if necessary
         if self.__frame_primary_src__:
-            self.parent_frame.__set_displayed_series_type__(self.opts.series_type)
+            self.parent.__set_displayed_series_type__(self.opts.series_type)
 
         # This function can be called by the window controls. If it is, update the menu since
         # that isn't where this change originated from and thus is out of date

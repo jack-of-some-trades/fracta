@@ -11,7 +11,7 @@ import { frame } from "../window/frame";
 import { charting_pane } from "./charting_pane";
 import { indicator, isIndicator } from "./indicator";
 import { isPrimitive, PrimitiveBase_T } from "./primitive-plugins/primitive-base";
-import { PrimitiveSet } from "./primitive-plugins/primitive-set";
+import { isPrimitiveSet, PrimitiveSet } from "./primitive-plugins/primitive-set";
 import { Series_Type, SeriesBase_T } from "./series-plugins/series-base";
 
 
@@ -45,7 +45,7 @@ export class charting_frame extends frame {
     private _timescaleTimes: number[] | undefined
 
     pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
-    attached = new Map<string, (indicator | PrimitiveSet)>()
+    children = new Map<string, (indicator | PrimitiveSet)>()
     private eventDelegates = new Map<ChartingEventsTypes, Delegate<ChartingEvent>>()
 
     timeframe: tf
@@ -92,7 +92,7 @@ export class charting_frame extends frame {
 
         // Add initial Pane since AddDefaultPane == false
         this.default_pane = this.addPane()
-        this.whitespace_series = this._chart.addSeries(lwc.LineSeries)
+        this.whitespace_series = this._chart.addSeries(lwc.LineSeries, { visible: false })
 
         this.element = ChartFrame({
             frame: this,
@@ -454,16 +454,54 @@ export class charting_frame extends frame {
         outputs: { [key: string]: string },
     ) {
         let new_indicator = new indicator(_id, type, name, outputs, this)
-        this.attached.set(_id, new_indicator)
+        this.children.set(_id, new_indicator)
     }
 
-    protected delete_indicator(_id: string) {
-        let indicator = this.attached.get(_id)
-        if (indicator === undefined || !isIndicator(indicator)) return
+    protected remove_indicator(_id: string) {
+        let indicator = this.children.get(_id)
+        if (indicator === undefined || !isIndicator(indicator)) {
+            console.error(`Indicator not found: ${_id}, Indicator: ${indicator}`)
+            return
+        }
 
         indicator.delete()
-        this.attached.delete(_id)
+        this.children.delete(_id)
     }
+
+    protected create_primitive_set(
+        _id: string,
+        name: string,
+        pane_index: number,
+    ) {
+        let _panes = this._chart.panes()
+        if (pane_index < 0 || pane_index >= _panes.length) {
+            // Could be user error, proceed with creation on pane 0
+            console.error(`Creating PrimitiveSet: Invalid pane index: ${pane_index}, using pane 0`)
+            pane_index = 0
+        }
+
+        let pane = this.pane_map.get(_panes[pane_index])
+        if (pane === undefined) {
+            //If this happens, it's a bug that needs to be fixed. let PrimitiveSet creation fail.
+            console.error(`Charting_Pane not found ChartingFrame's Pane_Map`)
+            return
+        }
+
+        let new_set = new PrimitiveSet(_id, name, pane)
+        this.children.set(_id, new_set)
+    }
+
+    protected remove_primitive_set(_id: string) {
+        let set = this.children.get(_id)
+        if (set === undefined || !isPrimitiveSet(set)) {
+            console.error(`PrimitiveSet not found: ${_id}, PrimitiveSet: ${set}`)
+            return
+        }
+
+        set.delete()
+        this.children.delete(_id)
+    }
+
 
     // #endregion
 

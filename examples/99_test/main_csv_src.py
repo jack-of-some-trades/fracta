@@ -2,9 +2,8 @@
 
 import asyncio
 
-import pandas as pd
-
 import csv_reader as csv
+import pandas as pd
 
 import fracta as fta
 
@@ -52,7 +51,7 @@ async def main():
     )
 
     window.new_tab()
-    main_frame = window.containers[0].frames[0]
+    main_frame = window.container(0).frame(0)
     df = pd.read_csv("examples/data/ohlcv.csv")
 
     if isinstance(main_frame, fta.ChartingFrame):

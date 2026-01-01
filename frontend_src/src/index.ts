@@ -47,8 +47,10 @@ declare module "solid-js" {
 }
 
 // Global Workspace Vars used by Injected JS Commands
-var _ind = undefined
-var _ser = undefined
+var _ind = undefined //Indicator
+var _ser = undefined //Series
+var _cond = undefined //PrimitiveSet
+
 // Define The global Python <--> Js api interface.
 window.api = new PyApi();
 //Enums that will be used by Python need to be placed into the Global Scope

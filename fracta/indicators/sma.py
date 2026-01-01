@@ -5,13 +5,16 @@ from typing import Optional
 import pandas as pd
 
 from fracta.charting.indicator import (
-    IndParent_T,
+    Indicator_Parent_T,
     Indicator,
     IndicatorOptions,
     SeriesData,
     default_output_property,
     param,
 )
+from fracta.charting.primitive import TrendLine
+from fracta.charting.series_dtypes import Point
+
 from fracta import Color, SingleValueData
 from fracta.charting import series_common as sc
 
@@ -44,7 +47,7 @@ class SMA(Indicator):
 
     def __init__(
         self,
-        parent: IndParent_T,
+        parent: Indicator_Parent_T,
         opts: Optional[SMAOptions] = None,
         display_name: str = "",
     ):
@@ -57,6 +60,9 @@ class SMA(Indicator):
         self._data = pd.Series()
         self.line_series = sc.LineSeries(self, name="My SMA")
         self.line_series.apply_options(sc.LineStyleOptions(lineStyle=sc.LineStyle.SparseDotted))
+
+        self.trend_line = TrendLine(self)
+        self.trend_line.apply_options({"p1": Point("01-01-2018", 50), "p2": Point("01-01-2022", 200)})
 
         self.update_options(opts)
         self.init_menu(opts)
@@ -86,6 +92,13 @@ class SMA(Indicator):
     def update_data(self, time: pd.Timestamp, data: pd.Series, *_, **__):
         self._data[time] = data.tail(self.period).mean()
         self.line_series.update_data(SingleValueData(time, self._data.iloc[-1]))
+
+        self.trend_line.apply_options(
+            {
+                "p1": Point(time - pd.Timedelta("10D"), self._data.iloc[-1] - 10),
+                "p2": Point(time + pd.Timedelta("10D"), self._data.iloc[-1] + 10),
+            }
+        )
 
     @default_output_property
     def average(self) -> pd.Series:

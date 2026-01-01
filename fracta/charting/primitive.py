@@ -1,27 +1,33 @@
 "Python Object Representations of Primitive HTML Canvas drawing objects"
 
 from __future__ import annotations
-from copy import deepcopy
-from weakref import ref
-from abc import ABCMeta
-from logging import getLogger
-from dataclasses import asdict, dataclass
-from typing import Any, ClassVar, Optional, TYPE_CHECKING, Protocol, Type
 
-from fracta.charting.series_dtypes import Point
-from fracta.charting.series_options import (
+from abc import ABCMeta, ABC, abstractmethod
+from copy import deepcopy
+from dataclasses import asdict, dataclass
+from logging import getLogger
+from typing import Any, ClassVar, Optional, Protocol, Type, TYPE_CHECKING
+from weakref import ref
+
+
+from ..types import Color
+from ..util import ID_Dict
+from ..js_cmd import JS_CMD
+
+from .series_dtypes import Point
+from .series_options import (
     CanvasLineCap,
     CanvasLineJoin,
     CanvasTextAlign,
     CanvasTextBaseline,
     LineStyleEXT,
 )
-
-from ..js_cmd import JS_CMD
-from ..types import Color
+from .. import py_window as win
 
 if TYPE_CHECKING:
-    from .indicator import Indicator
+    from . import series_common as sc
+    from . import primitive_set as ps
+    from . import indicator as ind
 
 # pylint: disable=invalid-name
 logger = getLogger("fracta_log")
@@ -31,14 +37,14 @@ class OptsSyncIntercept(Protocol):
     def __call__(self, opts: dict[str, Any]) -> Optional[dict[str, Any]]: ...
 
 
+# region ---- ---- ---- ---- Primitive and Primitive Options Base classes ---- ---- ---- ----
+
+
 def bootstrap_dataclass[T: "PrimitiveOptions"](cls: type[T]) -> type[T]:
     "Decorator to make a dataclass and bootstrap the dataclass __fields__ property."
     cls = dataclass(cls)
     cls.__fields__ = set(getattr(cls, "__dataclass_fields__", {}).keys()) - {"__fields__"}
     return cls
-
-
-# region ---- ---- ---- ---- Primitive and Primitive Options Base classes ---- ---- ---- ----
 
 
 @dataclass
@@ -73,7 +79,7 @@ class PrimitiveOptions(metaclass=ABCMeta):
             setattr(self, k, opts[k])
 
 
-class PrimitiveBase[T: PrimitiveOptions]:
+class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | ps.PrimitiveSet"]):
     "Base Class for Charting Primitives."
 
     def __init_subclass__(cls) -> None:
@@ -92,33 +98,29 @@ class PrimitiveBase[T: PrimitiveOptions]:
 
     def __init__(
         self,
-        parent: "Indicator",  # TODO: Change to Indicator & PrimitiveGroup?
+        parent: "sc.SeriesCommon | ps.PrimitiveSet | ind.Indicator",
         opts: Optional[T] = None,
         js_id: Optional[str] = None,
     ) -> None:
+
+        # Check if parent is an Indicator and resolve to its default PrimitiveSet.
+        # Cannot use isinstance(parent, ind.Indicator) because it sends you to circular import hell.
+        if hasattr(parent, "default_primitive_set"):
+            parent = parent.default_primitive_set  # type: ignore
+
+        super().__init__(parent, parent._associate_primitive(self, js_id))  # type: ignore
 
         # Ensure a default options cls is always constructed.
         self._opts: T = opts if opts is not None else self.__options_cls__()  # type:ignore
         self.__opts_sync_intercept__: OptsSyncIntercept | None = None
         self.__init_state__ = asdict(self._opts)
 
-        # Make _primitives a Weakref since this is a child obj.
-        self._parent_primitives = ref(parent._primitives)
+        # Make a Weakref since this is a child obj.
+        # Handle Indicator Parent by resolving to its default PrimitiveSet
+        self._parent = ref(getattr(parent, "default_primitive_set", None) or parent)
+        self._type = self.__class__.__name__
 
-        # TODO: Scratch out parent._primitves and make it parent.parent_frame._primitves &
-        # Then create a copy in parent._primitives? it would ensure distinct Ids.
-        if js_id is None:
-            self._js_id = parent._primitives.generate_id(self)
-        else:
-            self._js_id = parent._primitives.affix_id(js_id, self)
-
-        self._ids = *parent._ids, self._js_id
-        self._fwd_queue = parent._fwd_queue
-
-        self._fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *self._ids, self.__class__.__name__, self._opts))
-
-    def __del__(self):
-        logger.debug("Deleteing %s: %s", self.__class__.__name__, self._js_id)
+        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *self.ids, self._type, self._opts))
 
     def reset(self):
         "Reset the state back to how it existed at the time initialization"
@@ -126,9 +128,8 @@ class PrimitiveBase[T: PrimitiveOptions]:
 
     def delete(self):
         "Remove the Object from the screen"
-        if (parent_dict := self._parent_primitives()) is not None:
-            parent_dict.pop(self._js_id)  # Ensure all references are gone
-        self._fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self._ids))
+        self.parent.detach_primitive(self)
+        self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self.ids))
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name not in self.__options_cls__.__fields__:
@@ -136,8 +137,8 @@ class PrimitiveBase[T: PrimitiveOptions]:
 
         # Handle _opts specific fields.
         self._opts[name] = value  # Will error if invalid property.
-        self._fwd_queue.put(  # Immediately pass the update to the window.
-            (JS_CMD.UPDATE_PRIMITIVE_OPTS, *self._ids, {name: value})
+        self.fwd_queue.put(  # Immediately pass the update to the window.
+            (JS_CMD.UPDATE_PRIMITIVE_OPTS, *self.ids, {name: value})
         )
 
     def __getattr__(self, name: str) -> None:
@@ -166,9 +167,18 @@ class PrimitiveBase[T: PrimitiveOptions]:
         return deepcopy(self._opts)
 
     def apply_options(self, opts: dict[str, Any] | T):
-        "Apply the given set of options to a primitive. Best used when updating multiple params at once."
-        self._opts.apply_options(opts)
-        self._fwd_queue.put((JS_CMD.UPDATE_PRIMITIVE_OPTS, *self._ids, self._opts))
+        """
+        Apply the given set of options to a primitive. Best used when updating multiple params at once.
+
+        If a dataclass is provided, it will overwrite all options for those given.
+        If a dict is provided, it will only update the keys that are given.
+        """
+        if isinstance(opts, dict):
+            self._opts.apply_options(opts)
+        else:
+            self._opts = opts
+
+        self.fwd_queue.put((JS_CMD.UPDATE_PRIMITIVE_OPTS, *self.ids, self._opts))
 
     def __sync_options__(self, opts: dict[str, Any]):
         "Hook for UI Inputs to sync the changed options back to python"
@@ -182,6 +192,7 @@ class PrimitiveBase[T: PrimitiveOptions]:
 # endregion
 
 # region ---- ---- ---- ---- Basic Primitive Options ---- ---- ---- ----
+
 
 @dataclass
 class CanvasStrokeStyles:
@@ -224,6 +235,81 @@ class TrendlineOptions(TwoPointOptions, CanvasStrokeStyles, CanvasTextStyles):
 
 class TrendLine(PrimitiveBase[TrendlineOptions]):
     "Trendline Primitive"
+
+
+# endregion
+
+
+# region ---- ---- ---- ---- PrimitiveHolder ---- ---- ---- ----
+
+
+class PrimitiveHolder(ABC):
+    """
+    Base functionality for objects that hold Primitives.
+    To be used as a Mixin for PrimitiveSet and SeriesCommon to reduce code duplication
+    """
+
+    def __init__(self):
+        self._primitives = ID_Dict[PrimitiveBase]("p")
+
+    def primitive(self, _id: str | int) -> PrimitiveBase:
+        "Return the primitive that matches either the given js_id, or the primitive index #"
+        return self._primitives[_id]
+
+    def has_primitive(self, _id: str | int) -> bool:
+        "Check if the primitive exists in the series"
+        return _id in self._primitives
+
+    def _associate_primitive(self, primitive: PrimitiveBase, js_id: Optional[str] = None) -> str:
+        if js_id is None:
+            return self._primitives.generate_id(primitive)
+        else:
+            return self._primitives.affix_id(js_id, primitive)
+
+    def _deassociate_primitive(self, _ref: str | int | PrimitiveBase):
+        try:
+            _id = _ref.js_id if isinstance(_ref, PrimitiveBase) else _ref
+            self._primitives.remove(_id)
+        except (KeyError, IndexError):
+            logger.warning(
+                "Could not de-associate Primitive '%s'. It does not exist on PrimitiveHolder '%s'",
+                _id,
+                self,
+            )
+
+    @abstractmethod
+    def attach_primitive(self, primitive: PrimitiveBase) -> None:
+        "Attach a primitive to this object."
+
+    @abstractmethod
+    def detach_primitive(self, primitive: PrimitiveBase) -> None:
+        "Detach a primitive from this object."
+
+    @abstractmethod
+    def move_primitive(self, primitive: PrimitiveBase) -> None:
+        "Move an existing primitive from another object to this object."
+
+    def get_primitives_of_type[PT: PrimitiveBase](self, _type: type[PT] = PrimitiveBase) -> ID_Dict[PT]:
+        """
+        Returns a Dictionary of Primitives owned by this indicator of the Given Type.
+        If no argument is given, all of the Primitives will be returned.
+        """
+        if _type == PrimitiveBase:
+            return self._primitives.copy()  # type: ignore
+        rtn_dict = {}
+        for _key, _primitive in self._primitives.items():
+            if isinstance(_primitive, _type):
+                rtn_dict[_key] = _primitive
+        return rtn_dict  # type: ignore
+
+    def delete_primitives_of_type[PT: PrimitiveBase](self, _type: type[PT] = PrimitiveBase):
+        """
+        Deletes all Primitives owned by this indicator of the given type.
+        If no argument is given, all of the Primitives will be deleted.
+        """
+        for _primitive in self._primitives.copy().values():
+            if isinstance(_primitive, _type):
+                _primitive.delete()
 
 
 # endregion

@@ -1,23 +1,24 @@
 """Python Classes that are analogs of, and control, the Main Window Components"""
 
 from __future__ import annotations
-from abc import abstractmethod, ABC
-from enum import IntEnum, auto
-import logging
+
 import asyncio
+import logging
 import multiprocessing as mp
+import queue
+from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
-import queue
+from enum import IntEnum, auto
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Protocol
+from weakref import ref
 
-from . import util, indicators, broker_apis
-
+from . import broker_apis, indicators, util
 from .events import Events
 from .js_cmd import JS_CMD
+from .js_window import MpHooks, PyWebViewOptions, PyWv
 from .py_cmd import WIN_CMD_ROLODEX
-from .js_window import PyWv, MpHooks, PyWebViewOptions
-from .types import JS_Color, TF
+from .types import TF, JS_Color
 
 if TYPE_CHECKING:
     from .charting.series_dtypes import SeriesType
@@ -77,6 +78,63 @@ class Layouts(IntEnum):
             return 0
 
 
+class QueueHolder(Protocol):
+    "Manager for the Forward and Return Queues"
+
+    @property
+    def ids(self) -> tuple[str, ...]: ...
+
+    @property
+    def fwd_queue(self) -> mp.Queue: ...
+
+    @property
+    def window(self) -> Window: ...
+
+
+class FrontendObject[ParentType: QueueHolder]:
+    "Base class for objects that represent Frontend Objects"
+
+    def __init__(self, parent: ParentType, _js_id: str):
+        self._js_id = _js_id
+        self._parent = ref(parent)
+
+    def __del__(self):
+        log.debug("Deleteing %s, ID: %s", self.__class__.__name__, self.js_id)
+
+    @property
+    def js_id(self) -> str:
+        "The Object's Javascript_ID"
+        return self._js_id
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        "The Object's addressable ids set"
+        return (*self.parent.ids, self._js_id)
+
+    @property
+    def parent(self) -> ParentType:
+        "The Object's parent object"
+        parent = self._parent()
+        if parent is None:
+            raise ReferenceError("Reference to Parent Object has expired.")
+        return parent
+
+    @property
+    def events(self) -> Events:
+        "The Object's parent EventHub"
+        return self.parent.window.events
+
+    @property
+    def window(self) -> Window:
+        "The Object's parent Window"
+        return self.parent.window
+
+    @property
+    def fwd_queue(self) -> mp.Queue:
+        "The Object's Forward Queue to send commands to the Frontend"
+        return self.parent.fwd_queue
+
+
 class Window:
     "Window is an object that creates & Parses Commands from the Javascript Webview"
 
@@ -123,15 +181,13 @@ class Window:
             raise TimeoutError("Failed to load PyWebView in a reasonable amount of time.")
 
         # Begin Listening for any responses from PyWV Process
-        self._queue_manager = asyncio.create_task(self._manage_queue())
+        self._queue_manager = asyncio.create_task(self._manage_rtn_queue())
 
         # -------- Create & Setup Standard Events  -------- #
         self.events = Events(self)
         indicators.timeseries.setup_window_events(self)
 
-        # Using ID_List over ID_Dict so element order is mutable for PY_CMD.REORDER_CONTAINERS
-        self._container_ids = util.ID_List("c")
-        self.containers: list[Container] = []
+        self._containers = util.ID_Dict[Container]("c")
 
         # -------- Create & Setup Data Broker  -------- #
         if broker_api is None:
@@ -151,7 +207,7 @@ class Window:
         else:
             log.warning('Unknown Broker API: "%s"', broker_api)
 
-    async def _manage_queue(self):
+    async def _manage_rtn_queue(self):
         log.debug("Entered Async Queue Manager")
         async_loop = asyncio.get_event_loop()
 
@@ -165,6 +221,20 @@ class Window:
                     continue
 
         log.debug("Exited Async Queue Manager")
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        "The Object's addressable ids set"
+        return ()  # Maybe implement later when multiple windows are supported
+
+    @property
+    def fwd_queue(self) -> mp.Queue:
+        "The Forward Queue to send commands to the Frontend"
+        return self._fwd_queue
+
+    @property
+    def window(self) -> Window:
+        return self
 
     # region ------------------------ Public Window Methods  ------------------------ #
 
@@ -213,41 +283,6 @@ class Window:
         "Set the User Defined Colors available in the Color Picker"
         self._fwd_queue.put((JS_CMD.SET_USER_COLORS, opts))
 
-    def new_tab(self) -> Container:
-        "Add a new Tab. A reference to the new Container is returned"
-        new_id = self._container_ids.generate_id()
-        new_container = Container(new_id, self._fwd_queue, self)
-        self.containers.append(new_container)
-        return new_container
-
-    def del_tab(self, _id: str | int):
-        "Deletes a Tab. Id can be either the js_id or tab #."
-        container = self.get_container(_id)
-        ids = container.all_ids()
-
-        # Be sure to allow frames to clear up any assets before parent objs are deleted
-        # This ensures web-sockets and other assets are closed.
-        for frame in container.frames.values():
-            del frame
-
-        # Remove the Objects from local storage and erase their JS global references
-        self._container_ids.remove(container.js_id)
-        self.containers.remove(container)
-        self._fwd_queue.put((JS_CMD.REMOVE_CONTAINER, container.js_id))
-        self._fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *ids))
-
-    def get_container(self, _id: int | str) -> Container:
-        "Return the container that matches either the given js_id, or the tab #"
-        if isinstance(_id, str):
-            for container in self.containers:
-                if _id == container.js_id:
-                    return container
-            raise IndexError(f"Window doesn't have a Container with ID:{_id}")
-        else:
-            if 0 <= _id < len(self.containers):
-                return self.containers[_id]
-            raise IndexError(f"Container index {_id} out of bounds.")
-
     def set_search_filters(
         self,
         category: Literal["asset_class", "source", "exchange"],
@@ -293,69 +328,131 @@ class Window:
 
     # endregion
 
+    # region ------------------------ Public Container Methods  ------------------------ #
 
-class Container:
+    def _associate_container(self, container: Container, js_id: Optional[str] = None) -> str:
+        "Associate a Container with this Window and return the JS ID it is stored under"
+        if js_id is None:
+            return self._containers.generate_id(container)
+        else:
+            return self._containers.affix_id(js_id, container)
+
+    def _deassociate_container(self, _ref: str | int | Container):
+        "Remove the container from this window's association dictionary"
+        try:
+            _id = _ref.js_id if isinstance(_ref, Container) else _ref
+            self._containers.remove(_id)
+        except (KeyError, IndexError):
+            log.warning("Could not delete Container '%s'. It does not exist on window", _ref)
+
+    def new_tab(self, js_id: Optional[str] = None) -> Container:
+        "Add a new Tab. A reference to the new Container is returned"
+        return Container(self, js_id)
+
+    def del_tab(self, _id: str | int):
+        "Deletes a Tab. Id can be either the js_id or tab #."
+        container = self._containers.pop(_id)
+        # Be sure to allow frames to clear up any assets before parent objs are deleted
+        # This ensures web-sockets and other assets are closed.
+        container.remove_all_frames()
+
+        # Command frontend to clear all global references to this container
+        self._fwd_queue.put((JS_CMD.REMOVE_CONTAINER, container.js_id))
+        self._fwd_queue.put((JS_CMD.REMOVE_REFERENCE, container.js_id))
+
+    def container(self, _id: int | str) -> Container:
+        "Return the container that matches either the given js_id, or the tab #"
+        # Really ins't necessary, could just make _containers public, but this keeps the ID_Dict scheme consistent
+        return self._containers[_id]
+
+    # endregion
+
+
+class Container(FrontendObject[Window]):
     "A Container Class instance manages the all sub frames and the layout that contains them."
 
-    def __init__(self, _js_id: str, fwd_queue: mp.Queue, window: Window) -> None:
-        self._fwd_queue = fwd_queue
-        self._window = window
-        self._js_id = _js_id
+    def __init__(self, window: Window, js_id: Optional[str] = None) -> None:
+        super().__init__(window, window._associate_container(self, js_id))
         self._layout = Layouts.SINGLE
-        self.frames = util.ID_Dict[Frame](f"{_js_id}_f")
+        self._frames = util.ID_Dict[Frame](f"{self._js_id}_f")
 
-        self._fwd_queue.put((JS_CMD.ADD_CONTAINER, self._js_id))
-        self.set_layout(self._layout)  # Adds First Frame
+        self.fwd_queue.put((JS_CMD.ADD_CONTAINER, self._js_id))
+        self.set_layout(self._layout)  # Adds First Frame0
 
-    def __del__(self):
-        log.debug("Deleteing Container: %s", self._js_id)
-
-    @property
-    def js_id(self) -> str:
-        "Immutable Copy of the Object's Javascript_ID"
-        return self._js_id
-
-    def add_frame(self, _js_id: Optional[str] = None, _type: FrameTypes = FrameTypes.CHART) -> Frame:
-        "Creates a new Frame. Frame will only be displayed once the layout supports a new frame."
-        frame_cls = FRAME_OBJ_MAP.get(_type, None)
-        if frame_cls is not None:
-            return frame_cls(parent=self, _js_id=_js_id)
-        raise TypeError(f"Cannot Initilize an Frame Type {_type}")
+    def all_ids(self) -> list[str]:
+        "Return a List of all Ids of this object and sub-objects that have been placed into the JS Global namespace"
+        _ids = [self._js_id]
+        for frame in self._frames.values():
+            _ids += frame.all_ids()
+        return _ids
 
     def set_layout(self, layout: Layouts | int):
         "Set the layout of the Container creating Frames as needed"
         layout = Layouts(layout)
         # If there arent enough Frames to support the layout then generate them
-        frame_diff = len(self.frames) - layout.num_frames
+        frame_diff = len(self._frames) - layout.num_frames
         if frame_diff < 0:
             for _ in range(-frame_diff):
                 log.debug("Add Frame")
-                self.add_frame()
+                self.add_frame()  # TODO : Populate with Generic, mutable, Frame
 
-        self._fwd_queue.put((JS_CMD.SET_LAYOUT, self._js_id, layout))
+        self.fwd_queue.put((JS_CMD.SET_LAYOUT, self._js_id, layout))
         self._layout = layout
 
-    def all_ids(self) -> list[str]:
-        "Return a List of all Ids of this object and sub-objects"
-        _ids = [self._js_id]
-        for _, frame in self.frames.items():
-            _ids += frame.all_ids()
-        return _ids
+    # region ------------------------ Frame Methods  ------------------------
 
-    def remove_frame(self, frame_id: str):
+    def _associate_frame(self, frame: Frame, js_id: Optional[str] = None) -> str:
+        "Associate a Frame with this Container and return the JS ID it is stored under"
+        if js_id is None:
+            return self._frames.generate_id(frame)
+        else:
+            return self._frames.affix_id(js_id, frame)
+
+    def _deassociate_frame(self, _ref: str | int | Frame):
+        "Remove the frame from this container's association dictionary"
+        try:
+            _id = _ref.js_id if isinstance(_ref, Frame) else _ref
+            self._frames.remove(_id)
+        except (KeyError, IndexError):
+            log.warning("Could not delete Container '%s'. It does not exist on window", _ref)
+
+    def reorder_frames(self, _from: str | int, _to: str | int):
+        "Reorder the frames in this container"
+        # TODO: Currently nothing calls this. Would need to set that up at a later time.
+        self._frames.reorder(_from, _to)
+
+    def frame(self, _ref: str | int) -> Frame:
+        "Return the frame that matches either the given js_id, or the frame #"
+        return self._frames[_ref]
+
+    def add_frame(self, _js_id: Optional[str] = None, _type: FrameTypes = FrameTypes.CHART) -> Frame:
+        "Creates a new Frame. Frame will only be displayed once the layout supports a new frame."
+        frame_cls = Frame.Sub_Cls_Map.get(_type, None)
+        if frame_cls is not None:
+            return frame_cls(parent=self, _js_id=_js_id)
+        raise TypeError(f"Cannot Initialize an Frame Type {_type}")
+
+    def remove_frame(self, frame: str | int | Frame):
         "Delete a frame given the frame's js_id if the container has more frames than needed"
-        if frame_id not in self.frames or len(self.frames) <= self._layout.num_frames:
-            return
+        frame_id = frame.js_id if isinstance(frame, Frame) else frame
+        if frame_id not in self._frames or len(self._frames) <= self._layout.num_frames:
+            return  # TODO : Change these later to allow removal of frames even when the layout doesn't support it
 
-        frame = self.frames.pop(frame_id)
-        frame_ids = frame.all_ids()
-        del frame
+        frame = self._frames.pop(frame_id)
+        self.fwd_queue.put((JS_CMD.REMOVE_FRAME, self._js_id, frame))
+        self.fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *frame.all_ids()))
 
-        self._fwd_queue.put((JS_CMD.REMOVE_FRAME, self._js_id, frame_id))
-        self._fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *frame_ids))
+    def remove_all_frames(self):
+        "Remove all frames from the container"
+        for frame in self._frames.values():
+            self.fwd_queue.put((JS_CMD.REMOVE_FRAME, self._js_id, frame))
+            self.fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *frame.all_ids()))
+        self._frames.clear()
+
+    # endregion
 
 
-class Frame(ABC):
+class Frame(FrontendObject[Container]):
     """
     Abstract Class that represents one segment of a Container's Layout. This class can be inherited
     from to create different types of displays that natively work with the layout configurations
@@ -366,37 +463,30 @@ class Frame(ABC):
     """
 
     Frame_Type = FrameTypes.ABSTRACT
+    Sub_Cls_Map: dict[FrameTypes, type[Frame]] = {}
 
     def __init__(self, parent: Container, _js_id: Optional[str] = None) -> None:
-        if _js_id is None:
-            self._js_id = parent.frames.generate_id(self)
-        else:
-            self._js_id = parent.frames.affix_id(_js_id, self)
+        super().__init__(parent, parent._associate_frame(self, _js_id))
+        self.fwd_queue.put((JS_CMD.ADD_FRAME, parent.js_id, self._js_id, self.Frame_Type))
 
-        self._window = parent._window
-        self._fwd_queue = parent._fwd_queue
+    def __init_subclass__(cls: type[Frame]) -> None:
+        cls.Sub_Cls_Map[cls.Frame_Type] = cls
+        return super().__init_subclass__()
 
-        self._fwd_queue.put((JS_CMD.ADD_FRAME, parent._js_id, self._js_id, self.Frame_Type))
-
-    @property
-    def js_id(self) -> str:
-        "Immutable Copy of the Object's Javascript_ID"
-        return self._js_id
+    def __del__(self):
+        self.fwd_queue.put((JS_CMD.REMOVE_FRAME, self._js_id))
+        self.fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *self.all_ids()))
+        super().__del__()
 
     @abstractmethod
     def all_ids(self) -> list[str]:
-        "Returns a List of all JS Ids this obj (and Sub-objs) placed into the JS Global namespace"
+        "Return a List of all Ids of this object and sub-objects that have been placed into the JS Global namespace"
 
     @abstractmethod
-    def __del__(self):
-        "Ensure Clean up of all interally created objects."
+    def delete(self):
+        "Ensure Clean up of all internally created objects."
 
 
-# EoF Imports to prevent an import error.
-# Future_Annotations Silence the Typing errors that would occur above.
-# pylint: disable=wrong-import-position
-from .charting.charting_frame import ChartingFrame
-
-FRAME_OBJ_MAP: dict[FrameTypes, type[Frame]] = {
-    FrameTypes.CHART: ChartingFrame,
-}
+# Bootstrapping with Typing.Self isn't ideal since calling
+# ChartingFrame.Sub_Cls_Map[Abstract] would return ChartingFrame, not Frame.
+Frame.Sub_Cls_Map = {FrameTypes.ABSTRACT: Frame}

@@ -5,9 +5,7 @@ import { generateOptionsMenu } from "../../tsx/generic_elements/options_menu";
 import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
 import { charting_frame } from "./charting_frame";
 import { charting_pane } from "./charting_pane";
-import { PrimitiveBase, primitiveOptions } from "./primitive-plugins/primitive-base";
 import { PrimitiveSet } from "./primitive-plugins/primitive-set";
-import { primitive_cls } from "./primitive-plugins/primitives";
 import * as s from "./series-plugins/series-base";
 
 const MAIN_TIMESERIES_ID = "i_XyzZy"
@@ -41,8 +39,8 @@ export class indicator implements ReorderableSet {
     attached: Accessor<(s.SeriesBase_T | PrimitiveSet)[]>
     private setAttached: Setter<(s.SeriesBase_T | PrimitiveSet)[]>
 
-    series = new Map<string, s.SeriesBase_T>()
-    private primitives = new Map<string, PrimitiveBase<primitiveOptions>>()
+    private series = new Map<string, s.SeriesBase_T>()
+    private primitiveSets = new Map<string, PrimitiveSet>()
     private visibilityMemory = new Map<string, boolean>()
 
     leafProps: treeLeafInterface
@@ -99,15 +97,15 @@ export class indicator implements ReorderableSet {
         this.series.forEach((ser, key) => {
             ser.remove()
         })
-        this.primitives.forEach((prim, key) => {
-            this.pane.paneApi.detachPrimitive(prim)
+        this.primitiveSets.forEach((pset, key) => {
+            pset.delete()
         })
         this.pane.detach(this)// ???
     }
 
     setVisibility(arg: boolean) {
         this.visibilitySignal[1](arg)
-        const _maps = [this.series, this.primitives]
+        const _maps = [this.series, this.primitiveSets]
         // This only works because the structure of primitives and series are similar enough
         for (let i = 0; i < _maps.length; i++)
 
@@ -154,25 +152,19 @@ export class indicator implements ReorderableSet {
         this.setAttached(this.attached().filter((_ser) => _ser !== series))
     }
 
-    protected add_primitive(_id: string, _type: string, params: object) {
-        let primitive_type = primitive_cls.get(_type)
-        if (primitive_type === undefined) return
-        let new_obj = new primitive_type(this._id + _id, params)
-
-        this.primitives.set(_id, new_obj)
-        this._frame.whitespace_series.attachPrimitive(new_obj)
+    protected add_primitive_set(_id: string, _name: string | undefined = undefined) {
+        const _pset = new PrimitiveSet(_id, _name, this.pane)
+        this.primitiveSets.set(_id, _pset)
+        this.setAttached([...this.attached(), _pset])
     }
 
-    protected remove_primitive(_id: string) {
-        let _obj = this.primitives.get(_id)
-        if (_obj === undefined) return
+    protected remove_primitive_set(_id: string) {
+        let pset = this.primitiveSets.get(_id)
+        if (pset === undefined) return
 
-        this._frame.whitespace_series.detachPrimitive(_obj)
-        this.primitives.delete(_id)
-    }
-
-    protected update_primitive(_id: string, params: object) {
-        this.primitives.get(_id)?.applyOptions(params, true)
+        pset.delete()
+        this.primitiveSets.delete(_id)
+        this.setAttached(this.attached().filter((_p) => _p !== pset))
     }
 
     applyOptions(options: { [key: string]: any }, externalCall = false) {

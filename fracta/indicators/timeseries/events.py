@@ -1,7 +1,8 @@
 "Event Emitters for requests which are processed by the Timeseries Indicator."
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Protocol, TypeAlias, Optional, Any
+
+from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeAlias
 
 from ...events import Emitter
 from ...js_cmd import JS_CMD
@@ -10,9 +11,11 @@ from ...js_cmd import JS_CMD
 
 if TYPE_CHECKING:
     from multiprocessing import Queue
+
     from pandas import DataFrame
-    from ...types import Ticker, TF
+
     from ...py_window import Window
+    from ...types import TF, Ticker
     from .timeseries import Timeseries
 
 

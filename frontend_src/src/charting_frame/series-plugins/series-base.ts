@@ -3,12 +3,15 @@
  * This also defines a class that wraps around the SeriesAPI instances created to extend their behavior.
  */
 import * as lwc from "lightweight-charts";
-import { ORDERABLE, Orderable, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
+import { Accessor, createSignal, Setter } from "solid-js";
+import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../../tsx/widget_panels/object_tree";
 import { contextMenuItem } from "../../../tsx/window/context_menu";
 import { KeyboardCTX, keyboardShortcut } from "../../../tsx/window/keyboard_listener";
 import { charting_frame, ChartingEvent, ChartingEventsTypes } from "../charting_frame";
 import { charting_pane } from "../charting_pane";
 import { indicator } from "../indicator";
+import { PrimitiveBase, primitiveOptions } from "../primitive-plugins/primitive-base";
+import { primitive_cls } from "../primitive-plugins/primitives";
 import { RoundedCandleHitTest, RoundedCandleSeriesData, RoundedCandleSeriesImpl, RoundedCandleSeriesOptions, RoundedCandleSeriesPartialOptions } from "./rounded-candles-series/rounded-candles-series";
 
 
@@ -137,8 +140,9 @@ export interface SeriesPartialOptionsMap_EXT extends Exclude<lwc.SeriesPartialOp
  * 
  * Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeriesApi
  */
-export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>> implements Orderable {
+export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>> implements ReorderableSet {
     [ORDERABLE]: true = true;
+    [ORDERABLE_SET]: true = true;
     private _series: lwc.ISeriesApi<lwc.SeriesType>
     private _indicator: indicator
 
@@ -155,6 +159,11 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     public ctxMenuStruct: contextMenuItem[][] | undefined
 
     leafProps: treeLeafInterface
+    branchProps: treeBranchInterface
+
+    private _primitives = new Map<string, PrimitiveBase<primitiveOptions>>()
+    attached: Accessor<PrimitiveBase<primitiveOptions>[]>;
+    setAttached: Setter<PrimitiveBase<primitiveOptions>[]>;
 
     constructor(
         id: string,
@@ -169,11 +178,22 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this._series = this._createSeries(type)
         this.hitTest = SERIES_HIT_TEST_MAP.get(type)?.bind(this) ?? NULL_HIT
 
+        const sig = createSignal<PrimitiveBase<primitiveOptions>[]>([])
+        this.attached = sig[0]; this.setAttached = sig[1];
+
         console.debug(this)
         this.leafProps = {
             id: this.id,
             leafTitle: this.name,
             obj: this
+        }
+        this.branchProps = {
+            id: this.id,
+            branchTitle: this.name,
+            dropDownMode: 'auto',
+            reorderables: this.attached,
+            reorder: this.reorderPrimitives.bind(this),
+            moveTo: () => { } //TODO: Implement
         }
     }
 
@@ -315,33 +335,33 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this.markersPlugin.setMarkers(Array.from(this.markers.values()))
     }
 
-    setMarkersOptions(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>) {
+    protected setMarkersOptions(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>) {
         this.markersPlugin.applyOptions?.(opts)
     }
 
-    setMarkers(markers: { [key: string]: lwc.SeriesMarker<lwc.Time> }) {
+    protected setMarkers(markers: { [key: string]: lwc.SeriesMarker<lwc.Time> }) {
         delete this._markers
         this._markers = new Map<string, lwc.SeriesMarker<lwc.Time>>(Object.entries(markers))
         this._updateMarkersPlugin()
     }
 
-    updateMarker(mark_id: string, mark: lwc.SeriesMarker<lwc.Time>) {
+    protected updateMarker(mark_id: string, mark: lwc.SeriesMarker<lwc.Time>) {
         this.markers.set(mark_id, mark)
         this._updateMarkersPlugin()
     }
 
-    removeMarker(mark_id: string) {
+    protected removeMarker(mark_id: string) {
         if (this._markers === undefined) return
         if (this.markers.delete(mark_id)) this._updateMarkersPlugin()
     }
 
-    filterMarkers(_ids: string[]) {
+    protected filterMarkers(_ids: string[]) {
         if (this._markers === undefined) return
         _ids.forEach((id) => this.markers.delete(id))
         this._updateMarkersPlugin()
     }
 
-    removeAllMarkers() {
+    protected removeAllMarkers() {
         delete this._markers
         this._markers = new Map<string, lwc.SeriesMarker<lwc.Time>>()
         this._updateMarkersPlugin()
@@ -357,11 +377,11 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         return this._pricelines
     }
 
-    createPriceLine(id: string, options: lwc.CreatePriceLineOptions) {
+    protected createPriceLine(id: string, options: lwc.CreatePriceLineOptions) {
         this.pricelines.set(id, this._series.createPriceLine(options))
     }
 
-    removePriceLine(line_id: string) {
+    protected removePriceLine(line_id: string) {
         let line = this.pricelines.get(line_id)
         if (line !== undefined) {
             this._series.removePriceLine(line)
@@ -369,22 +389,71 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         }
     }
 
-    updatePriceLine(line_id: string, options: lwc.CreatePriceLineOptions) {
+    protected updatePriceLine(line_id: string, options: lwc.CreatePriceLineOptions) {
         let line = this.pricelines.get(line_id)
         if (line !== undefined) line.applyOptions(options)
     }
 
-    filterPriceLines(_ids: string[]) {
+    protected filterPriceLines(_ids: string[]) {
         _ids.forEach(this.removePriceLine.bind(this))
     }
 
-    removeAllPriceLines() {
+    protected removeAllPriceLines() {
         if (this._pricelines == undefined) return
         //@ts-ignore: _series.Jn.bh === seriesAPI.Series<SeriesType>.CustomPriceLines[] array for Lightweight-Charts v5.0.8
         this._series.Jn.bh = []
         delete this._pricelines
     }
     //#endregion
+
+    // #region ---- ---- Primitive Management ---- ----
+
+    //@ts-ignore: _series.Jn.kh === seriesAPI._series._primitives[] for Lightweight-Charts v5.0.8
+    get _primitiveWrapperArray(): any[] { return this._series.Jn.kh }
+    // _primitivesAPIs is the LWC array that the pane/series APIs use to actually render the primitives in order.
+    //@ts-ignore: _series.Jn.kh[].ah === seriesAPI._series._primitives[].PrimitiveBase for Lightweight-Charts v5.0.8
+    get _primitivesAPIs(): PrimitiveBase<primitiveOptions>[] { return Array.from(this._primitiveWrapperArray, (wrapper) => wrapper.ah) }
+
+    protected addPrimitive(_type: string, _id: string, params: primitiveOptions) {
+        let primitive_type = primitive_cls.get(_type)
+        if (primitive_type === undefined) return
+        let new_obj = new primitive_type(this._id + _id, params)
+
+        this._primitives.set(_id, new_obj)
+        this.attachPrimitive(new_obj)
+    }
+
+    protected attachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
+        primitive.setParent(this)
+        this._series.attachPrimitive(primitive)
+        this.setAttached([...this.attached(), primitive])
+    }
+
+    protected detachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
+        primitive.setParent(undefined)
+        this._series.detachPrimitive(primitive)
+        this.setAttached(this.attached().filter((prim) => prim.id !== primitive._id))
+    }
+
+    protected removePrimitive(_id: string) {
+        let _obj = this._primitives.get(_id)
+        if (_obj === undefined) return
+
+        this.detachPrimitive(_obj)
+        this._primitives.delete(_id)
+    }
+
+    protected updatePrimitive(_id: string, params: object) {
+        this._primitives.get(_id)?.applyOptions(params, true)
+    }
+
+    protected reorderPrimitives(from: number, to: number) {
+        this._primitiveWrapperArray.splice(to, 0, ...this._primitiveWrapperArray.splice(from, 1))
+        //Set the Reactive Primitive array to what is stored internally to the lightweight charts series.
+        this.setAttached(this._primitivesAPIs)
+    }
+
+    // #endregion
 }
 
 // #region ---- ---- ---- ---- Built-In SeriesAPI HitTests ---- ---- ---- ---- 

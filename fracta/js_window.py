@@ -1,11 +1,11 @@
 """Classes and Functions that handle the interface between Python and Javascript"""
 
 import logging
-from os.path import dirname, abspath
-from inspect import getmembers, ismethod
 import multiprocessing as mp
-from multiprocessing.synchronize import Event as mp_EventClass
 from dataclasses import dataclass, field
+from inspect import getmembers, ismethod
+from multiprocessing.synchronize import Event as mp_EventClass
+from os.path import abspath, dirname
 from pathlib import Path
 from typing import Optional
 
@@ -70,7 +70,12 @@ def __py_api_wrapper(cmd: PY_CMD):
 
 
 PyApi = type(
-    "PyAPI", (PyAPIBase,), dict((func.__name__, __py_api_wrapper(cmd)) for cmd, func in WIN_CMD_ROLODEX.items())
+    "PyAPI",
+    (PyAPIBase,),
+    dict(
+        (func.__name__, __py_api_wrapper(cmd))  # pyright: ignore[reportAttributeAccessIssue]
+        for cmd, func in WIN_CMD_ROLODEX.items()
+    ),
 )
 
 ##### --------------------------------- Python Gui Classes --------------------------------- #####
