@@ -49,7 +49,7 @@ export class charting_pane implements ReorderableSet {
         //@ts-ignore Create a way to retrieve this object from the PaneAPI
         this._pane.chartingPane = this
 
-        this.series_primitives = new PrimitiveSet(this)
+        this.series_primitives = undefined // TODO: Implement new PrimitiveSet(this)
 
         const sig1 = createSignal<HTMLTableCellElement>()
         this.paneEl = sig1[0]; this.setPaneEl = sig1[1]

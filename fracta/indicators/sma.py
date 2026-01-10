@@ -61,8 +61,8 @@ class SMA(Indicator):
         self.line_series = sc.LineSeries(self, name="My SMA")
         self.line_series.apply_options(sc.LineStyleOptions(lineStyle=sc.LineStyle.SparseDotted))
 
-        self.trend_line = TrendLine(self)
-        self.trend_line.apply_options({"p1": Point("01-01-2018", 50), "p2": Point("01-01-2022", 200)})
+        # self.trend_line = TrendLine(self)
+        # self.trend_line.apply_options({"p1": Point("01-01-2018", 50), "p2": Point("01-01-2022", 200)})
 
         self.update_options(opts)
         self.init_menu(opts)
@@ -90,15 +90,15 @@ class SMA(Indicator):
         self.line_series.set_data(self._data)
 
     def update_data(self, time: pd.Timestamp, data: pd.Series, *_, **__):
-        self._data[time] = data.tail(self.period).mean()
+        self._data[time] = data.tail(self.period).mean()  # type: ignore Pyright is being stupid
         self.line_series.update_data(SingleValueData(time, self._data.iloc[-1]))
 
-        self.trend_line.apply_options(
-            {
-                "p1": Point(time - pd.Timedelta("10D"), self._data.iloc[-1] - 10),
-                "p2": Point(time + pd.Timedelta("10D"), self._data.iloc[-1] + 10),
-            }
-        )
+        # self.trend_line.apply_options(
+        #     {
+        #         "p1": Point(time - pd.Timedelta("10D"), self._data.iloc[-1] - 10),
+        #         "p2": Point(time + pd.Timedelta("10D"), self._data.iloc[-1] + 10),
+        #     }
+        # )
 
     @default_output_property
     def average(self) -> pd.Series:

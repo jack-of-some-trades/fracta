@@ -134,16 +134,15 @@ export class indicator implements ReorderableSet {
 
     //#region ------------------------ Python Interface ------------------------ //
 
-    //Functions marked as protected are done so it indicate the original intent
-    //only encompassed being called from python, not from within JS.
-
-    protected add_series(_id: string, _type: s.Series_Type, _name: string | undefined = undefined) {
+    /** @api */
+    add_series(_id: string, _type: s.Series_Type, _name: string | undefined = undefined) {
         const _ser = new s.SeriesBase(_id, _name, _type, this)
         this.series.set(_id, _ser)
         this.setAttached([...this.attached(), _ser])
     }
 
-    protected remove_series(_id: string) {
+    /** @api */
+    remove_series(_id: string) {
         let series = this.series.get(_id)
         if (series === undefined) return
 
@@ -152,13 +151,15 @@ export class indicator implements ReorderableSet {
         this.setAttached(this.attached().filter((_ser) => _ser !== series))
     }
 
-    protected add_primitive_set(_id: string, _name: string | undefined = undefined) {
+    /** @api */
+    create_primitive_set(_id: string, _name: string | undefined = undefined) {
         const _pset = new PrimitiveSet(_id, _name, this.pane)
         this.primitiveSets.set(_id, _pset)
         this.setAttached([...this.attached(), _pset])
     }
 
-    protected remove_primitive_set(_id: string) {
+    /** @api */
+    remove_primitive_set(_id: string) {
         let pset = this.primitiveSets.get(_id)
         if (pset === undefined) return
 
@@ -179,7 +180,8 @@ export class indicator implements ReorderableSet {
             )
     }
 
-    protected set_menu_struct(menu_struct: object, options: object) {
+    /** @api */
+    set_menu_struct(menu_struct: object, options: object) {
         this.menuStruct = menu_struct
         this.setOptions(options)
     }

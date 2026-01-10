@@ -111,7 +111,8 @@ export class PrimitiveSet implements ReorderableSet {
         this._series.applyOptions({ priceScaleId: scale_id })
     }
 
-    protected addPrimitive(_type: string, _id: string, params: primitiveOptions) {
+    /** @api */
+    createPrimitive(_type: string, _id: string, params: primitiveOptions) {
         let primitive_type = primitive_cls.get(_type)
         if (primitive_type === undefined) return
         let new_obj = new primitive_type(this._id + _id, params)

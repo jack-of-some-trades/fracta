@@ -119,7 +119,7 @@ class JS_CMD(IntEnum):
     # Primitives
     ADD_PRIMITIVE_SET = auto()
     REMOVE_PRIMITIVE_SET = auto()
-    ADD_PRIMITIVE = auto()
+    CREATE_PRIMITIVE = auto()
     REMOVE_PRIMITIVE = auto()
     UPDATE_PRIMITIVE_OPTS = auto()
 
@@ -461,54 +461,61 @@ def remove_all_pricelines(frame_id: str, indicator_id: str, series_id: str) -> s
 # region ------------------------ Primitives ------------------------ #
 
 
+def primitive_set_preamble(frame_id: str, indicator_id: Optional[str], primitive_set_id: str) -> str:
+    # _set is a workspace var defined at the window level in index.ts for use as a temp reference to a primitive set
+    if indicator_id is None:
+        return f"_set = {frame_id}.attached.get('{primitive_set_id}');"
+    else:
+        return f"_set = {frame_id}.attached.get('{indicator_id}').attached.get('{primitive_set_id}');"
+
+
 @register_js_cmd(JS_CMD.ADD_PRIMITIVE_SET)
-def add_primitive_set(frame_id: str, set_id: str, name: str, pane_index: int) -> str:
-    return f"{frame_id}.create_primitive_set('{set_id}', '{name}', {pane_index});"
+def add_primitive_set(frame_id: str, indicator_id: Optional[str], set_id: str, name: str) -> str:
+    return primitive_set_preamble(frame_id, indicator_id, set_id) + f"_set.create_primitive_set('{set_id}', '{name}');"
 
 
 @register_js_cmd(JS_CMD.REMOVE_PRIMITIVE_SET)
-def remove_primitive_set(frame_id: str, set_id: str) -> str:
-    return f"{frame_id}.remove_primitive_set('{set_id}');"
+def remove_primitive_set(frame_id: str, indicator_id: Optional[str], set_id: str) -> str:
+    return primitive_set_preamble(frame_id, indicator_id, set_id) + f"_set.remove_primitive_set('{set_id}');"
 
 
-# Retreives an indicator object from a frame to manipulate
-def primitive_set_preamble(frame_id: str, primitive_set_id: str) -> str:
-    # _ind is a workspace var defined at the window level in index.ts for use here
-    # originally only used for indicators, but adapted to also reference primitive groups
-    return f"_set = {frame_id}.attached.get('{primitive_set_id}');"
-
-
-@register_js_cmd(JS_CMD.ADD_PRIMITIVE)
-def add_primitive(
+@register_js_cmd(JS_CMD.CREATE_PRIMITIVE)
+def create_primitive(
     frame_id: str,
+    indicator_id: Optional[str],
     primitive_set_id: str,
     primitive_id: str,
     primitive_type: str,
     args: dict[str, Any],
 ) -> str:
     return (
-        primitive_set_preamble(frame_id, primitive_set_id)
-        + f"_set.addPrimitive('{primitive_id}','{primitive_type}', {dump(args)});"
+        primitive_set_preamble(frame_id, indicator_id, primitive_set_id)
+        + f"_set.createPrimitive('{primitive_id}','{primitive_type}', {dump(args)});"
     )
 
 
 @register_js_cmd(JS_CMD.REMOVE_PRIMITIVE)
 def remove_primitive(
     frame_id: str,
+    indicator_id: Optional[str],
     primitive_set_id: str,
     primitive_id: str,
 ) -> str:
-    return primitive_set_preamble(frame_id, primitive_set_id) + f"_set.removePrimitive('{primitive_id}');"
+    return primitive_set_preamble(frame_id, indicator_id, primitive_set_id) + f"_set.detachPrimitive('{primitive_id}');"
 
 
 @register_js_cmd(JS_CMD.UPDATE_PRIMITIVE_OPTS)
 def update_primitive_opts(
     frame_id: str,
+    indicator_id: Optional[str],
     primitive_set_id: str,
     primitive_id: str,
     args: dict[str, Any],
 ) -> str:
-    return primitive_set_preamble(frame_id, primitive_set_id) + f"_set.updatePrimitive('{primitive_id}', {dump(args)});"
+    return (
+        primitive_set_preamble(frame_id, indicator_id, primitive_set_id)
+        + f"_set.updatePrimitive('{primitive_id}', {dump(args)});"
+    )
 
 
 # endregion

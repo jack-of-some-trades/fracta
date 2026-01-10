@@ -9,7 +9,6 @@ from logging import getLogger
 from typing import Any, ClassVar, Optional, Protocol, Type, TYPE_CHECKING
 from weakref import ref
 
-
 from ..types import Color
 from ..util import ID_Dict
 from ..js_cmd import JS_CMD
@@ -102,25 +101,18 @@ class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | p
         opts: Optional[T] = None,
         js_id: Optional[str] = None,
     ) -> None:
-
         # Check if parent is an Indicator and resolve to its default PrimitiveSet.
         # Cannot use isinstance(parent, ind.Indicator) because it sends you to circular import hell.
-        if hasattr(parent, "default_primitive_set"):
-            parent = parent.default_primitive_set  # type: ignore
-
+        parent = getattr(parent, "default_primitive_set", None) or parent  # type: ignore
         super().__init__(parent, parent._associate_primitive(self, js_id))  # type: ignore
 
         # Ensure a default options cls is always constructed.
         self._opts: T = opts if opts is not None else self.__options_cls__()  # type:ignore
         self.__opts_sync_intercept__: OptsSyncIntercept | None = None
         self.__init_state__ = asdict(self._opts)
-
-        # Make a Weakref since this is a child obj.
-        # Handle Indicator Parent by resolving to its default PrimitiveSet
-        self._parent = ref(getattr(parent, "default_primitive_set", None) or parent)
         self._type = self.__class__.__name__
 
-        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *self.ids, self._type, self._opts))
+        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *self.ids, self._type, self._opts))
 
     def reset(self):
         "Reset the state back to how it existed at the time initialization"

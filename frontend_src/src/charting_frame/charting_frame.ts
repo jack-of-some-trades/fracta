@@ -45,7 +45,7 @@ export class charting_frame extends frame {
     private _timescaleTimes: number[] | undefined
 
     pane_map = new WeakMap<lwc.IPaneApi<lwc.Time>, charting_pane>()
-    children = new Map<string, (indicator | PrimitiveSet)>()
+    attached = new Map<string, (indicator | PrimitiveSet)>()
     private eventDelegates = new Map<ChartingEventsTypes, Delegate<ChartingEvent>>()
 
     timeframe: tf
@@ -400,31 +400,32 @@ export class charting_frame extends frame {
 
     // #region -------------- Python API Functions ------------------ //
 
-    //Functions marked as protected are done so it indicate the original intent
-    //only encompassed being called from python, not from within JS. uses snake_case for this reason.
-
-    protected set_whitespace_data(data: lwc.WhitespaceData[], primitive_data: lwc.SingleValueData | undefined) {
+    /** @api */
+    set_whitespace_data(data: lwc.WhitespaceData[], primitive_data: lwc.SingleValueData | undefined) {
         this.whitespace_series.setData(data)
         this.setPrimitiveData(primitive_data ?? { time: '1970-01-01', value: 0 })
 
         this.updateTimescalePoints()
     }
 
-    protected update_whitespace_data(data: lwc.WhitespaceData, primitive_data: lwc.SingleValueData | undefined) {
+    /** @api */
+    update_whitespace_data(data: lwc.WhitespaceData, primitive_data: lwc.SingleValueData | undefined) {
         this.whitespace_series.update(data)
         this.setPrimitiveData(primitive_data ?? { time: '1970-01-01', value: 0 })
 
         this.updateTimescalePoints()
     }
 
-    protected set_ticker(new_ticker: ticker) {
+    /** @api */
+    set_ticker(new_ticker: ticker) {
         this.ticker = new_ticker
         this.updateTab(this.ticker.symbol)
         if (this == window.activeFrame)
             window.topbar.setTicker(this.ticker.symbol)
     }
 
-    protected set_timeframe(new_tf_str: string) {
+    /** @api */
+    set_timeframe(new_tf_str: string) {
         this.timeframe = tf.fromStr(new_tf_str)
         if (this == window.activeFrame)
             window.topbar.setTimeframe(this.timeframe)
@@ -441,39 +442,39 @@ export class charting_frame extends frame {
         this.updateTimescaleOpts(newOpts)
     }
 
-    protected set_series_type(new_type: Series_Type) {
+    /** @api */
+    set_series_type(new_type: Series_Type) {
         this.series_type = new_type
         if (this == window.activeFrame)
             window.topbar.setSeries(this.series_type)
     }
 
-    protected create_indicator(
+    /** @api */
+    create_indicator(
         _id: string,
         type: string,
         name: string,
         outputs: { [key: string]: string },
     ) {
         let new_indicator = new indicator(_id, type, name, outputs, this)
-        this.children.set(_id, new_indicator)
+        this.attached.set(_id, new_indicator)
     }
 
-    protected remove_indicator(_id: string) {
-        let indicator = this.children.get(_id)
+    /** @api */
+    remove_indicator(_id: string) {
+        let indicator = this.attached.get(_id)
         if (indicator === undefined || !isIndicator(indicator)) {
             console.error(`Indicator not found: ${_id}, Indicator: ${indicator}`)
             return
         }
 
         indicator.delete()
-        this.children.delete(_id)
+        this.attached.delete(_id)
     }
 
-    protected create_primitive_set(
-        _id: string,
-        name: string,
-        pane_index: number,
-    ) {
-        let _panes = this._chart.panes()
+    /** @api */
+    create_primitive_set(_id: string, name: string, pane_index: number) {
+        let _panes = this.paneAPIs
         if (pane_index < 0 || pane_index >= _panes.length) {
             // Could be user error, proceed with creation on pane 0
             console.error(`Creating PrimitiveSet: Invalid pane index: ${pane_index}, using pane 0`)
@@ -488,18 +489,19 @@ export class charting_frame extends frame {
         }
 
         let new_set = new PrimitiveSet(_id, name, pane)
-        this.children.set(_id, new_set)
+        this.attached.set(_id, new_set)
     }
 
-    protected remove_primitive_set(_id: string) {
-        let set = this.children.get(_id)
+    /** @api */
+    remove_primitive_set(_id: string) {
+        let set = this.attached.get(_id)
         if (set === undefined || !isPrimitiveSet(set)) {
             console.error(`PrimitiveSet not found: ${_id}, PrimitiveSet: ${set}`)
             return
         }
 
         set.delete()
-        this.children.delete(_id)
+        this.attached.delete(_id)
     }
 
 

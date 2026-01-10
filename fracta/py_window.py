@@ -92,7 +92,11 @@ class QueueHolder(Protocol):
 
 
 class FrontendObject[ParentType: QueueHolder]:
-    "Base class for objects that represent Frontend Objects"
+    """
+    Base class for objects that represent Frontend Objects
+    Provides boiler plate functionality for the ID addressing system, and the ability interact with the window/frontend.
+    The Generic type, ParentType, is used to define the type of object that the FrontendObject is a child of.
+    """
 
     def __init__(self, parent: ParentType, _js_id: str):
         self._js_id = _js_id
@@ -477,6 +481,13 @@ class Frame(FrontendObject[Container]):
         self.fwd_queue.put((JS_CMD.REMOVE_FRAME, self._js_id))
         self.fwd_queue.put((JS_CMD.REMOVE_REFERENCE, *self.all_ids()))
         super().__del__()
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        "Return the ids of the indicator"
+        return (self._js_id,)
+        # TODO : Patch fix for addressing. Currently frames are globally addressable.
+        # In future should be addressed through parent negative the required override here
 
     @abstractmethod
     def all_ids(self) -> list[str]:

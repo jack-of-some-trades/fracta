@@ -32,11 +32,10 @@ export class container_manager {
         this.tab_manager.init(tabs_el)
     }
 
-    /**
-     * Generate a new container and makes it the window's active container 
-     * Protected to indicate it should only be called from Python
+    /** 
+     * @api Generate a new container and makes it the window's active container 
      */
-    protected add_container(id: string): container | undefined {
+    add_container(id: string): container | undefined {
         const new_tab_el = this.tab_manager.addTab(id)
         const tmp_ref = new container(
             id,
@@ -49,11 +48,10 @@ export class container_manager {
         return tmp_ref
     }
 
-    /**
-     * Removes a Container, and all its children, from the entire interface.
-     * Protected method that should only be called from Python
+    /** 
+     * @api Removes a Container, and all its children, from the entire interface.
      */
-    protected remove_container(id: string) {
+    remove_container(id: string) {
         const tab_el = this.tab_els.get(id)
         const container_obj = this.containers.get(id)
 

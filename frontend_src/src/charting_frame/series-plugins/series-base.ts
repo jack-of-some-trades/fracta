@@ -238,11 +238,15 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     }
 
     remove() { this.chart.removeSeries(this._series) }
-    protected update(bar: SeriesDataTypeMap_EXT[T]) { this._series.update(bar) }
-    protected setData(data: SeriesDataTypeMap_EXT[T][]) { this._series.setData(data) }
 
-    /* Changes the type of series that is displayed. Data must be given since the DataType may change */
-    protected change_series_type(series_type: Series_Type, data: SeriesData[]) {
+    /** @api Update the series with a single data point */
+    update(bar: SeriesDataTypeMap_EXT[T]) { this._series.update(bar) }
+
+    /** @api Set the series data with an array of data points */
+    setData(data: SeriesDataTypeMap_EXT[T][]) { this._series.setData(data) }
+
+    /** @api Changes the type of series that is displayed. Data must be given since the DataType may change */
+    change_series_type(series_type: Series_Type, data: SeriesData[]) {
         if (series_type === this._type) return
 
         const current_zindex = this._series.seriesOrder()
@@ -335,33 +339,39 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this.markersPlugin.setMarkers(Array.from(this.markers.values()))
     }
 
-    protected setMarkersOptions(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>) {
+    /** @api */
+    setMarkersOptions(opts: lwc.DeepPartial<lwc.SeriesMarkersOptions>) {
         this.markersPlugin.applyOptions?.(opts)
     }
 
-    protected setMarkers(markers: { [key: string]: lwc.SeriesMarker<lwc.Time> }) {
+    /** @api */
+    setMarkers(markers: { [key: string]: lwc.SeriesMarker<lwc.Time> }) {
         delete this._markers
         this._markers = new Map<string, lwc.SeriesMarker<lwc.Time>>(Object.entries(markers))
         this._updateMarkersPlugin()
     }
 
-    protected updateMarker(mark_id: string, mark: lwc.SeriesMarker<lwc.Time>) {
+    /** @api */
+    updateMarker(mark_id: string, mark: lwc.SeriesMarker<lwc.Time>) {
         this.markers.set(mark_id, mark)
         this._updateMarkersPlugin()
     }
 
-    protected removeMarker(mark_id: string) {
+    /** @api */
+    removeMarker(mark_id: string) {
         if (this._markers === undefined) return
         if (this.markers.delete(mark_id)) this._updateMarkersPlugin()
     }
 
-    protected filterMarkers(_ids: string[]) {
+    /** @api */
+    filterMarkers(_ids: string[]) {
         if (this._markers === undefined) return
         _ids.forEach((id) => this.markers.delete(id))
         this._updateMarkersPlugin()
     }
 
-    protected removeAllMarkers() {
+    /** @api */
+    removeAllMarkers() {
         delete this._markers
         this._markers = new Map<string, lwc.SeriesMarker<lwc.Time>>()
         this._updateMarkersPlugin()
@@ -377,11 +387,13 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         return this._pricelines
     }
 
-    protected createPriceLine(id: string, options: lwc.CreatePriceLineOptions) {
+    /** @api */
+    createPriceLine(id: string, options: lwc.CreatePriceLineOptions) {
         this.pricelines.set(id, this._series.createPriceLine(options))
     }
 
-    protected removePriceLine(line_id: string) {
+    /** @api */
+    removePriceLine(line_id: string) {
         let line = this.pricelines.get(line_id)
         if (line !== undefined) {
             this._series.removePriceLine(line)
@@ -389,16 +401,19 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         }
     }
 
-    protected updatePriceLine(line_id: string, options: lwc.CreatePriceLineOptions) {
+    /** @api */
+    updatePriceLine(line_id: string, options: lwc.CreatePriceLineOptions) {
         let line = this.pricelines.get(line_id)
         if (line !== undefined) line.applyOptions(options)
     }
 
-    protected filterPriceLines(_ids: string[]) {
+    /** @api */
+    filterPriceLines(_ids: string[]) {
         _ids.forEach(this.removePriceLine.bind(this))
     }
 
-    protected removeAllPriceLines() {
+    /** @api */
+    removeAllPriceLines() {
         if (this._pricelines == undefined) return
         //@ts-ignore: _series.Jn.bh === seriesAPI.Series<SeriesType>.CustomPriceLines[] array for Lightweight-Charts v5.0.8
         this._series.Jn.bh = []
@@ -414,7 +429,8 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
     //@ts-ignore: _series.Jn.kh[].ah === seriesAPI._series._primitives[].PrimitiveBase for Lightweight-Charts v5.0.8
     get _primitivesAPIs(): PrimitiveBase<primitiveOptions>[] { return Array.from(this._primitiveWrapperArray, (wrapper) => wrapper.ah) }
 
-    protected addPrimitive(_type: string, _id: string, params: primitiveOptions) {
+    /** @api */
+    addPrimitive(_type: string, _id: string, params: primitiveOptions) {
         let primitive_type = primitive_cls.get(_type)
         if (primitive_type === undefined) return
         let new_obj = new primitive_type(this._id + _id, params)
@@ -423,19 +439,22 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this.attachPrimitive(new_obj)
     }
 
-    protected attachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
+    /** @api */
+    attachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
         primitive.setParent(this)
         this._series.attachPrimitive(primitive)
         this.setAttached([...this.attached(), primitive])
     }
 
-    protected detachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
+    /** @api */
+    detachPrimitive(primitive: PrimitiveBase<primitiveOptions>) {
         primitive.setParent(undefined)
         this._series.detachPrimitive(primitive)
         this.setAttached(this.attached().filter((prim) => prim.id !== primitive._id))
     }
 
-    protected removePrimitive(_id: string) {
+    /** @api */
+    removePrimitive(_id: string) {
         let _obj = this._primitives.get(_id)
         if (_obj === undefined) return
 
@@ -443,11 +462,13 @@ export class SeriesBase<T extends Exclude<keyof SeriesOptionsMap_EXT, 'Custom'>>
         this._primitives.delete(_id)
     }
 
-    protected updatePrimitive(_id: string, params: object) {
+    /** @api */
+    updatePrimitive(_id: string, params: object) {
         this._primitives.get(_id)?.applyOptions(params, true)
     }
 
-    protected reorderPrimitives(from: number, to: number) {
+    /** @api */
+    reorderPrimitives(from: number, to: number) {
         this._primitiveWrapperArray.splice(to, 0, ...this._primitiveWrapperArray.splice(from, 1))
         //Set the Reactive Primitive array to what is stored internally to the lightweight charts series.
         this.setAttached(this._primitivesAPIs)

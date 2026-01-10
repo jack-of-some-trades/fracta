@@ -43,18 +43,18 @@ class PrimitiveSet(pr.PrimitiveHolder, FrontendObject["ChartingFrame | Indicator
         "Check if the given primitive js_id or index # is in the collection"
         return item in self._primitives
 
-    def AttachPrimitive(self, primitive: pr.PrimitiveBase):
+    def attach_primitive(self, primitive: pr.PrimitiveBase):
         "Attach a primitive to this PrimitiveSet"
         # TODO: Fix improper handling of primitive private variables once ID update method is known.
         primitive._js_id = self._associate_primitive(primitive)
-        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *primitive.ids, primitive._type, primitive._opts))
+        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *primitive.ids, primitive._type, primitive._opts))
 
-    def DetachPrimitive(self, primitive: pr.PrimitiveBase):
+    def detach_primitive(self, primitive: pr.PrimitiveBase):
         "Detach a primitive from this PrimitiveSet"
         self._deassociate_primitive(primitive)
         self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *primitive.ids))
 
-    def MovePrimitive(self, primitive: pr.PrimitiveBase):
+    def move_primitive(self, primitive: pr.PrimitiveBase):
         "Move the given primitive from another holder to this one."
         raise NotImplementedError("MovePrimitive is not yet implemented for PrimitiveSet.")
 

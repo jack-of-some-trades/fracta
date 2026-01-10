@@ -183,6 +183,7 @@ class PyWv:
             self.pyweb_window.evaluate_js(cmd)
         except JavascriptException as e:
             log.error("JS Exception: %s\n\t\t\t\tscript: %s", e.args[0]["message"], cmd)
+            raise e
 
     def _assign_callbacks(self):
         "Read all the functions that exist in the api and expose non-dunder methods to javascript"

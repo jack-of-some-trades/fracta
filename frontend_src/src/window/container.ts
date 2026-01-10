@@ -92,12 +92,13 @@ export class container {
     }
 
     /**
+     * @api
      * Called by Python when creating a Frame. Returns the new Frame so it can be made a global var.
      * TODO: Make this instantiate an Abstract Frame that can be transmuted into a Chart_Frame
      * Will Require a UI Element for display and Frame type Selection. Alternatively, set up a
      * add_[type]_frame method for each type of frame and don't allow frame type manipulation.
      */
-    protected add_frame(new_id: string, type: number): frame {
+    add_frame(new_id: string, type: number): frame {
         //Logging an error instead of throwing one because when thrown nothing is displayed in the console.
         if (type == 1) console.error('Cannot Create an instance of an Abstract Frame')
 
@@ -107,11 +108,12 @@ export class container {
     }
 
     /**
+     * @api
      * Delete a frame from this container. This function assumes that python has already checked that
      * the current layout needs fewer frames than the current number of frames that exist. It also
      * assumes that python will remove the global reference to this frame so it can be garbage collected.
      */
-    protected remove_frame(frame_id: string) {
+    remove_frame(frame_id: string) {
         let frame_index = this.frames.findIndex((f) => f.id === frame_id)
         if (frame_index === -1) return
         this.reorderFrames(frame_index, this.frames.length - 1)
@@ -125,10 +127,10 @@ export class container {
     }
 
     /** 
+     * @api
      * Create and configure all the necessary frames & separators for a given layout.
-     * protected => should only be called from python
      */
-    protected set_layout(layout: Container_Layouts) {
+    set_layout(layout: Container_Layouts) {
         // ------------ Create Layout Template ------------
         this.flexFrames = layout_switch(layout, this.divRect, this.refreshSize.bind(this))
         let layout_displays: layout_display[] = []

@@ -416,7 +416,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             primitive._js_id = self._primitives.affix_id(js_id, primitive)
 
         # TODO: adjust this to a MOVE_PRIMITIVE command when necessary, probably adding a new command type
-        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE, *self.ids, primitive.js_id, primitive._type, primitive._args))
+        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *self.ids, primitive.js_id, primitive._type, primitive._args))
 
     def detach_primitive(self, primitive: pr.PrimitiveBase):
         if primitive.js_id is not None and primitive.js_id in self._primitives:
