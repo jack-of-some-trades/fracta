@@ -6,7 +6,7 @@ Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeri
 """
 
 from dataclasses import asdict, dataclass, field
-from enum import IntEnum
+from enum import IntEnum, StrEnum, auto
 from inspect import signature
 import logging
 from typing import Literal, Optional, Self, TypeAlias
@@ -79,6 +79,47 @@ class LineStyle(IntEnum):
     Dashed = 2
     LargeDashed = 3
     SparseDotted = 4
+
+
+# Extended Line Style that utiizes either the predefined Lightweight Charts Enums, or a pixel array to define stoke lengths & patterns
+type LineStyleEXT = LineStyle | list[int]
+
+
+class CanvasLineCap(StrEnum):
+    "HTML Canvas Line Cap Types"
+
+    Butt = auto()
+    Round = auto()
+    Square = auto()
+
+
+class CanvasLineJoin(StrEnum):
+    "HTML Canvas Line Join Types"
+
+    Round = auto()
+    Bevel = auto()
+    Miter = auto()
+
+
+class CanvasTextAlign(StrEnum):
+    "HTML Text Align Types"
+
+    Left = auto()
+    Right = auto()
+    Center = auto()
+    Start = auto()
+    End = auto()
+
+
+class CanvasTextBaseline(StrEnum):
+    "HTML Text Baseline Types"
+
+    Top = auto()
+    Hanging = auto()
+    Middle = auto()
+    Alphabetic = auto()
+    Ideographic = auto()
+    Bottom = auto()
 
 
 class LastPriceAnimationMode(IntEnum):

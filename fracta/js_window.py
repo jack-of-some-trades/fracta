@@ -1,45 +1,42 @@
 """Classes and Functions that handle the interface between Python and Javascript"""
 
 import logging
-from os.path import dirname, abspath
-from inspect import getmembers, ismethod
 import multiprocessing as mp
-from multiprocessing.synchronize import Event as mp_EventClass
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Protocol
-from abc import ABC, abstractmethod
+from inspect import getmembers, ismethod
+from multiprocessing.synchronize import Event as mp_EventClass
+from os.path import abspath, dirname
+from pathlib import Path
+from typing import Optional
 
 import webview
 from webview.errors import JavascriptException
 
 from .js_cmd import JS_CMD, VIEW_CMD_ROLODEX
-from .py_cmd import PY_CMD
-from .types import Ticker, TF
+from .py_cmd import PY_CMD, WIN_CMD_ROLODEX
 from .util import is_dunder
 
-file_dir = dirname(abspath(__file__))
-logger = logging.getLogger("fracta_log")
+INDEX_HTML_PATH = Path(dirname(abspath(__file__))) / "frontend" / "index.html"
+log = logging.getLogger("fracta_log")
 
 # @pylint: disable=consider-iterating-dictionary missing-function-docstring invalid-name
 
 ##### --------------------------------- Javascript API Class --------------------------------- #####
 
 
-class js_api:
+class PyAPIBase:
     """
     Base javascript Callback API.
-    Every function in this class maps to a function in the py_api class in py_api.ts and
+    Every function in this class maps to a function in the PyApi class in py_api.ts and
     thus allows for events/inputs into the Javascript Window to invoke python functions.
     * private, protected, sunder, and dunder methods are *not* placed in the Javascript window
     """
 
-    def __init__(self):
-        # Pass in a temporary Object that we will overwrite later.
-        # This is really just used to silence linter errors
-        self.rtn_queue = mp.Queue(maxsize=1)
-        self.view_window: View
+    def __init__(self, rtn_queue: mp.Queue):
+        self.rtn_queue = rtn_queue
+        self.view_window: PyWv
 
-    def __set_view_window__(self, view_window: "View"):
+    def __set_view_window__(self, view_window):
         # For some reason this assignment can't be done in the constructor.
         # If you try that then py_webview never loads? The assignment can only be
         # done after the py_webivew window has loaded
@@ -57,72 +54,31 @@ class js_api:
     def restore(self):
         self.view_window.restore()
 
-    def exec_py(self, kwargs: dict):
-        self.rtn_queue.put((PY_CMD.PY_EXEC, kwargs))
 
-    def add_container(self):
-        self.rtn_queue.put((PY_CMD.ADD_CONTAINER,))
-
-    def remove_container(self, _id: str):
-        self.rtn_queue.put((PY_CMD.REMOVE_CONTAINER, _id))
-
-    def remove_frame(self, container_id: str, frame_id: str):
-        self.rtn_queue.put((PY_CMD.REMOVE_FRAME, container_id, frame_id))
-
-    def reorder_containers(self, _from: int, _to: int):
-        self.rtn_queue.put((PY_CMD.REORDER_CONTAINERS, _from, _to))
-
-    def layout_change(self, container_id: str, layout: int):
-        self.rtn_queue.put((PY_CMD.LAYOUT_CHANGE, container_id, layout))
-
-    def series_change(self, container_id: str, frame_id: str, series_type: str):
-        try:
-            self.rtn_queue.put(
-                (
-                    PY_CMD.SERIES_CHANGE,
-                    container_id,
-                    frame_id,
-                    series_type,
-                )
-            )
-        except ValueError:
-            logger.warning("Couldn't Change Series_Type, '%s' isn't a valid series", series_type)
-
-    def data_request(self, c_id: str, f_id: str, ticker: dict[str, str], tf_str: str):
-        try:
-            self.rtn_queue.put(
-                (
-                    PY_CMD.TIMESERIES_REQUEST,
-                    c_id,
-                    f_id,
-                    Ticker.from_dict(ticker),
-                    TF.fromStr(tf_str),
-                )
-            )
-        except ValueError as e:
-            logger.warning(e)
-
-    def symbol_search(
-        self,
-        symbol: str,
-        sources: list[str],
-        exchanges: list[str],
-        asset_classes: list[str],
-        confirmed: bool,
-    ):
-        self.rtn_queue.put((PY_CMD.SYMBOL_SEARCH, symbol, confirmed, sources, exchanges, asset_classes))
-
-    def set_indicator_options(self, container_id: str, frame_id: str, indicator_id: str, obj: dict):
-        self.rtn_queue.put((PY_CMD.SET_INDICATOR_OPTS, container_id, frame_id, indicator_id, obj))
-
-    def indicator_request(self, container_id: str, frame_id: str, pkg_id: str, ind_id: str):
-        self.rtn_queue.put((PY_CMD.INDICATOR_REQUEST, container_id, frame_id, pkg_id, ind_id))
-
-    def update_series_options(self, c_id: str, f_id: str, i_id: str, s_id: str, opts: dict):
-        self.rtn_queue.put((PY_CMD.UPDATE_SERIES_OPTS, c_id, f_id, i_id, s_id, opts))
+# Since Most of the python functions PyAPI needs to invoke are in the primary process we can't call
+# them directly. Instead we need to pass the arguments and a relevant PY_CMD code through the
+# mp.Queue. Generating these forwarding functions is automated below in the generation of the
+# PyApi type using the already defined WIN_CMD_ROLODEX. The only restriction is that the linked
+# python and javascript functions must have the exact same signature.
 
 
-##### --------------------------------- Helper Classes --------------------------------- #####
+def __py_api_wrapper(cmd: PY_CMD):
+    def queue_wrapper(self, *args):
+        self.rtn_queue.put((cmd, *args))
+
+    return queue_wrapper
+
+
+PyApi = type(
+    "PyAPI",
+    (PyAPIBase,),
+    dict(
+        (func.__name__, __py_api_wrapper(cmd))  # pyright: ignore[reportAttributeAccessIssue]
+        for cmd, func in WIN_CMD_ROLODEX.items()
+    ),
+)
+
+##### --------------------------------- Python Gui Classes --------------------------------- #####
 
 
 @dataclass
@@ -135,120 +91,13 @@ class MpHooks:
     stop_event: mp_EventClass = field(default_factory=mp.Event)
 
 
-##### --------------------------------- Python Gui Classes --------------------------------- #####
-
-
-class _scriptProtocol(Protocol):
-    def __call__(self, cmd: str, promise: Optional[Callable] = None): ...
-
-
-class View(ABC):
-    """
-    Abstract Class interface.
-    Extentions of this class create and manage the javascript <-> GUI Library Connection.
-    Instantiations of this class are intended to be done using mp.process() so that they
-    are managed via a dedicated processor to help imporve performance.
-
-    Attributes:
-        fwd_queue:          MP Queue That transfers data from __main_mp__ to __view_mp__
-        rtn_queue:          MP Queue That transfers data from __view_mp__ to __main_mp__
-        js_loaded_event:    MP Event that is set by __view_mp__ to indicate javascript window has
-                                been loaded and JS_CMDs can be executed
-        stop_event:         MP Event that is set by either __main_mp__ or __view_mp__ to signal
-                                application shutdown
-        run_script():       Callable function that takes a string representation of javascript that
-                            will be evaluated in the window
-        rolodex:            A Dict Mapping JS_CMDs to Instance Functions for easy access
-
-    """
-
-    def __init__(
-        self,
-        hooks: MpHooks,
-        run_script: _scriptProtocol,
-    ):
-        self.run_script = run_script
-        self.fwd_queue = hooks.fwd_queue
-        self.rtn_queue = hooks.rtn_queue
-        self.js_loaded_event = hooks.js_loaded_event
-        self.stop_event = hooks.stop_event
-
-        self.rolodex = {
-            JS_CMD.SHOW: self.show,
-            JS_CMD.HIDE: self.hide,
-            JS_CMD.CLOSE: self.close,
-            JS_CMD.MAXIMIZE: self.maximize,
-            JS_CMD.MINIMIZE: self.minimize,
-            JS_CMD.RESTORE: self.restore,
-            JS_CMD.LOAD_CSS: self.load_css,
-        }
-
-    @abstractmethod
-    def show(self): ...
-    @abstractmethod
-    def hide(self): ...
-    @abstractmethod
-    def close(self): ...
-    @abstractmethod
-    def minimize(self): ...
-    @abstractmethod
-    def maximize(self): ...
-    @abstractmethod
-    def restore(self): ...
-    @abstractmethod
-    def load_css(self, filepath: str): ...
-    @abstractmethod
-    def assign_callback(self, func_name: str): ...
-
-    def _manage_queue(self):
-        "Infinite loop to manage Process Queue since it is launched in an isolated process"
-        batch_cmd, batch_size = "", 0
-        while not self.stop_event.is_set():
-            # get() doesn't need a timeout. the waiting will get interupted by the os
-            # to go manage the thread that the webview is running in. Bit wasteful i think.
-            # Would be nice to have pywebview run in an asyncio Thread
-            msg = self.fwd_queue.get()
-            cmd, *args = msg
-            logger.debug("Received CMD: %s, args: %s", cmd.name, args)
-
-            try:
-                # Lookup JS Command
-                cmd_str = VIEW_CMD_ROLODEX[cmd](*args)
-            except TypeError as e:
-                arg_list = [type(arg) for arg in args]
-                logger.error(
-                    "Command:%s: Given %s \n\tError msg: %s",
-                    JS_CMD(cmd).name,
-                    arg_list,
-                    e,
-                )
-                continue  # Skip to next Command
-
-            if cmd_str is None:
-                self.rolodex[cmd](*args)  # Given a PyWv Command, execute Immediately
-            else:
-                batch_size += 1
-                batch_cmd += cmd_str
-
-            # Batching is critical. Batching is atleast 3x faster than running individual cmds
-            # If not done then the queue can easily pileup too. The Batch Size Limit exists to
-            # limit how much the viewport appears to lockup while being flooded w/ cmds
-            if self.fwd_queue.empty() or batch_size >= 100:
-                self.run_script(batch_cmd)
-                batch_cmd = ""
-                batch_size = 0
-
-
-class PyWv(View):
+class PyWv:
     """
     Class to create and manage a pywebview window
 
     Args:
         Param: mp_hooks
             A Dataclass struct of all the necessary multiprocessor hooks.
-        Param: api
-            Optional instance of js_api, can be an extended subclass. If it is extended
-            Any additional class methods will behave as javascript api callbacks
         param: **kwargs
             key-word args that are passed directly to the pywebview window.
             See https://pywebview.flowrl.com/guide/api.html for docs on available kwargs.
@@ -260,23 +109,31 @@ class PyWv(View):
         title: str = "",
         debug: bool = False,
         log_level: Optional[str | int] = None,
-        api: Optional[js_api] = None,
         **kwargs,
     ):
-        # Pass Hooks and run_script to super
-        super().__init__(mp_hooks, run_script=self._handle_eval_js)
+        self.fwd_queue = mp_hooks.fwd_queue
+        self.rtn_queue = mp_hooks.rtn_queue
+        self.js_loaded_event = mp_hooks.js_loaded_event
+        self.stop_event = mp_hooks.stop_event
+        self.batch_cmds = True
 
-        if log_level is not None:
-            logger.setLevel(log_level)
-        elif debug:
-            logger.setLevel(logging.DEBUG)
+        self.api = PyApi(self.rtn_queue)
+        self.rolodex = {
+            JS_CMD.SHOW: self.show,
+            JS_CMD.HIDE: self.hide,
+            JS_CMD.CLOSE: self.close,
+            JS_CMD.MAXIMIZE: self.maximize,
+            JS_CMD.MINIMIZE: self.minimize,
+            JS_CMD.RESTORE: self.restore,
+            JS_CMD.LOAD_CSS: self.load_css,
+        }
+
+        if debug:
+            self.batch_cmds = False
+            log.setLevel(logging.DEBUG)
         # webview.settings["OPEN_DEVTOOLS_IN_DEBUG"] = False
-
-        # assign default js_api if it was not provided
-        if api is None:
-            api = js_api()
-        api.rtn_queue = self.rtn_queue
-        self.api = api
+        if log_level is not None:
+            log.setLevel(log_level)
 
         # hide by default since seeing window elements poping in is ugly.
         # Typescript calls API Show function when all elements are loaded.
@@ -301,47 +158,93 @@ class PyWv(View):
 
         self.pyweb_window = webview.create_window(
             title=title,
-            url=file_dir + "/frontend/index.html",
+            url=INDEX_HTML_PATH.as_posix(),
             js_api=self.api,
             **kwargs,
         )
 
         # Tell webview to execute api func assignment and enter main loop once loaded
         # Order of these function calls matter
-        self.pyweb_window.events.loaded += lambda: api.__set_view_window__(self)
+        self.pyweb_window.events.loaded += lambda: self.api.__set_view_window__(self)
         self.pyweb_window.events.loaded += self._assign_callbacks
         self.pyweb_window.events.loaded += self._manage_queue
         self.pyweb_window.events.maximized += self._on_maximized
         self.pyweb_window.events.restored += self._on_restore
 
-        webview.start(debug=debug, private_mode=False)
+        # Need private mode so the HTML is always reloaded. W/o it a cached version is loaded.
+        webview.start(debug=debug, private_mode=True)
         self.stop_event.set()
 
-    def _handle_eval_js(self, cmd: str, promise: Optional[Callable] = None):
+    def run_script(self, cmd: str):
         "evaluate_js() and catch errors"
         try:
             # runscript for pywebview is the evaluate_js() function
-            self.pyweb_window.evaluate_js(cmd, callback=promise)
+            # Note: Cannot use the built in callbacks since commands are batched
+            self.pyweb_window.evaluate_js(cmd)
         except JavascriptException as e:
-            logger.error("JS Exception: %s\n\t\t\t\tscript: %s", e.args[0]["message"], cmd)
+            log.error("JS Exception: %s\n\t\t\t\tscript: %s", e.args[0]["message"], cmd)
+            raise e
 
     def _assign_callbacks(self):
         "Read all the functions that exist in the api and expose non-dunder methods to javascript"
         member_functions = getmembers(self.api, predicate=ismethod)
         for name, _ in member_functions:
             if not is_dunder(name):  # filter out dunder methods
-                self.assign_callback(name)
+                self._assign_callback(name)
 
         # Signal to both python and javascript listeners that inital setup is complete
         self.js_loaded_event.set()
         self.show()
         if self.frameless:
-            self.run_script("window.api.setFrameless(true)")
+            self.run_script("window.api.setFrameless(true);")
 
-    def assign_callback(self, func_name: str):
-        self.run_script(f"window.api.{func_name} = pywebview.api.{func_name}")
+    def _assign_callback(self, func_name: str):
+        self.run_script(f"window.api.{func_name} = pywebview.api.{func_name};")
+
+    def _manage_queue(self):
+        "Infinite loop to manage Process Queue since it is launched in an isolated process"
+        batch_cmd, batch_size = "", 0
+        while not self.stop_event.is_set():
+            # get() doesn't need a timeout & can be completely blocking. the waiting will get interrupted
+            # by the os to go manage the thread that the webview is running in. Bit wasteful i think.
+            # Would be nice to have pywebview run in an asyncio Thread
+            msg = self.fwd_queue.get()
+            cmd, *args = msg
+            log.debug("Received CMD: %s, args: %s", cmd.name, args)
+
+            try:
+                # Lookup JS Command
+                cmd_str = VIEW_CMD_ROLODEX[cmd](*args)
+            except TypeError as e:
+                arg_list = [type(arg) for arg in args]
+                log.error(
+                    "Command:%s: Given %s \n\tError msg: %s",
+                    JS_CMD(cmd).name,
+                    arg_list,
+                    e,
+                )
+                continue  # Skip to next Command
+
+            if cmd_str is None:
+                self.rolodex[cmd](*args)  # Given a PyWv Command, execute Immediately
+            elif self.batch_cmds:
+                batch_size += 1
+                batch_cmd += cmd_str
+            else:
+                self.run_script(cmd_str)
+                continue
+
+            # Batching is at least 3x faster than running individual cmds and helps prevent the
+            # queue from piling up too. The Batch Size Limit exists to limit how much the viewport
+            # appears to lockup while being flooded w/ cmds. It is disabled during debug to help
+            # isolate problematic commands
+            if self.fwd_queue.empty() or batch_size >= 100:
+                self.run_script(batch_cmd)
+                batch_cmd = ""
+                batch_size = 0
 
     def close(self):
+        self.stop_event.set()
         self.pyweb_window.destroy()
 
     def maximize(self):
@@ -366,19 +269,20 @@ class PyWv(View):
         try:
             file_handle = open(filepath, encoding="UTF-8")
             self.pyweb_window.load_css(file_handle.read())
+            self.run_script("window.reloadComputedCanvasStyle();")
         except FileNotFoundError:
-            logger.error("Cannot find/load .css file. Ensure filepath is absolute.")
+            log.error("Cannot find/load .css file. Ensure filepath is absolute.")
         finally:
             file_handle.close()
 
     def _on_maximized(self):
         # For Some reason maximized doesn't auto update?
         self.pyweb_window.maximized = True
-        # self.run_script("") #Should make this update the icon...
+        # self.run_script("") # Should make this update the icon...
 
     def _on_restore(self):
         self.pyweb_window.maximized = False
-        # self.run_script("") #Should make this update the icon...
+        # self.run_script("") # Should make this update the icon...
 
 
 @dataclass
@@ -411,13 +315,3 @@ class PyWebViewOptions:
     # server
     # server_args
     # localization
-
-
-class QWebView:  # (View):
-    """Class to create and manage a Pyside QWebView widget"""
-
-    def __init__(self):
-        # In theory, Even though most things you could want are already fleshed out in the PYWebView
-        # version, You could expand the View Class to work with QWebView. In the event that that may
-        # offer some unique advantage like a better window frame or something, idk man... options.
-        raise NotImplementedError

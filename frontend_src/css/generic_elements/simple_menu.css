@@ -1,0 +1,76 @@
+.menu_section_titlebox {
+    border-top: 1px solid var(--overlay-menu-separator);
+    display: flex;
+    align-items: center;
+    margin: 4px 2px;
+    width: -webkit-fill-available;
+}
+
+
+.overlay_sub_menu {
+    width: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu_section_text {
+    width: -webkit-fill-available;
+    font-weight: bold;
+    font-size: smaller;
+    text-align: left;
+    margin: 2px 24px 2px 8px;
+}
+
+.menu_text {
+    font-weight: normal;
+    margin: 0px 10px;
+}
+
+.overlay_menu_separator {
+    width: -webkit-fill-available;
+    border-top: 1px solid var(--overlay-menu-separator);
+}
+
+.overlay_menu[active] {
+    display: flex;
+    pointer-events: all;
+}
+
+
+.menu_item {
+    width: -webkit-fill-available;
+    margin: 4px 2px;
+    align-items: center;
+    display: flex;
+}
+
+.menu_selectable {
+    display: flex;
+    align-items: center;
+    justify-items: flex-start;
+    border-radius: 5px;
+    margin: 2px;
+    justify-self: flex-start;
+}
+
+.menu_selectable:hover,
+.overlay_menu_separator:hover {
+    background-color: var(--icon-hover-color);
+}
+
+.menu_item_star {
+    border-radius: 5px;
+    width: 18px;
+    height: 18px;
+    color: #0000 ;
+}
+
+/* Only show unselected star when parent is hovered. */
+.menu_item:hover .menu_item_star {
+    color: var(--icon-color)
+}
+
+/* Always show when star-filled is being used */
+.menu_item .menu_item_star#star_filled {
+    color: var(--second-accent-color)
+}

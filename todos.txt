@@ -1,5 +1,4 @@
 Frontend (TSX / UI) :
-	- Primitves: Add a Menu system for editing options
 	- Object-Tree: Add Buttons to create Primitive Groups
 	- Indicators: Widget Panel for displaying internal information similar to TV's 'DataWindow'
 	- Frame Selection: Allow for Frames to be targeted (Ctrl-Clicked in Frame Viewer) and prioritize these frames as
@@ -10,13 +9,6 @@ Frontend (TSX / UI) :
 
 
 Frontend-Backend (Typescript):
-	- Chart Mouse Event/Keyboard Listener to open menus / delete objects
-		- Window Wide Keyboard Listener?
-
-	- Indicators: Make Indicator Menus auto-generate a Style Menu in the event set_menu_struct is never called 
-
-	- Update the Pane 'make_event_params' to have better Series Hit Registration
-
 	- Data-Viewer Widget Panel: Panel that displays information (and maybe allows options control) of a selected
 		object. Could potentially show Data on Series, primitive, & indicator objects
 
@@ -28,20 +20,11 @@ Frontend-Backend (Typescript):
 	-- Primitives:
 		- Additional Primitive Tools
 
-		- Reasses how a TrendLine ensures it is visible in update(). This could require a
-				primitive-renderer base-class that takes raw data points and ensures the points are
-				drawn at always drawn at visible locations. (could incorperate a cache system for this)
+		- Standardized Style Menus
 
-		- Options + Style Menu System
-
-		- Make an ID Scheme for primitive group serieses
+		- Make an ID Scheme for UI primitives & primitive group serieses
 
 	-- Multi-Pane Layouts:
-		- Charting Frame + Pane: Integrate a Method for changing a Charting Frame's internal layout so
-								Multiple Panes can be displayed per Frame. (Multi-layout already supported.) 
-		
-		- Frame Viewer widget panel: Update to allow panes to be rearranged, & added
-
 		- Primitives: Re-assess Method for generating IDs when adding Primitives to a Pane. Should this ping python
 						for a name? Should it generate a random string of chars? if so, What would be the scope and
 						length of the generated ID? What are the ramifications on ID collision when drawings
@@ -64,10 +47,10 @@ Backend-Backend (Python):
 					traversal of panes..... or maybe they break the constant ID rule and when they shift panes a new id is
 					generated and the python primitive object ID is updated?
 
-	- Emitter : Allow the class to track async tasks it has launched and ensure async tasks launch properly before shutdown. 
-				Currently, There is a small bug on shutdown where things like the Python Series Indicator throw an error
-				as they try to trigger the socket_switch_close() async request, but this comes after the main asyncio.run()
-				have already completed so the event loop is no longer valid.. or something like that.... 
+	- Shutdown : Proper Shutdown is never achieved. Could be something with the Alpaca-Py Library being crap again, but not entirely sure.
+				 Currently, There is a small bug on shutdown where things like the Python Series Indicator throw an error
+				 as they try to trigger the socket_switch_close() async request, but this comes after the main asyncio.run()
+				 have already completed so the event loop is no longer valid.. or something like that.... 
 
 	- Series_DF : Implement a 'Time is EXT Trade Hours' check.
 				: Fix the Whitespace Extension DF? Currently it errors when given ETH since it is always expecting RTH
@@ -81,6 +64,11 @@ Backend-Backend (Python):
 					indicators / series / primitive / etc. objects and the window.
 
 Cross-Architecture:
+	- Primitives : 
+			Figure out Final structure for primitive ownership
+			Finalize implementation of Primitive ID Generation promises
+			Update Python Primitives to match the new typescript primitive implementation
+
 	- Replay : Incorperate a Replay like mode. This really would be a tool to test other systems/Indicators
 			   as they are developed.
 
@@ -104,7 +92,7 @@ Cross-Architecture:
 			  	allow the user to select the generated frame type.
 
 			  - Add Frame Creation Buttons to the Frame Viewer so Various Frame Types can be created without
-			  	requireing the layout to first be expanded. (Only current method of adding frames)
+			  	requiring the layout to first be expanded. (Only current method of adding frames)
 
 			  - Add some ability for the user to inject their own type of frame as a kind of plugin?
 			  	This would require the user's compiled Frame Element to be loaded in as a string then

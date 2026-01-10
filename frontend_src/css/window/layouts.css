@@ -1,0 +1,19 @@
+
+#separator_v,
+#separator_h {
+    
+    border: 0px;
+    z-index: 3;
+    border-radius: 10px;
+    background-color: #0000;
+}
+
+#separator_v:hover,
+#separator_h:hover{
+    opacity: 25%;
+    border-color: var(--accent-color);
+    background-color: var(--accent-color);
+}
+
+#separator_v { cursor: ew-resize; }
+#separator_h { cursor: ns-resize; }

@@ -1,30 +1,30 @@
 """Core Machinery of the Event Call & Response System used primarily by indicators"""
 
 from __future__ import annotations
-from asyncio import iscoroutinefunction, create_task
+
+from asyncio import create_task, iscoroutinefunction
 from functools import partial
 from typing import (
     TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
     Protocol,
     Self,
     TypeAlias,
-    Callable,
-    Optional,
-    Any,
 )
-
 
 from .js_cmd import JS_CMD
 
 if TYPE_CHECKING:
+    from multiprocessing import Queue
     from .indicators.timeseries.events import (
-        Socket_Open_Protocol,
-        Socket_Close_Protocol,
         Data_Request_Protocol,
+        Socket_Close_Protocol,
+        Socket_Open_Protocol,
         Symbol_Search_Protocol,
     )
     from .py_window import Window
-    from multiprocessing import Queue
 
 
 class Events:
@@ -36,6 +36,8 @@ class Events:
         self.window_callback = Emitter[Callback_Protocol](single_emit=False)
 
         # Provides typing information for these events since they are built in.
+        # The actual event objects are created in the indicators.timeseries.events module
+        # to prevent circular imports.
         if TYPE_CHECKING:
             self.open_socket: Emitter[Socket_Open_Protocol]
             self.close_socket: Emitter[Socket_Close_Protocol]

@@ -17,7 +17,7 @@ async def main():
     # All symbols are loaded at the start and for some reason that API never decided to make that an
     # Async request so here we wait.
 
-    window = fta.Window(log_level="INFO", debug=True, frameless=False, broker_api="psyscale")
+    window = fta.Window(log_level="DEBUG", debug=True, frameless=False, broker_api="psyscale")
 
     window.set_layout_favs(
         [
@@ -40,7 +40,7 @@ async def main():
     )
 
     window.new_tab()
-    main_frame = window.containers[0].frames[0]
+    main_frame = window.container(0).frame(0)
     df = pd.read_csv("examples/data/ohlcv.csv")
 
     if isinstance(main_frame, fta.ChartingFrame):

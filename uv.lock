@@ -232,6 +232,11 @@ dist = [
     { name = "wheel" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pandas-stubs" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "alpaca-py", specifier = ">=0.39.1" },
@@ -246,6 +251,9 @@ requires-dist = [
     { name = "wheel", marker = "extra == 'dist'", specifier = ">=0.45.1" },
 ]
 provides-extras = ["dist"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pandas-stubs", specifier = ">=2.3.3.251219" }]
 
 [[package]]
 name = "id"
@@ -521,6 +529,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/c5/d7e3d6a41cfdb8007b19a288c7703cc05cfc0bc57595449a75756b2bb569/pandas_market_calendars-5.0.0.tar.gz", hash = "sha256:8780dd93f7f7d2d92ef40516cc77f00e20a9842bc564442b5c79b74a5591f3cc", size = 158496 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/16/1302d715a52c9612d94e22f5b5fdd515b539e0314cdf7a0fefdc88b03600/pandas_market_calendars-5.0.0-py3-none-any.whl", hash = "sha256:9cf2fb3891892720f7e5ad065152798f63f5511cbb1165de2aa0305f16544e9f", size = 122998 },
+]
+
+[[package]]
+name = "pandas-stubs"
+version = "2.3.3.251219"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "types-pytz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/95/ee/5407e9e63d22a47774f9246ca80b24f82c36f26efd39f9e3c5b584b915aa/pandas_stubs-2.3.3.251219.tar.gz", hash = "sha256:dc2883e6daff49d380d1b5a2e864983ab9be8cd9a661fa861e3dea37559a5af4", size = 106899 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/20/69f2a39792a653fd64d916cd563ed79ec6e5dcfa6408c4674021d810afcf/pandas_stubs-2.3.3.251219-py3-none-any.whl", hash = "sha256:ccc6337febb51d6d8a08e4c96b479478a0da0ef704b5e08bd212423fe1cb549c", size = 163667 },
 ]
 
 [[package]]
@@ -983,6 +1004,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c8/a2/6df94fc5c8e2170d21d7134a565c3a8fb84f9797c1dd65a5976aaf714418/twine-6.1.0.tar.gz", hash = "sha256:be324f6272eff91d07ee93f251edf232fc647935dd585ac003539b42404a8dbd", size = 168404 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/b6/74e927715a285743351233f33ea3c684528a0d374d2e43ff9ce9585b73fe/twine-6.1.0-py3-none-any.whl", hash = "sha256:a47f973caf122930bf0fbbf17f80b83bc1602c9ce393c7845f289a3001dc5384", size = 40791 },
+]
+
+[[package]]
+name = "types-pytz"
+version = "2025.2.0.20251108"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/ff/c047ddc68c803b46470a357454ef76f4acd8c1088f5cc4891cdd909bfcf6/types_pytz-2025.2.0.20251108.tar.gz", hash = "sha256:fca87917836ae843f07129567b74c1929f1870610681b4c92cb86a3df5817bdb", size = 10961 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/c1/56ef16bf5dcd255155cc736d276efa6ae0a5c26fd685e28f0412a4013c01/types_pytz-2025.2.0.20251108-py3-none-any.whl", hash = "sha256:0f1c9792cab4eb0e46c52f8845c8f77cf1e313cb3d68bf826aa867fe4717d91c", size = 10116 },
 ]
 
 [[package]]

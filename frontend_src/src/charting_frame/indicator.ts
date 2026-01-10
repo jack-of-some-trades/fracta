@@ -1,183 +1,202 @@
 import { Accessor, createSignal, Setter, Signal } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
-import { IndicatorOpts } from "../../components/charting_frame/indicator_options";
-import { OverlayCTX } from "../../components/layout/overlay_manager";
-import { data_src } from "./charting_frame";
-import { pane } from "./pane";
-import { PrimitiveBase } from "./primitive-plugins/primitive-base";
-import { primitives } from "./primitive-plugins/primitives";
+import { MultipleSeriesStyleEditor } from "../../tsx/charting_frame/series_style_editor";
+import { generateOptionsMenu } from "../../tsx/generic_elements/options_menu";
+import { ORDERABLE, ORDERABLE_SET, ReorderableSet, treeBranchInterface, treeLeafInterface } from "../../tsx/widget_panels/object_tree";
+import { charting_frame } from "./charting_frame";
+import { charting_pane } from "./charting_pane";
+import { PrimitiveSet } from "./primitive-plugins/primitive-set";
 import * as s from "./series-plugins/series-base";
 
-export class indicator {
-    id: string
-    type: string
-    name: string
-    private pane: pane
+const MAIN_TIMESERIES_ID = "i_XyzZy"
+const INDICATOR = Symbol('Indicator');
+export function isIndicator(obj: unknown): obj is indicator {
+    return (obj !== null && typeof obj === 'object' && INDICATOR in obj)
+}
 
-    objVisibility: Signal<boolean>
+export class indicator implements ReorderableSet {
+    [INDICATOR]: true = true;
+    [ORDERABLE]: true = true;
+    [ORDERABLE_SET]: true = true;
+
+    private _id: string
+    private _type: string
+    private _name: string
+    private _pane: charting_pane
+    private _frame: charting_frame
+
+    visibilitySignal: Signal<boolean>
     labelHtml: Accessor<string | undefined>
     setLabelHtml: Setter<string | undefined>
 
-    menu_id: string | undefined
-    menu_struct: object | undefined
-    setOptions: SetStoreFunction<object> | undefined
-    private sources: Accessor<data_src[]>
+    outputs: { [key: string]: string }
+    menuId: string | undefined
+    menuStruct: object | undefined
 
-    menuVisibility: Accessor<boolean> | undefined
-    setMenuVisibility: Setter<boolean> | undefined
+    options: object
+    setOptions: SetStoreFunction<object>
 
-    series = new Map<string, s.SeriesBase_T>()
-    private visiblity = new Map<string, boolean>()
-    private primitives = new Map<string, PrimitiveBase>()
+    attached: Accessor<(s.SeriesBase_T | PrimitiveSet)[]>
+    private setAttached: Setter<(s.SeriesBase_T | PrimitiveSet)[]>
 
-    constructor(id: string, type: string, name: string, sources: Accessor<data_src[]>, pane: pane) {
-        this.id = id
-        this.name = name
-        this.pane = pane
-        this.type = type
-        this.sources = sources
+    private series = new Map<string, s.SeriesBase_T>()
+    private primitiveSets = new Map<string, PrimitiveSet>()
+    private visibilityMemory = new Map<string, boolean>()
 
-        const objVisibility = createSignal<boolean>(true)
-        this.objVisibility = objVisibility
-        this.setVisibility.bind(this)
-        
+    leafProps: treeLeafInterface
+    branchProps: treeBranchInterface
+
+    constructor(
+        id: string,
+        type: string,
+        display_name: string,
+        outputs: { [key: string]: string },
+        frame: charting_frame
+    ) {
+        this._id = id
+        this._type = type
+        this._name = display_name
+        this._pane = frame.default_pane
+        this._frame = frame
+        this.outputs = outputs
+
+        this.visibilitySignal = createSignal<boolean>(true)
+        const options_store = createStore<object>({})
+        this.options = options_store[0]; this.setOptions = options_store[1]
+
+        const orderables = createSignal<(s.SeriesBase_T | PrimitiveSet)[]>([])
+        this.attached = orderables[0]; this.setAttached = orderables[1]
+
         const labelHtml = createSignal<string | undefined>(undefined)
-        this.labelHtml = labelHtml[0]
-        this.setLabelHtml = labelHtml[1]
+        this.labelHtml = labelHtml[0]; this.setLabelHtml = labelHtml[1]
 
-        this.pane.attach_indicator_to_legend(this)
+        this.pane.attach(this)
+
+        this.leafProps = {
+            id: this.id,
+            leafTitle: this.name,
+            obj: this
+        }
+        this.branchProps = {
+            id: this.id,
+            branchTitle: this.name,
+            dropDownMode: 'toggleable',
+            reorderables: this.attached,
+            reorder: this.reorder.bind(this),
+            moveTo: () => { }
+        }
     }
 
-    setLabel(label:string){this.setLabelHtml(label !== ""? label : undefined)}
+    setLabel(label: string) { this.setLabelHtml(label !== "" ? label : undefined) }
 
     // TODO: Implement
-    move_to_pane(pane:pane){}
+    move_to_pane(pane_index: number) { }
 
     delete() {
         //Clear All Sub-objects
         this.series.forEach((ser, key) => {
             ser.remove()
         })
-        this.primitives.forEach((prim, key) => {
-            this.pane.whitespace_series.detachPrimitive(prim)
+        this.primitiveSets.forEach((pset, key) => {
+            pset.delete()
         })
-        //Remove from the pane that is currently displaying the indicator
-        this.pane.detach_indicator_from_legend(this)
+        this.pane.detach(this)// ???
     }
 
-    setVisibility(arg:boolean){
-        this.objVisibility[1](arg)
-        const _maps = [this.series, this.primitives]
+    setVisibility(arg: boolean) {
+        this.visibilitySignal[1](arg)
+        const _maps = [this.series, this.primitiveSets]
         // This only works because the structure of primitives and series are similar enough
         for (let i = 0; i < _maps.length; i++)
 
-            if (arg) for (const [k, v] of _maps[i].entries()){
-                v.applyOptions({visible: this.visiblity.get(k)??true})
+            if (arg) for (const [k, v] of _maps[i].entries()) {
+                v.applyOptions({ visible: this.visibilityMemory.get(k) ?? true })
             }
 
-            else for (const [k, v] of _maps[i].entries()){
-                this.visiblity.set(k, v.options().visible)
-                v.applyOptions({visible: false})
+            else for (const [k, v] of _maps[i].entries()) {
+                this.visibilityMemory.set(k, v.options().visible)
+                v.applyOptions({ visible: false })
             }
     }
+
+    reorder(from: number, to: number) {
+        console.log(`Reorder Series from: ${from}, to: ${to}`)
+    }
+
+    get id(): string { return this._id }
+    get index(): number { return 0 }
+    get length(): number { return 0 }
+    get type(): string { return this._type }
+    get pane(): charting_pane { return this._pane }
+    get frame(): charting_frame { return this._frame }
+    get name(): string { return this._name ? this._name : this.type }
+    get removable(): boolean { return this._id !== MAIN_TIMESERIES_ID }
 
     //#region ------------------------ Python Interface ------------------------ //
 
-    //Functions marked as protected are done so it indicate the original intent
-    //only encompassed being called from python, not from within JS.
-
-    protected add_series(_id: string, _type: s.Series_Type, _name:string|undefined = undefined) {
-        this.series.set(_id, new s.SeriesBase(_id, this.id, _name, this.name !== "" ? this.name : this.type, _type, this.pane))
+    /** @api */
+    add_series(_id: string, _type: s.Series_Type, _name: string | undefined = undefined) {
+        const _ser = new s.SeriesBase(_id, _name, _type, this)
+        this.series.set(_id, _ser)
+        this.setAttached([...this.attached(), _ser])
     }
 
-    protected remove_series(_id: string) {
+    /** @api */
+    remove_series(_id: string) {
         let series = this.series.get(_id)
         if (series === undefined) return
 
         series.remove()
         this.series.delete(_id)
+        this.setAttached(this.attached().filter((_ser) => _ser !== series))
     }
 
-    protected add_primitive(_id: string, _type: string, params:object) {
-        let primitive_type = primitives.get(_type)
-        if (primitive_type === undefined) return
-        let new_obj = new primitive_type(this.id + _id, params)
-
-        this.primitives.set(_id, new_obj)
-        this.pane.whitespace_series.attachPrimitive(new_obj)
+    /** @api */
+    create_primitive_set(_id: string, _name: string | undefined = undefined) {
+        const _pset = new PrimitiveSet(_id, _name, this.pane)
+        this.primitiveSets.set(_id, _pset)
+        this.setAttached([...this.attached(), _pset])
     }
 
-    protected remove_primitive(_id: string) {
-        let _obj = this.primitives.get(_id)
-        if (_obj === undefined) return
+    /** @api */
+    remove_primitive_set(_id: string) {
+        let pset = this.primitiveSets.get(_id)
+        if (pset === undefined) return
 
-        this.pane.whitespace_series.detachPrimitive(_obj) 
-        this.primitives.delete(_id)
-    }
-    
-    protected update_primitive(_id: string, params:object) {
-        let _obj = this.primitives.get(_id)
-        if (_obj === undefined) return
-        _obj.updateData(params)
+        pset.delete()
+        this.primitiveSets.delete(_id)
+        this.setAttached(this.attached().filter((_p) => _p !== pset))
     }
 
-    applyOptions(options_in:object){
-        if (this.setOptions) this.setOptions(options_in)
+    applyOptions(options: { [key: string]: any }, externalCall = false) {
+        this.setOptions(options)
+
+        if (!externalCall) // If the apply options generated from a UI action
+            window.api.set_indicator_options(
+                this._frame.id.substring(0, 6),  // Container ID
+                this._frame.id.substring(0, 13), // Frame ID
+                this.id,
+                options
+            )
     }
 
-    //TODO : Make it so that a Style Settings Menu will still be generated without needing 
-    //to call the function below, or even require a menu_struct/Indicator Options Class
-    protected set_menu_struct(menu_struct:object, options_in:object){
-        if (this.menu_id !== undefined) {
-            if (this.setOptions) this.setOptions(options_in)
-            return //Menu has already been created.
-        }
-
-        const menuVisibility = createSignal<boolean>(false)
-        this.menuVisibility = menuVisibility[0]
-        this.setMenuVisibility = menuVisibility[1]
-
-        const [options, setOptions] = createStore<object>(options_in)
-        this.setOptions = setOptions
-        this.menu_struct = menu_struct
-        this.menu_id = `${this.pane.id}_${this.id}_options`
-
-        //See EoF for Explanation of this second AttachOverlay Call.
-        OverlayCTX().attachOverlay(this.menu_id, undefined, menuVisibility)
-        OverlayCTX().attachOverlay(
-            this.menu_id,
-            IndicatorOpts({
-                id: this.menu_id,
-                parent_ind: this,
-                options: options,
-                menu_struct: this.menu_struct,
-                close_menu: () => menuVisibility[1](false),
-                sources: this.sources,
-
-                container_id: this.pane.id.substring(0,6),
-                frame_id: this.pane.id.substring(0,13),
-                indicator_id: this.id
-            }),
-            menuVisibility
-        )
+    /** @api */
+    set_menu_struct(menu_struct: object, options: object) {
+        this.menuStruct = menu_struct
+        this.setOptions(options)
     }
 
     //#endregion
+
+    displayOptionsMenu() {
+        generateOptionsMenu({
+            id: `${this._frame.id}_${this._id}_options`,
+            title: this.type + " • " + this.name + (this.name !== '' ? " • " : '') + "Options",
+            tabs: {
+                'Inputs': [this.menuStruct, this.options, this.applyOptions.bind(this)],
+                'Style': () => MultipleSeriesStyleEditor({ series: this.series }),
+            },
+            pane: this._pane
+        })
+    }
 }
-
-
-/**Ok, so this is stupid. im not a huge fan, but it somewhat cleanly fixes a bug.
- * 
- * Essentially the crux of the problem is IndicatiorOpts' OverlayDiv has an onMount function.
- * As written, this only works if the onMount() is called at some point after the AttachOverlay()
- * call is completed. 
- * 
- * This works for all other Overlays since they are created with the full document tree and are not mounted
- * until after all objects are created. In the case of IndicatorOpts, this element is created after the full 
- * tree and thus can be mounted immediately causing a bug where the overlay can never be displayed. The extra 
- * bogus call to AttachOverlay() puts the menuVisibility signal where it needs to be before IndicatorOpts is
- * ever created & mounted.
- * 
- * The problem is kinda baked into the OverlayDiv... but this fixes it without repercussions so this is likely
- * how the implementation will stay...
- */

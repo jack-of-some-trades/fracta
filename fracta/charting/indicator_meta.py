@@ -451,15 +451,15 @@ def _process_type(arg: Any, arg_type: type) -> Tuple[str, str]:
     if origin is dict:
         raise TypeError("Indicator Option Type Cannot be a Dict")
 
-    type_bases = set(get_args(arg_type))
+    type_base_clss = set(get_args(arg_type))
 
     # Strip Optional / Union[None] Types from type _annotation_
-    if is_optional := NoneType in type_bases:
-        type_bases = type_bases.difference({NoneType})
+    if is_optional := NoneType in type_base_clss:
+        type_base_clss = type_base_clss.difference({NoneType})
 
-    if len(type_bases) == 1:
-        arg_type = (*type_bases,)[0]
-    elif len(type_bases) > 1:
+    if len(type_base_clss) == 1:
+        arg_type = (*type_base_clss,)[0]
+    elif len(type_base_clss) > 1:
         raise TypeError("Indicator Option Type Cannot be a Union of Types")
 
     type_str = ""
@@ -475,14 +475,16 @@ def _process_type(arg: Any, arg_type: type) -> Tuple[str, str]:
         type_str = "bool"
     elif arg_type == pd.Timestamp:
         type_str = "timestamp"
-    elif len(type_bases) == 0:
+    elif len(type_base_clss) == 0:
         if issubclass(arg_type, Enum):
             type_str = "enum"
         elif arg_type == Color:
             type_str = "color"
+        elif arg_type == NoneType:
+            raise TypeError("Indicator Option Type cannot NoneType")
         else:
-            raise TypeError("Indicator Option Type Cannot be an Object or NoneType")
-    elif len(type_bases) == 1:
+            raise TypeError(f"{arg_type} is not compatible with IndicatorOptions Dataclass")
+    elif len(type_base_clss) == 1:
         inputs, outputs = get_args(arg_type)
         if len(inputs) > 0:
             raise TypeError("Indicator Callables/Sources cannot require an input argument")

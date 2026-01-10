@@ -5,12 +5,14 @@ import {
 	CustomSeriesOptions,
 	CustomSeriesPricePlotValues,
 	ICustomSeriesPaneView,
+	MouseEventParams,
 	PaneRendererCustomData,
 	SeriesPartialOptions,
 	Time,
 	WhitespaceData,
 	customSeriesDefaultOptions,
 } from 'lightweight-charts';
+import { SeriesBase_T } from '../series-base';
 import { RoundedCandleSeriesRenderer } from './renderer';
 
 export interface RoundedCandleSeriesData extends CandlestickData, CustomData {
@@ -67,4 +69,15 @@ export class RoundedCandleSeriesImpl<TData extends RoundedCandleSeriesData>
 	defaultOptions() {
 		return defaultOptions;
 	}
+}
+
+
+export function RoundedCandleHitTest(this: SeriesBase_T, params: MouseEventParams, data: RoundedCandleSeriesData): boolean {
+	const localY = params.sourceEvent?.localY
+	if (localY === undefined || !data) return false
+
+	const high = this.priceToCoordinate(data.high as number)
+	const low = this.priceToCoordinate(data.low as number)
+
+	return ((high && low) && (high <= localY && low >= localY)) ?? false
 }

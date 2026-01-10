@@ -1,0 +1,273 @@
+
+
+.options_menu {min-width: 20em;}
+.options_menu * {
+    font-family: var(--font);
+    text-align: left;
+    text-wrap: nowrap;
+    user-select: none;
+}
+
+.options_menu div,
+.options_menu label,
+.options_menu input,
+.options_menu select {
+    color: var(--text-color);
+}
+
+
+/* ------------- Title Box & Footer ------------- */
+
+.options_menu .title_box {
+    display:flex;
+    align-items: center;
+    min-width: 200px;
+    background-image: linear-gradient(0deg, transparent, var(--indicator-background-fade));
+    font-size: 1.2em;
+    font-weight: 600;
+}
+.options_menu .title_box h2 {
+    margin: 8px 15px;
+    flex: 1 0;
+    font-style: italic;
+    color:var(--indicator-group-text-color)
+}
+.options_menu .title_box svg {
+    padding: 3px;
+    margin: 0px 15px;
+}
+
+.options_menu .footer {
+    display:flex;
+    border-top: 1px solid var(--accent-color);
+    width: -webkit-fill-available;
+    margin: 0px;
+    margin-top: 15px;
+    padding: 5px 10px;
+    flex-direction: row-reverse;
+}
+
+.options_menu .form_wrapper {
+    background-image: linear-gradient(180deg, transparent, var(--indicator-background-fade));
+    padding: 0px 12px;
+}
+
+/* ------------- Style Form ------------- */
+
+.options_menu .style_form {
+    padding: 0px 6px;
+}
+
+
+/* ------------- Input Form ------------- */
+
+.options_menu .input_form{
+    display: grid;
+    padding: 0px 6px;
+}
+
+
+.options_menu .input_form div.inline,
+.options_menu .input_form div.input_block{ 
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0 12px;
+}
+
+/* Reset Rule for nesting so Non-Nested & Nested Items have their left edge aligned */
+.options_menu .input_form .group div.inline,
+.options_menu .input_form .group div.input_block, 
+.options_menu .input_form .inline div.input_block{ 
+    padding: 0 0;
+}
+
+.options_menu .input_form .group {
+    background-image: linear-gradient(0deg, transparent 0%, transparent 50%, var(--background-fade-dark) 100%);
+    display: block;
+    width: -webkit-fill-available;
+    align-items: center;
+    margin: 10px 0px;
+    padding: 0px 12px;
+    border-radius: 6px;
+}
+.options_menu .group h3 {
+    margin: 4px 6px;
+    font-style: italic;
+    color:var(--indicator-group-text-color);
+    font-size: 1em;
+    font-weight: 500;
+}
+
+
+.options_menu .inline {
+    display: flex;
+    flex-direction: row;
+    width: -webkit-fill-available;
+}
+
+.options_menu .label {
+    align-self: center;
+}
+
+/* ------------- Tooltips ------------- */
+
+.options_menu .tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.options_menu .tooltip .icon_text{
+    display:block;
+    width:15px;
+    height:15px;
+    border-radius: 10px;
+    margin: 0px;
+
+    text-align: center;
+    font-size: small;
+    font-weight: 1000;
+    color:var(--overlay-fill);
+    background: var(--tooltip-color);
+}
+  
+.options_menu .tooltip .tooltiptext {
+    opacity: 0%;
+    visibility: hidden;
+    text-align: center;
+    font-size: smaller;
+    border-radius: 6px;
+    padding: 3px 5px;
+    color: var(--tooltip-text);
+    background-color: var(--tooltip-background);
+
+    position: absolute;
+    width: fit-content;
+    z-index: 1;
+    left: 50%;
+    bottom: 100%;
+    transform: translate(-50%, -5px);
+
+    transition: opacity 0.2s ease-in;
+    transition-delay: 0s;
+}
+
+.options_menu .tooltip:hover .tooltiptext { 
+    opacity: 100%;
+    visibility: visible; 
+    transition-delay: 500ms;
+}
+
+.options_menu .tooltip .tooltiptext::after {
+    content: " ";
+    position: absolute;
+    top: 99%; /* At the bottom of the tooltip */
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--tooltip-background) transparent transparent transparent;
+}
+  
+
+/* ------------- Select Input ------------- */
+
+.options_menu select {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--indicator-border-color);
+    border-radius: 3px;
+    padding: 2px 18px 2px 7px;
+}
+.options_menu select:focus-visible {
+    border: 1px solid var(--accent-color);
+    outline: var(--accent-color) solid 1px;
+}
+.options_menu select option{
+    background: var(--overlay-fill);
+}
+.options_menu .select-span {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 3px 5px;
+}
+.options_menu .select-span select{
+    width: -webkit-fill-available
+}
+.options_menu .select-span .icon{
+    position: absolute;
+    right: 5px;
+    pointer-events: none;
+    rotate: 0deg;
+    transition: rotate 0.3s cubic-bezier(0.71, 0, 0, 1);
+}
+.options_menu .select-span:focus-within .icon{
+    rotate: 180deg;
+}
+
+
+/* ------------- Various Input Elements ------------- */
+
+.options_menu input {
+    background-color: transparent;
+    border-radius: 3px;
+    margin: 3px 5px;
+    padding: 2px 5px;
+
+    accent-color: var(--accent-color);
+}
+
+.options_menu input[type="text"]{ width: 10em }
+.options_menu input[type="submit"]:hover {
+    background-color: var(--hover-color-light);
+}
+
+/* This makes the calendar icon white.... would be nice to actually style it...*/
+input[type=datetime-local]::-webkit-calendar-picker-indicator {
+    filter:invert(1)
+}
+
+
+.options_menu input[type="range"]::-webkit-slider-thumb {
+  cursor: pointer;
+}
+
+.options_menu input[type="submit"] {
+  background-color: var(--accent-color);
+  color: var(--overlay-fill);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+
+/* ------------- Number Input ------------- */
+
+
+.options_menu input[type="number"]{ max-width: 5em }
+.options_menu input[type="number"]::-webkit-outer-spin-button, 
+.options_menu input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    background:var(--indicator-border-color) url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAKUlEQVQYlWNgwAT/sYhhKPiPT+F/LJgEsHv37v+EMGkmkuImoh2NoQAANlcun/q4OoYAAAAASUVORK5CYII=) no-repeat center center;    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1em;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.options_menu input[type="number"]:hover::-webkit-outer-spin-button, 
+.options_menu input[type="number"]:hover::-webkit-inner-spin-button {
+    opacity: 100;
+}
+
+.options_menu .color_input_wrapper {
+    width: 22px;
+    height: 20px;
+    border: 2px solid var(--indicator-border-color);
+    border-radius: 5px;
+    margin: 0px 5px;
+    box-sizing: border-box;
+}

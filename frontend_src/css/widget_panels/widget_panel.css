@@ -1,0 +1,50 @@
+
+/* ------- Widget Bar Icons ------- */
+
+.widget_bar_icon{
+    border-radius: 5px;
+    color: var(--icon-color);
+    background-color: var(--icon-background-color);
+}
+
+/* ------- Widget Panel Resize Element ------- */
+
+.widget_panel {
+    padding: 8px;
+    user-select: none;
+    box-sizing: border-box;
+    align-items: center;
+    flex-direction: column;
+    justify-content: flex-start;
+    scrollbar-color: var(--accent-color) transparent;
+}
+
+.widget_panel .widget_resize_handle {
+    content:'';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+}
+
+.widget_panel .widget_resize_handle:hover {
+    background-color: var(--hover-color);
+}
+
+/* ------- Widget Panel Title Element ------- */
+
+.widget_panel .widget_panel_title {
+    color: var(--text-color);
+    font-family: var(--font);
+    text-align: center;
+    text-wrap: nowrap;
+    user-select: none;
+
+    width: -webkit-fill-available;
+    margin: 5px 10px;
+    border-bottom: 1px solid var(--accent-color);
+    padding: 0px 6px 6px 6px;
+    font-weight: bolder;
+}

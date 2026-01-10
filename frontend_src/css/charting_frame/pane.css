@@ -62,35 +62,18 @@
     cursor: crosshair;
 }
 
-.pane_ruler,
-.frame_ruler{
-    position: absolute;
-    pointer-events: none;
-    box-sizing: border-box;
-    top:0px;
-    left:0px;
-    width:100%;
-    height:100%;
+.tv-lightweight-charts table tr {
+    transition: opacity ease-in-out 0.2s; 
 }
 
-/* Below Targets any class that ends in 'pane' */
-
-[class$="pane"] { 
-    position: absolute; 
-    box-sizing: border-box;
-    border: solid var(--chart-border) 1px;
+.pane_controls {
+    display: contents;
+    user-select: none;
 }
 
-[class$="pane"][active] {
-    border-color: var(--accent-color);
-}
+/* ---------------- Scale Button / Pane Tools Interface ---------------- */
 
-
-/* ---------------- Scale Button Interface ---------------- */
-
-.scale_buttons_left,
-.scale_buttons_right {
-    top: 8px;
+.scale_buttons {
     z-index: 3;
     width: 28px;
     position: absolute;
@@ -100,12 +83,8 @@
     background: var(--chart-bg-color-top);
 }
 
-/* accounts for the pane's border  */
-.scale_buttons_left { left: 8px; }
-.scale_buttons_right { right: 8px; }
-
-.scale_buttons_left .scale_icon_text,
-.scale_buttons_right .scale_icon_text {
+.pane_tools .pane_tools_icon, 
+.scale_buttons .scale_icon_text {
     font-weight: 700;
     user-select: none;
     color: var(--text-color);
@@ -120,13 +99,35 @@
 }
 
 /* Reset rule to remove padding margin at the bottom */
-.scale_buttons_left .scale_icon_text:last-child,
-.scale_buttons_right .scale_icon_text:last-child {
+.scale_buttons .scale_icon_text:last-child {
     margin-bottom: 0px;
 }
 
-
-.scale_buttons_left .scale_icon_text[active],
-.scale_buttons_right .scale_icon_text[active]  {
+.scale_buttons .scale_icon_text[active] {
     background: var(--accent-color)
+}
+
+.pane_tools {
+    top: 0;
+    left: 0;
+    padding: 4px;
+    z-index: 3;
+    
+    display: flex;
+    position: absolute;
+    opacity: 0;
+    user-select: none;
+    transition: opacity 0.1s ease-in-out;
+}
+
+.pane_tools:hover { opacity: 100; }
+
+.pane_tools_icon {
+    z-index: 3;
+    width: 22px;
+    margin: 3px;
+
+    display: grid;
+    grid-template-rows: auto;
+    background: var(--chart-bg-color-top);
 }

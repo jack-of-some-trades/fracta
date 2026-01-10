@@ -1,13 +1,27 @@
 
 /**
- * Small File to create a <string, Class> Map. Unfortunately this cannot exist in primitive-base.ts
- * due to circular import errors.
+ * Small File to register all primitives into a constructor map and the Primitive Tool Map
+ * so both python and the UI, respectfully, can generate the various types of primitives.
  */
 
-import { PrimitiveBase } from '../primitive-base';
-import { TrendLine } from './trend-line/trend-line';
+import { ArrowCursor, CrosshairCursor, DotCursor } from './cursors';
+import { HorizRay, HorizRayTool } from './one-point-primitives/horiz_ray';
+import { VertLine, VertLineTool } from './one-point-primitives/vert_line';
+import { PrimitiveBase } from './primitive-base';
+import { registerPrimitiveTool, registerSimpleTool } from './tool_ui_support';
+import { TrendLine, TrendLineTool } from './two-point-primitives/trend_line';
 
+//@ts-ignore : ignore the typing error that occurs when Primitives require different param types.
+export const primitive_cls: Map<string, new (id: string, params: any) => PrimitiveBase> = new Map([
+    ['TrendLine', TrendLine],
+    ['HorizRay', HorizRay],
+    ['VertLine', VertLine],
+])
 
-export const primitives:Map<string, new(id:string, params:any) => PrimitiveBase> = new Map([
-    ['TrendLine', TrendLine]
-]) 
+registerSimpleTool(DotCursor)
+registerSimpleTool(ArrowCursor)
+registerSimpleTool(CrosshairCursor)
+
+registerPrimitiveTool(HorizRayTool)
+registerPrimitiveTool(TrendLineTool)
+registerPrimitiveTool(VertLineTool)

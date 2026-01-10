@@ -1,0 +1,99 @@
+
+/* ********** ToolBar Layout ********** */ 
+.toolbar {
+    display: flex;
+    overflow: hidden;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.toolbar:first-child {
+    justify-content: flex-start;
+    flex: 1 1;
+}
+
+.toolbar:last-child {
+    justify-content: flex-end;
+    height: fit-content;
+    flex:none;
+}
+
+.toolbar_separator {
+    width: 70%;
+    height: 2px;
+    background-color: var(--toolbar-separator-color);
+    margin: 6px 2px;
+    flex-shrink: 0;
+}
+
+.toolbar_container {
+    display: flex;
+    height: 28px;
+    width: -webkit-fill-available;
+    margin: 3px 0px;
+    margin-left: 9px;
+    flex-direction: row;
+}
+
+.toolbar_menu_button {
+    width: 8px;
+    height: 28px;
+    border-radius: 5px;
+    align-items: center;
+}
+
+.toolbar_menu_button:hover {
+    background-color: var(--icon-hover-color);
+}
+
+.toolbar_menu_button .icon {
+    color: transparent;
+}
+
+.toolbar_menu_button:hover .icon {
+    color: var(--icon-color);
+}
+
+/* Reset rules to make the Cursor Icons not show the selected state, but only on the toolbar  */
+
+svg.toolbar_icon_btn[id^="cursor_"][selected] {
+    color: var(--icon-color);
+    background-color: var(--icon-background-color);
+}
+
+svg.toolbar_icon_btn[id^="cursor_"]:hover {
+    color: var(--icon-color);
+    background-color: var(--icon-hover-color);
+}
+
+/* ********** ToolBox Visibility Button ********** */
+
+.toolbox_btn {
+    padding: 3px;
+}
+
+.toolbox_btn_wrap{
+    margin: 10px 4px 16px;
+} 
+
+/* ********** Floating ToolBox Overlay ********** */
+
+#toolbox {
+    display:flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#toolbox .icon {
+    width: 28px;
+    height: 28px;
+    margin: 4px 1px;
+}
+
+#toolbox #menu_dragable {
+    width: 20px;
+    height: 20px;
+    margin: 4px 1px;
+    color:var(--icon-gray-color);
+}

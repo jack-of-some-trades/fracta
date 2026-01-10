@@ -1,66 +1,83 @@
 """Utility functions and objects that are used across the library"""
 
+import logging
 import sys
-from types import ModuleType
-from typing import Any, Dict, List, Optional
 from importlib import import_module
-
 from itertools import islice
 from random import choices
 from string import ascii_letters
+from types import ModuleType
+from typing import Any, Dict, Generator, List, Optional, Self, Tuple
+
+log = logging.getLogger("fracta_log")
 
 
-# @pylint: disable=invalid-name
-class ID_List(list[str]):
-    """
-    A List of ID Strings with a generator function. Requires a separate list to store objects.
-
-    Used in place of an ID_Dict when it is desired to manipulate the order of objects.
-    """
-
-    def __init__(self, prefix: str):
-        self.prefix = prefix + "_"
-        super().__init__()
-
-    def generate_id(self, _len: int = 4) -> str:
-        "Generates a new ID, adds it to the list, and returns it for use."
-        _id = self.prefix + "".join(choices(ascii_letters, k=_len))
-
-        if _id not in self:
-            self.append(_id)
-            return _id
-        else:  # In case of a collision.
-            return self.generate_id()
-
-    def affix_id(self, _id: str) -> str:
-        "Add a given ID string to the List. If already present then a new ID is generated."
-        _id_prefixed = self.prefix + _id
-        if _id_prefixed not in self:
-            self.append(_id_prefixed)
-            return _id_prefixed
-        else:  # In case of a collision.
-            return self.generate_id()
+def is_sunder_or_dunder(key: str) -> bool:
+    "Returns true if key is Single or Double Underscore"
+    return is_dunder(key) or is_sunder(key)
 
 
-# @pylint: disable=undefined-variable # Pylint thinks T is undefined
+def is_sunder(key: str) -> bool:
+    "Returns true if key is Single Underscore"
+    return key.startswith("_") or key.endswith("_")
+
+
+def is_dunder(key: str) -> bool:
+    "Returns true if key is Double Underscore"
+    return key.startswith("__") or key.endswith("__")
+
+
+# @pylint: disable=undefined-variable invalid-name # Pylint thinks T is undefined
 class ID_Dict[T](dict[str, T]):
-    """
-    A Dict that can store objects with a pre-defined or randomly generated key.
-    """
+    "A Dict that can store objects with a pre-defined or randomly generated key, and be ordered / reordered like a list"
 
     def __init__(self, prefix: str):
         self.prefix = prefix + "_"
+        self._ordered_ids: list[str] = []
         super().__init__()
+
+    def copy(self) -> Self:
+        "Return a copy of the ID_Dict"
+        copy = self.__class__(self.prefix)
+        for _id, value in self.items():
+            copy[_id] = value
+        copy._ordered_ids = self._ordered_ids.copy()
+        return copy
 
     def __getitem__(self, key: str | int) -> T:
         "Accessor overload so the Dict can be accessed like a list"
+        return super().__getitem__(self._get_key(key))
+
+    def __contains__(self, key: str | int, /) -> bool:
+        "Accessor overload so the Dict can be checked like a list"
+        return super().__contains__(self._get_key(key))
+
+    def update(self, *args, **kwargs) -> None:
+        "Update is not supported for ID_Dict"
+        raise NotImplementedError("Update is not supported for ID_Dict")
+
+    def setdefault(self, key: str | int, default: Optional[T] = None) -> T:
+        "Setdefault is not supported for ID_Dict"
+        raise NotImplementedError("Setdefault is not supported for ID_Dict")
+
+    def get(self, key: str | int, default: Optional[T] = None) -> T | None:
+        "Accessor overload so the Dict can be accessed like a list"
+        if isinstance(key, int) and (key >= len(self._ordered_ids) or key < 0):
+            return default
+        return super().get(self._get_key(key), default)
+
+    def _get_key(self, key: str | int) -> str:
+        """
+        Returns the key as a string.
+        If the key is an int then it is converted to the key at that index.
+        """
         if isinstance(key, int):
             try:
-                return super().__getitem__(next(islice(iter(self), key, key + 1)))
+                return next(islice(iter(self._ordered_ids), key, key + 1))
             except StopIteration as exc:  # re-raise a more informative error msg.
                 raise IndexError(f"'{key}' not a valid index of '{self}'") from exc
 
-        return super().__getitem__(key)
+        return key
 
     def generate_id(self, item: Optional[T] = None, _len: int = 4) -> str:
         "Generates and returns a new Key. If an item is given it is added to the dictionary"
@@ -69,6 +86,7 @@ class ID_Dict[T](dict[str, T]):
         if _id not in self:
             if item is not None:
                 self[_id] = item
+            self._ordered_ids.append(_id)
             return _id
         else:  # In case of a collision.
             return self.generate_id(item)
@@ -85,24 +103,65 @@ class ID_Dict[T](dict[str, T]):
         if _id_prefixed not in self:
             if item is not None:
                 self[_id_prefixed] = item
+            self._ordered_ids.append(_id_prefixed)
             return _id_prefixed
         else:  # In case of a collision.
             return self.generate_id(item)
 
+    def keys(self) -> list[str]:
+        "Return a list of the dictionary's keys in the order they were added"
+        return self._ordered_ids
 
-def is_sunder_or_dunder(key: str) -> bool:
-    "Returns true if key is Single or Double Underscore"
-    return is_dunder(key) or is_sunder(key)
+    def values(self) -> Generator[T, None, None]:
+        "Return a generator of the dictionary's values in the order they were added"
+        return (self[key] for key in self._ordered_ids)
 
+    def items(self) -> Generator[Tuple[str, T], None, None]:
+        "Return a generator of the dictionary's items in the order they were added"
+        return ((key, self[key]) for key in self._ordered_ids)
 
-def is_sunder(key: str) -> bool:
-    "Returns true if key is Single Underscore"
-    return key.startswith("_") or key.endswith("_")
+    def pop(self, _id: str | int) -> T:
+        "Remove and return the item at the given index or key"
+        if isinstance(_id, int):
+            _id = self._ordered_ids.pop(_id)
+        else:
+            self._ordered_ids.remove(_id)
+        return super().pop(_id)
 
+    def remove(self, _id: str | int) -> None:
+        "Remove the item at the given index or key"
+        if isinstance(_id, int):
+            _id = self._ordered_ids.pop(_id)
+        else:
+            self._ordered_ids.remove(_id)
+        super().pop(_id)
 
-def is_dunder(key: str) -> bool:
-    "Returns true if key is Double Underscore"
-    return key.startswith("__") or key.endswith("__")
+    def popitem(self) -> Tuple[str, T]:
+        "Remove and return the last item added to the dictionary"
+        _id = self._ordered_ids.pop()
+        return _id, super().pop(_id)
+
+    def clear(self) -> None:
+        "Remove all items from the dictionary"
+        self._ordered_ids.clear()
+        super().clear()
+
+    def reorder(self, from_id: str | int, to_id: int | str) -> None:
+        "Reorder the item at the given index or key to the new index"
+        try:
+            from_idx = self._ordered_ids.index(from_id) if isinstance(from_id, str) else from_id
+            to_idx = self._ordered_ids.index(to_id) if isinstance(to_id, str) else to_id
+        except ValueError:
+            log.warning("Invalid IDs: %s or %s ids not found in %s", from_id, to_id, self)
+            return
+
+        if from_idx == to_idx:
+            return
+        if min(from_idx, to_idx) < 0 or max(from_idx, to_idx) >= len(self._ordered_ids):
+            log.warning("Cannot reorder %s to %s, indices are out of bounds.", from_id, to_id)
+            return
+
+        self._ordered_ids.insert(to_idx, self._ordered_ids.pop(from_idx))
 
 
 class LazyModule(ModuleType):

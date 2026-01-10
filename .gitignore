@@ -2,6 +2,7 @@
 ###################
 __pycache__
 *.cpython-311.pyc
+*.vscode
 misc_resources
 node_modules
 build 

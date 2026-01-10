@@ -196,6 +196,7 @@ class LocalizationOptionsBase:
 @dataclass(slots=True)
 class WatermarkOptions:
     """
+    ** Out of date ** This refers to v4 Watermarks. Migration needed once Watermarks can be applied to the screen.
     ORM of Lightweight Charts API 'WatermarkOptions'
     Default Values Match Original API's Default Values.
     Original Object: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/WatermarkOptions

@@ -52,7 +52,7 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData>
 
 		const start = this._data.visibleRange.from
 		const end = this._data.visibleRange.to
-		
+
 		const vis_bars = this._data.bars.slice(start, end).map(bar => {
 			const isUp = bar.originalData.close >= bar.originalData.open;
 			const openY = priceToCoordinate(bar.originalData.open as number) ?? 0;
@@ -71,7 +71,7 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData>
 
 		// Set the Priceline Color by setting Options.Color. This is handled in LWC's series-bar-colorer.ts -> barStyleFnMap
 		// The var isn't used for candle color ironic enough, but this is what LWC internally grabs for the priceLine Color
-		if (this._options.priceLineColor !== ''){
+		if (this._options.priceLineColor !== '') {
 			this._options.color = this._options.priceLineColor
 		} else {
 			// Color Based on the last bar in the series.

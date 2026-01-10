@@ -1,72 +1,83 @@
 :root {
-    --font: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    --font: 'Space Grotesk', 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
 
-    --background-fill: #2a2e39;
-    --layout-main-fill: #131722;
-    --background-fade-light: #252934;
-    --background-fade-dark: #191b23;
-    --hover-color: #2a2e39;
-    --hover-color-light: #454c5e;
+    /* Neutrals & Backgrounds */
+    --background-fill: #2c203b;
+    --layout-main-fill: #1a1323;
+    --background-fade-light: #2d2342;
+    --background-fade-dark: #150f1e;
+    --hover-color: #3b2a4b;
+    --hover-color-light: #4b3a5d;
 
-    --text-color: #b2b5be;
-    --text-light-color: #f3f0f0;
-    --text-dark-color: #707277;
-    --text-near-black-color: #131722;
-    --accent-color: #2962ff;
-    --second-accent-color: #f9a825;
-    --separator-color: #222631;
+    /* Text and Accent Colors */
+    --text-color: #cab9d6;
+    --text-light-color: #f0e8f9;
+    --text-dark-color: #9e8aad;
+    --text-near-black-color: #1a1323;
+    --accent-color: #9b6ded;
+    --second-accent-color: #bb86fc;
+    --separator-color: #30263f;
 
+    /* Chart Borders & Separators */
     --chart-border: var(--background-fill);
-    --chart-border-hover: #434d66;
+    --chart-border-hover: #6b5c77;
     --chart-background: var(--background-fill);
     --chart-separator-fill: var(--background-fill);
-    --chart-separator-hover: #434d66;
+    --chart-separator-hover: #6b5c77;
 
+    /* Tab Colors */
     --tab-text-color: var(--text-color);
     --tab-text-inactive-color: var(--text-dark-color);
     --tab-close-color: var(--text-color);
     --tab-close-hover: var(--text-light-color);
     --tab-close-active: var(--text-color);
-
     --tab-divider-color: var(--layout-main-fill);
     --tab-hover-color: var(--hover-color-light);
     --tab-active-color: var(--layout-main-fill);
     --tab-background-color: var(--background-fill);
 
-    --overlay-fill: #1e222d;
+    /* Overlay Colors */
+    --overlay-fill: #1f152d;
     --overlay-shadow: #0007;
     --overlay-menu-separator: var(--accent-color);
 
-    --icon-color: #d1d4dc;
-    --icon-hover-color: #2a2e39;
-    --icon-gray-color: #454c5e;
+    /* Icon Colors */
+    --icon-color: #dbcffa;
+    --icon-hover-color: #3b2a4b;
+    --icon-gray-color: #564469;
     --icon-dark-color: var(--layout-main-fill);
     --icon-active-color: var(--accent-color);
     --icon-background-color: #0000;
 
+    /* Topbar & Toolbar */
     --topbar-icon-hover-color: var(--icon-hover-color);
     --topbar-icon-active-color: var(--icon-active-color);
     --topbar-icon-background-color: var(--icon-background-color);
     --topbar-separator-color: var(--separator-color);
-
     --toolbar-icon-hover-color: var(--icon-hover-color);
     --toolbar-icon-active-color: var(--icon-active-color);
     --toolbar-icon-background-color: var(--icon-background-color);
     --toolbar-separator-color: var(--separator-color);
 
+    /* Legend & Tooltip */
     --legend-bg-color: #0003;
     --legend-bg-color-hover: #0005;
     --legend-border-color: #0000;
     --legend-border-color-hover: #7774;
+    --tooltip-text: var(--text-color);
+    --tooltip-color: var(--accent-color);
+    --tooltip-background: var(--hover-color-light);
 
-    --chart-text-color: #b2b5be;
-    --chart-bg-color-top: #171c27;
-    --chart-bg-color-bottom: #131722;
-    --chart-grid: #222631;
+    /* Chart Color Scheme */
+    --chart-text-color: #cab9d6;
+    --chart-bg-color-top: #1c142b;
+    --chart-bg-color-bottom: #16101f;
+    --chart-grid: #342a44;
     --chart-grid-vert: var(--chart-grid);
     --chart-grid-horiz: var(--chart-grid);
-    --chart-axis-border: #161a25;
+    --chart-axis-border: #140d1e;
 
+    /* Lightweight Chart Default Modes */
     --chart-xhair-mode: 0;
     --chart-right-offset: 20;
     --chart-scale-mode: 1;
@@ -74,12 +85,8 @@
     --chart-scale-mode-left: var(--chart-scale-mode);
     --chart-scale-mode-right: var(--chart-scale-mode);
 
-    --tooltip-text: var(--text-color);
-    --tooltip-color: var(--accent-color);
-    --tooltip-background: var(--hover-color-light);
-
-    --indicator-border-color: #b2b5be;
+    /* Indicator Styling */
+    --indicator-border-color: #cab9d6;
     --indicator-group-text-color: var(--accent-color);
     --indicator-background-fade: var(--background-fade-dark);
-    /* --indicator-background-fade: #00000020; */
 }

@@ -3,10 +3,12 @@ Implementations of Functions, invoked by Rtn_Queue Packets, that preform an acti
 All Functions have been rolled-up into WIN_CMD_ROLODEX that Maps {PY_CMD: Function}
 """
 
-from enum import IntEnum, auto
 import logging
+from enum import IntEnum, auto
+from typing import TYPE_CHECKING, Any, Protocol
 
-from . import py_window as win
+if TYPE_CHECKING:
+    from .py_window import Window
 
 # @pylint: disable=invalid-name, missing-function-docstring, protected-access
 
@@ -15,8 +17,6 @@ log = logging.getLogger("fracta_log")
 
 class PY_CMD(IntEnum):
     "Enumeration of the various commands that javascript can send to python"
-
-    PY_EXEC = auto()
 
     ADD_CONTAINER = auto()
     REMOVE_CONTAINER = auto()
@@ -37,91 +37,60 @@ class PY_CMD(IntEnum):
     SET_INDICATOR_OPTS = auto()
     UPDATE_SERIES_OPTS = auto()
 
+    ADD_PRIMITIVE = auto()
+    REMOVE_PRIMITIVE = auto()
+    UPDATE_PRIMITIVE_OPTS = auto()
+
+
+# Queues are spawned 1 per window, but don't have reference to that window. 1st arg must always provide that reference.
+class PY_CMD_FUNC(Protocol):
+    def __call__(self, window: "Window", *args: Any, **kwds: Any): ...
+
+
+WIN_CMD_ROLODEX: dict[PY_CMD, PY_CMD_FUNC] = {}
+
+
+def register_py_cmd(cmd: PY_CMD):
+    def decorator(func: PY_CMD_FUNC) -> PY_CMD_FUNC:
+        WIN_CMD_ROLODEX[cmd] = func
+        return func
+
+    return decorator
+
 
 # region --------------------- Return Queue CMD Rolodex --------------------- #
 # Strict Typing has been relaxed since these are only invoked by formatted Rtn_Queue Packets
 
 
-def symbol_search(window: "win.Window", *args):
+@register_py_cmd(PY_CMD.SYMBOL_SEARCH)
+def symbol_search(window: "Window", *args):
+    # Should be done by keyword since the Emitter Protocol Signature allows either
+    # individual args or packing filtering info into **kwargs
     window.events.symbol_search(
         symbol=args[0],
-        confirmed=args[1],
-        sources=args[2],
-        exchanges=args[3],
-        asset_classes=args[4],
+        sources=args[1],
+        exchanges=args[2],
+        asset_classes=args[3],
+        confirmed=args[4],
     )
 
 
-def request_timeseries(window: "win.Window", c_id, f_id, ticker, tf):
-    frame = window.get_container(c_id).frames[f_id]
-    if isinstance(frame, win.ChartingFrame):
-        frame.timeseries.request_timeseries(ticker=ticker, timeframe=tf)
-    else:
-        log.warning("Can only request a Timeseries when a Charting Window is selected.")
-
-
-def request_indicator(window: "win.Window", c_id, f_id, ind_pkg, ind_name):
-    frame = window.get_container(c_id).frames[f_id]
-    if isinstance(frame, win.ChartingFrame):
-        frame.request_indicator(ind_pkg, ind_name)
-
-
-def layout_change(window: "win.Window", c_id, layout):
-    container = window.get_container(c_id)
-    container.set_layout(layout)
-
-
-def series_change(window: "win.Window", c_id, f_id, _type):
-    frame = window.get_container(c_id).frames[f_id]
-    if isinstance(frame, win.ChartingFrame):
-        frame.timeseries.change_series_type(_type, True)
-
-
-def set_indicator_opts(window: "win.Window", c_id, f_id, i_id, opts):
-    frame = window.get_container(c_id).frames[f_id]
-    if isinstance(frame, win.ChartingFrame):
-        frame.indicators[i_id].__update_options__(opts)
-
-
-def update_series_opts(window: "win.Window", c_id, f_id, i_id, s_id, opts):
-    frame = window.get_container(c_id).frames[f_id]
-    if isinstance(frame, win.ChartingFrame):
-        frame.indicators[i_id]._series[s_id].__sync_options__(opts)
-
-
-def add_container(window: "win.Window"):
+@register_py_cmd(PY_CMD.ADD_CONTAINER)
+def add_container(window: "Window"):
     window.new_tab()
 
 
-def remove_container(window: "win.Window", c_id):
+@register_py_cmd(PY_CMD.REMOVE_CONTAINER)
+def remove_container(window: "Window", c_id):
     window.del_tab(c_id)
 
 
-def remove_frame(window: "win.Window", c_id, f_id):
-    window.get_container(c_id).remove_frame(f_id)
+@register_py_cmd(PY_CMD.REMOVE_FRAME)
+def remove_frame(window: "Window", c_id, f_id):
+    window.container(c_id).remove_frame(f_id)
 
 
-def reorder_containers(window: "win.Window", _from, _to):
+@register_py_cmd(PY_CMD.REORDER_CONTAINERS)
+def reorder_containers(window: "Window", _from: str | int, _to: str | int):
     # This keeps the Window Obj Tab order identical to what is displayed
-    window._container_ids.insert(_to, window._container_ids.pop(_from))
-    window.containers.insert(_to, window.containers.pop(_from))
-
-
-def rtn_kwargs_from_window(window: "win.Window", kwargs: dict):
-    window.events.window_callback(kwargs)
-
-
-WIN_CMD_ROLODEX = {
-    PY_CMD.PY_EXEC: rtn_kwargs_from_window,
-    PY_CMD.SYMBOL_SEARCH: symbol_search,
-    PY_CMD.TIMESERIES_REQUEST: request_timeseries,
-    PY_CMD.INDICATOR_REQUEST: request_indicator,
-    PY_CMD.LAYOUT_CHANGE: layout_change,
-    PY_CMD.SERIES_CHANGE: series_change,
-    PY_CMD.SET_INDICATOR_OPTS: set_indicator_opts,
-    PY_CMD.UPDATE_SERIES_OPTS: update_series_opts,
-    PY_CMD.ADD_CONTAINER: add_container,
-    PY_CMD.REMOVE_CONTAINER: remove_container,
-    PY_CMD.REMOVE_FRAME: remove_frame,
-    PY_CMD.REORDER_CONTAINERS: reorder_containers,
-}
+    window._containers.reorder(_from, _to)

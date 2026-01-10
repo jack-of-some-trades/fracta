@@ -6,15 +6,16 @@ Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeri
 """
 
 from __future__ import annotations
+
+import logging
 from dataclasses import asdict, dataclass, field
 from enum import IntEnum, auto
 from inspect import signature
-import logging
 from typing import Any, Dict, Literal, Optional, Self, TypeAlias
 
 import pandas as pd
 
-from ..types import Time, JS_Color
+from ..types import JS_Color, Time
 
 logger = logging.getLogger("fracta_log")
 
@@ -131,6 +132,16 @@ AnyBasicSeriesType = Literal[SeriesType.WhitespaceData, SeriesType.SingleValueDa
 # region ---------------------------------- Series Data Types ---------------------------------- #
 
 
+def standardize_time_format(time: Time) -> Time:
+    "Transforms a Time (Unix Str or Int | Datetime | Timestamp) to a consistent format (Pd.Timestamp, UTC, TZ Aware)"
+    _time = pd.Timestamp(time)
+    if bool(pd.isna(_time)):
+        raise ValueError(f"Invalid time value: {time}")
+    else:
+        _time = _time.tz_convert("UTC") if _time.tzinfo is not None else _time.tz_localize("UTC")
+    return _time  # pyright: ignore [reportReturnType]
+
+
 @dataclass
 class WhitespaceData:
     """
@@ -147,12 +158,8 @@ class WhitespaceData:
     # However, such values can be placed in the custom_values dict then later retrieved by
     # a TS/JS LWC Plugin through the series.data() call
 
-    def __post_init__(self):  # Ensure Consistent Time Format (UTC, TZ Aware).
-        self.time = pd.Timestamp(self.time)
-        if self.time.tzinfo is not None:
-            self.time = self.time.tz_convert("UTC")
-        else:
-            self.time = self.time.tz_localize("UTC")
+    def __post_init__(self):
+        self.time = standardize_time_format(self.time)
 
     @property
     def as_dict(self) -> dict:
@@ -213,13 +220,22 @@ class RoundedCandleData(OhlcData):
 
 
 @dataclass
-class SingleValueData(WhitespaceData):
+class Point(WhitespaceData):
+    """
+    A single point on a time chart. Really, this is SingleValueData as defined by LWC,
+    but this library defines SingleValueData as having a volume param.
+    """
+
+    value: Optional[float] = None
+
+
+@dataclass
+class SingleValueData(Point):
     """
     Represents a data point of a single-value series.
     Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/SingleValueData
     """
 
-    value: Optional[float] = None
     volume: Optional[float] = None  # Added by this library
 
 

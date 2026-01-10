@@ -1,9 +1,11 @@
+
 from typing import Optional
 import asyncio
 
 import pandas as pd
 
-from fracta import Ticker, TF, indicators, OhlcData, SingleValueData
+from fracta import Ticker, TF, OhlcData, SingleValueData
+from fracta.indicators.timeseries import Timeseries
 
 
 def symbol_search_handler(symbol: str, **_) -> Optional[list[Ticker]]:
@@ -37,13 +39,13 @@ def data_request_handler(ticker: Ticker, timeframe: TF) -> Optional[pd.DataFrame
                 return pd.read_csv(f"examples/data/GOOGL_{timeframe.mult}min.csv")
             case "TSLA":
                 return pd.read_csv(f"examples/data/TSLA_{timeframe.mult}min.csv")
-            case "LWPC":
+            case "FRACTA":
                 return pd.read_csv("examples/data/lwpc_ohlcv.csv")
-            case "LWPC-TICK":
+            case "FRACTA-TICK":
                 return pd.read_csv("examples/data/lwpc_ohlc.csv")
 
 
-async def socket_request_handler(ticker: Ticker, series: indicators.Series):
+async def socket_request_handler(ticker: Ticker, series: Timeseries):
     """
     Request Handler for Web-Sockets. The requested 'state' is determined by Symbol Changes
     and the frame.socket_open Boolean. The user should keep this Boolean as up-to-date as possible.

@@ -1,36 +1,40 @@
 """Classes and functions that handle implementation of chart indicators"""
 
 from __future__ import annotations
+
+from abc import abstractmethod
 from dataclasses import field
 from importlib import import_module
+from inspect import _empty, currentframe, signature
+from itertools import chain
 from logging import getLogger
-from abc import abstractmethod
-from inspect import signature, _empty, currentframe
 from multiprocessing import Queue
 from typing import (
-    ClassVar,
-    Optional,
     Any,
     Callable,
+    ClassVar,
+    Optional,
     Self,
     TypeAlias,
 )
-import weakref
+from weakref import ref
 
 import pandas as pd
 
-from .indicator_meta import (
-    IndicatorMeta,
-    OptionsMeta,
-    IndicatorPackage,
-)
-
-from .. import py_window as win
-from . import primative as pr
-from . import series_common as sc
-from ..util import ID_Dict, is_dunder
 from ..js_cmd import JS_CMD
 from ..types import Color
+from ..util import ID_Dict, is_dunder
+from ..py_window import FrameTypes, FrontendObject
+
+from . import charting_frame as cf
+from . import primitive as pr
+from . import primitive_set as ps
+from . import series_common as sc
+from .indicator_meta import (
+    IndicatorMeta,
+    IndicatorPackage,
+    OptionsMeta,
+)
 
 log = getLogger("fracta_log")
 
@@ -148,7 +152,7 @@ class IndicatorOptions(metaclass=OptionsMeta):
         return _opts
 
     @classmethod
-    def from_dict(cls, args: dict, parent_frame: win.ChartingFrame) -> Self:
+    def from_dict(cls, args: dict, parent_frame: cf.ChartingFrame) -> Self:
         """
         Creates and returns an instance of the Dataclass from a formatted dict.
         ** The values of the given arguments dict are mutated by this function **
@@ -159,7 +163,7 @@ class IndicatorOptions(metaclass=OptionsMeta):
             if arg_type == "source":
                 ind_id, func_name = v.split(":")
                 try:
-                    ind = parent_frame.indicators[ind_id]
+                    ind = parent_frame._indicators[ind_id]
                     args[k] = getattr(ind, func_name)
                 except (IndexError, AttributeError):
                     args[k] = lambda: None
@@ -194,7 +198,7 @@ class Watcher:
     """
 
     def __init__(self, parent: "Indicator"):
-        self._parent = weakref.ref(parent)
+        self._parent = ref(parent)
 
         # set & updated ensure all indicators only set/update once they are ready to. Set, being
         # more of a latch, is likely bug free. However, doing this for updated **may** lead to an
@@ -208,6 +212,14 @@ class Watcher:
         self.set_notifiers: list[Indicator] = []
         self.update_args: dict[str, Callable] = {}
         self.update_notifiers: list[Indicator] = []
+
+    @property
+    def parent(self) -> "Indicator":
+        "Return the parent Indicator of the watcher"
+        parent = self._parent()
+        if parent is None:
+            raise ValueError("Reference to Parent Indicator has expired.")
+        return parent
 
     def reset_updated_state(self):
         "Reset the Updated state and tell all observers to reset as well, an update is coming"
@@ -239,15 +251,15 @@ class Watcher:
             self.updated = True
             parent._notify_observers_update()
 
-    def notify_clear(self):
+    def notify_reset(self):
         "Notify the Watcher that the source it calculated from is no longer valid and should clear"
         if (parent := self._parent()) is None:
             return
 
         self.set = False
         self.updated = False
-        parent.clear_data()
-        parent._notify_observers_clear()
+        parent.reset()
+        parent._notify_observers_reset()
 
     # pylint: disable=unused-variable
     def link_args(self, args: dict[str, Callable[[], Any]], parent: "Indicator"):
@@ -256,7 +268,7 @@ class Watcher:
             self._unlink_all_args()  # Clear all present args before setting
 
         parent_cls = parent.__class__
-        main_series = parent.parent_frame.timeseries
+        main_series = parent.parent.timeseries
 
         # Auto-Link default args if the Indicator requests it.
         if "bar_state" in parent_cls.__input_args__ and "bar_state" not in args:
@@ -319,7 +331,7 @@ class Watcher:
     def _unlink_all_args(self):
         "Unsubscribe from all of the linked input args"
         # Clear this indicator and all dependant indicators
-        self.notify_clear()
+        self.notify_reset()
 
         # Remove self from all of the '_observers' lists that it's appended to
         bound_arg_funcs = self.observables.values()
@@ -335,7 +347,7 @@ class Watcher:
         self.observables = {}
 
 
-class Indicator(metaclass=IndicatorMeta):
+class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metaclass=IndicatorMeta):
     """
     Indicator Abstract Base Class. This class defines the code neccessary for subclasses to manage
     timeseries data calculations, updates, and creating series/primitives objects that are
@@ -351,19 +363,7 @@ class Indicator(metaclass=IndicatorMeta):
     indicators dictionary.
     """
 
-    # An object self appending to a parent's instance dictionary may obfuscate the how that dict
-    # is populated, but it is by far the simplest solution
-
-    # The first alternative would be requesting a _js_id from the Frame, letting the user create the
-    # object. The problem is that there is no indication that the user *must* get an ID from the
-    # frame. They could have simply supplied their own string and run into bugs later.
-
-    # The second alternative would be to have the user supply the Indicator subclass and all the
-    # required arguments only for the Frame to then construct and return the indicator. This isn't
-    # ideal since you lose all type checking during object creation, and the owner of the object
-    # isn't the one actually creating the object.
-
-    _fwd_queue: Queue
+    _fwd_queue: Queue  # Patch fix to get class ind_pkg cls methods to work.
     # Optional Definition of an Options Dataclass; set by User
     __options__: Optional[type[IndicatorOptions]] = None
     # Dunder Cls Params specific to each Sub-Class; set by MetaClass
@@ -379,65 +379,51 @@ class Indicator(metaclass=IndicatorMeta):
 
     def __init__(
         self,
-        parent: "win.ChartingFrame | Indicator",
+        parent: "cf.ChartingFrame | Indicator",
         *,
         display_name: str = "",
         js_id: Optional[str] = None,
-        display_pane_id: Optional[str] = None,
-    ) -> None:
-        if isinstance(parent, win.ChartingFrame):
-            self.parent_frame = parent
+        pane_index: int = 0,
+    ):
+        ps.PrimitiveSetHolder.__init__(self)
+
+        # resolve parent indicator & parent frame
+        # Cannot use isinstance() because it sends you to circular import hell.
+        if getattr(parent, "Frame_Type", None) == FrameTypes.CHART:
+            FrontendObject.__init__(self, parent, parent._associate_indicator(self, js_id))  # type:ignore
+            self._parent_indicator = ref(parent.timeseries)  # type:ignore
         else:
-            self.parent_frame = parent.parent_frame
+            FrontendObject.__init__(self, parent.parent, parent.parent._associate_indicator(self, js_id))  # type:ignore
+            self._parent_indicator = ref(parent)  # type:ignore
 
-        if display_pane_id is None:
-            display_pane_id = self.parent_frame.main_pane._js_id
-        self.display_pane_id = display_pane_id
+        if pane_index < 0:
+            pane_index = 0
+        self._pane_index = pane_index
 
-        if js_id is None:
-            self._js_id = self.parent_frame.indicators.generate_id(self)
-        else:
-            self._js_id = self.parent_frame.indicators.affix_id(js_id, self)
-
-        # Must preform this check after id generation so parent.main_series is guaranteed valid.
-        # (Specifically for when parent.main_series is trying to find a reference to itself)
-        if isinstance(parent, win.Frame):
-            self.parent_indicator = parent.timeseries
-        else:
-            self.parent_indicator = parent
-
-        # Tuple of Ids to make addressing through Queue easier: order = (frame, indicator)
-        self._ids = self.parent_frame.js_id, self._js_id
-
-        if getattr(self, "_fwd_queue", None) is None:
+        if getattr(self, "_populate_ind_pkgs", None) is None:
             # The first indicator since being launched is being initilized. Set the Indicator Menu
-            Indicator._fwd_queue = self.parent_frame._fwd_queue
+            # Patch fix to get class ind_pkg cls methods to work.
+            Indicator._fwd_queue = self.parent.fwd_queue
             self.__populate_ind_pkgs__()
 
-        # Bind the default output function's 'self' to this instance
-        if self.__default_output__ is not None:
-            self.default_output: Optional[Callable[[], pd.Series]] = self.__default_output__.__get__(
-                self, self.__class__
-            )
-        else:
-            self.default_output = None
-
-        self._series = ID_Dict[sc.SeriesCommon]("s")
-        self._primitives = ID_Dict[pr.Primitive]("p")
-
-        # Setup Indicator Observer Structures
+        # ---- Setup Indicator Observer Structures ----
         self._watcher = Watcher(self)
         self._observers: list[Watcher] = []
 
-        self.events = self.parent_frame._window.events
+        # Bind the default output function's 'self' to this instance
+        self.default_output: Optional[Callable[[], pd.Series]] = (
+            None if self.__default_output__ is None else self.__default_output__.__get__(self, self.__class__)
+        )
+
         self.cls_name = self.__class__.__name__
         self.display_name = display_name
+        self._series = ID_Dict[sc.SeriesCommon]("s")
+        self._primitive_sets = ID_Dict[ps.PrimitiveSet]("ps")
 
-        self._fwd_queue.put(
+        self.fwd_queue.put(
             (
                 JS_CMD.CREATE_INDICATOR,
-                *self._ids,
-                self.display_pane_id,
+                *self.ids,
                 self.__exposed_outputs__,
                 self.cls_name,
                 display_name,
@@ -445,23 +431,30 @@ class Indicator(metaclass=IndicatorMeta):
         )
 
     @property
-    def js_id(self) -> str:
-        """
-        Immutable Copy of the Object's Javascript_ID. The Id is unique only to it's frame
-        Use this Object's Hash ID if a truly unique ID is required.
-        """
-        return self._js_id
+    def pane_index(self) -> int:
+        "Return the pane index of the indicator"
+        return self._pane_index
+
+    @property
+    def parent_indicator(self) -> "Indicator":
+        "Return the parent Indicator of the watcher"
+        parent = self._parent_indicator()
+        if parent is None:
+            raise ReferenceError("Reference to Parent Indicator has expired.")
+        return parent  # type: ignore
 
     @property
     def default_parent_src(self) -> Callable[[], pd.Series]:
         """
-        The default series output of the parent indicator. If the parent does not have a default
-        output then the 'close' of the current frame's main series is returned.
+        The default output of the parent indicator. If no indicator was given or the one given has no default output,
+        the close of the main OHLC series of the parent charting frame is returned (value for single value series).
         """
         if self.parent_indicator.default_output is not None:
             return self.parent_indicator.default_output
 
-        return self.parent_frame.timeseries.close
+        return self.parent.timeseries.close
+
+    # region --------------- Lifecycle ---------------
 
     def __del__(self):
         log.debug("Deleteing %s: %s", self.__class__.__name__, self._js_id)
@@ -480,10 +473,10 @@ class Indicator(metaclass=IndicatorMeta):
         for watcher in self._observers:
             watcher.notify_update()
 
-    def _notify_observers_clear(self):
-        "Notify All observers they should clear their state"
+    def _notify_observers_reset(self):
+        "Notify All observers they should reset their state"
         for watcher in self._observers:
-            watcher.notify_clear()
+            watcher.notify_reset()
 
     def recalculate(self):
         "Manually force a full recalculation of this indicator and all dependent indicators"
@@ -495,7 +488,7 @@ class Indicator(metaclass=IndicatorMeta):
             log.error("Cannot load obj, %s needs an options Class", self.cls_name)
             return
 
-        recalculate = self.update_options(self.__options__.from_dict(args, self.parent_frame))
+        recalculate = self.update_options(self.__options__.from_dict(args, self.parent))
 
         if recalculate:
             self.recalculate()
@@ -506,12 +499,13 @@ class Indicator(metaclass=IndicatorMeta):
 
         for series in self._series.copy().values():
             series.delete()
-        for primative in self._primitives.copy().values():
-            primative.delete()
+        for p_set in self._primitive_sets.copy().values():
+            p_set.delete()
 
-        self.clear_data()  # Clear data after deleting sub-objects to limit redundant actions
-        self.parent_frame.indicators.pop(self._js_id)
-        self._fwd_queue.put((JS_CMD.DELETE_INDICATOR, *self._ids))
+        self.parent._indicators.pop(self._js_id)
+        self.fwd_queue.put((JS_CMD.REMOVE_INDICATOR, *self.ids))
+
+    # endregion
 
     # region ------------------- Abstract Methods -------------------
 
@@ -551,18 +545,18 @@ class Indicator(metaclass=IndicatorMeta):
         by manually passing the desired connection to link_args().
         """
 
-    def clear_data(self):
+    def reset(self):
         """
         Clear Data from the indicator, resetting it the post __init__ state. This is also called
         just prior to indicator deletion, so can reliably clean up the state of linked objects.
 
-        If this function is extended by a subclass, that indicator should call super().clear_data()
+        If this function is extended by a subclass, that indicator should call super().reset()
         since this function clears all series and primitive data.
         """
         for series in self._series.values():
-            series.clear_data()
-        for primitive in self._primitives.values():
-            primitive.clear()
+            series.reset()
+        for p_set in self._primitive_sets.values():
+            p_set.reset()
 
     def update_options(self, _: IndicatorOptions) -> bool:
         """
@@ -614,10 +608,10 @@ class Indicator(metaclass=IndicatorMeta):
             log.error("Cannot set Menu, %s needs an options Class", self.cls_name)
             return
 
-        self._fwd_queue.put(
+        self.fwd_queue.put(
             (
                 JS_CMD.SET_INDICATOR_MENU,
-                *self._ids,
+                *self.ids,
                 self.__options__.__menu_struct__,
                 opts.to_dict(),
             )
@@ -629,42 +623,66 @@ class Indicator(metaclass=IndicatorMeta):
             log.error("Cannot set Menu, %s needs an options Class", self.cls_name)
             return
 
-        self._fwd_queue.put((JS_CMD.SET_INDICATOR_OPTIONS, *self._ids, opts.to_dict()))
+        self.fwd_queue.put((JS_CMD.SET_INDICATOR_OPTIONS, *self.ids, opts.to_dict()))
 
     def set_label(self, label: str):
         "Set the label text for this indicator in the pane's Legend. Raw HTML Accepted"
-        self._fwd_queue.put((JS_CMD.SET_LEGEND_LABEL, *self._ids, label))
+        self.fwd_queue.put((JS_CMD.SET_LEGEND_LABEL, *self.ids, label))
 
-    def get_primitives_of_type[T: pr.Primitive](self, _type: type[T]) -> dict[str, T]:
-        "Returns a Dictionary of Primitives owned by this indicator of the Given Type"
-        if _type == pr.Primitive:
-            return self._primitives.copy()  # type: ignore (ID_Dict is still a dict.)
-        rtn_dict = {}
-        for _key, _primitive in self._primitives.items():
-            if isinstance(_primitive, _type):
-                rtn_dict[_key] = _primitive
-        return rtn_dict
+    # region ------------- Primitive Functions ------------- #
 
-    def get_series_of_type[T: sc.SeriesCommon](self, _type: type[T]) -> dict[str, T]:
-        "Returns a Dictionary of Series Objects owned by this indicator of the Given Type"
+    def primitive(self, _id: str) -> pr.PrimitiveBase:
+        "Return the primitive that matches the given js_id"
+        for obj in chain(self._primitive_sets.values(), self._series.values()):
+            if _id in obj:
+                return obj.primitive(_id)
+        raise KeyError(f"Primitive {_id} not found in Indicator '{self.cls_name}'")
+
+    def add_primitive_set(
+        self, pane_index: int = 0, name: Optional[str] = None, js_id: Optional[str] = None
+    ) -> ps.PrimitiveSet:
+        "Request that a Primitive Set instance be added to this frame"
+        raise NotImplementedError("Primitive Set addition is not yet supported for Indicators")
+
+    def delete_primitive_set(self, _ref: str | int | ps.PrimitiveSet):
+        "Request that a Primitive Set instance be deleted from this frame"
+        raise NotImplementedError("Primitive Set deletion is not yet supported for Indicators")
+
+    # endregion
+
+    # region ------------- Series Functions ------------- #
+
+    def series(self, _id: str | int) -> sc.SeriesCommon:
+        "Return the series that matches either the given js_id, or the series #"
+        return self._series[_id]
+
+    def _associate_series(self, series: sc.SeriesCommon, js_id: Optional[str] = None) -> str:
+        "Attach a Series to this Indicator and return the JS ID it is stored under"
+        if js_id is None:
+            return self._series.generate_id(series)
+        else:
+            return self._series.affix_id(js_id, series)
+
+    def _deassociate_series(self, series: sc.SeriesCommon):
+        "Remove a Series from this Indicator"
+        if series.js_id is not None and series.js_id in self._series:
+            self._series.pop(series.js_id)
+            self.fwd_queue.put((JS_CMD.REMOVE_SERIES, *self.ids, series.js_id))
+
+    def get_series_of_type[T: sc.SeriesCommon](self, _type: type[T] = sc.SeriesCommon) -> dict[str, T]:
+        """
+        Returns a Dictionary of Series Objects owned by this indicator of the Given Type.
+        If no argument is given, all of the series will be returned.
+        """
         if _type == sc.SeriesCommon:
-            return self._series.copy()  # type: ignore (ID_Dict is still a dict.)
+            return self._series.copy()  # type: ignore
         rtn_dict = {}
         for _key, _series in self._series.items():
             if isinstance(_series, _type):
                 rtn_dict[_key] = _series
         return rtn_dict
 
-    def delete_primitives(self, _type: type = pr.Primitive):
-        """
-        Deletes all Primitives owned by this indicator of the given type.
-        If no argument is given, all of the primitives will be deleted.
-        """
-        for _primitive in self._primitives.copy().values():
-            if isinstance(_primitive, _type):
-                _primitive.delete()
-
-    def delete_series(self, _type: type = sc.SeriesCommon):
+    def delete_series_of_type(self, _type: type = sc.SeriesCommon):
         """
         Deletes all Series owned by this indicator of the given type.
         If no argument is given, all of the Series will be deleted.
@@ -673,30 +691,26 @@ class Indicator(metaclass=IndicatorMeta):
             if isinstance(_series, _type):
                 _series.delete()
 
+    # endregion
+
     def bar_time(self, index: int) -> pd.Timestamp:
         """
         Get the timestamp at a given bar index. Negative indices are valid and will start at
         the last bar time.
 
-        The returned timestamp will always be bound to the limits of the underlying dataset
-        e.g. [FirstBarTime, LastBarTime]. If no underlying data exists 1970-01-01[UTC] is returned.
+        The returned timestamp will always be bound to the limits of the underlying dataset plus 500
+        bars into the future. e.g. [FirstBarTime, LastBarTime + 500]. If no underlying data exists
+        1970-01-01[UTC] is returned.
 
         The index may be up to 500 bars into the future, though this timestamp is not guaranteed to
-        always remain valid depending on the data received. This can cause Primitives to de-render.
-
-        For example, say the projected time of the next bar is 4:15pm and we draw a Primitive at
-        that timestamp. The next piece of bar data is received with an opening time of 5PM so the
-        4:15PM Bar is skipped. The Library will remove the Whitespace between 4:15PM and 5PM so
-        the chart doesn't have visible gaps. If the Primitive is still supposed to be drawn at
-        4:15PM, it will de-render until a valid timestamp is given.
+        always remain valid. This can happen if the market_calendars extrapolation proves incorrect due
+        to unexpected changes in the market sessions. (pandas_market_calendars is used for extrapolation)
         """
-        # TODO: Add a nearest_bar_time function to primitive-base to ensure primitives render
-        # negating the need for the above comment.
-        return self.parent_frame.timeseries.bar_time(index)
+        return self.parent.timeseries.bar_time(index)
 
 
 # pylint: disable=invalid-name
-IndParent_T: TypeAlias = "win.ChartingFrame | Indicator"
+Indicator_Parent_T: TypeAlias = "cf.ChartingFrame | Indicator"
 
 # endregion
 
