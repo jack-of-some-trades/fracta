@@ -42,10 +42,11 @@ EXT_MAP = {  # Trading Hours Integer Encoding
 
 def enable_market_calendars():
     """
-    Enables the Use of Pandas_Market_Calendars for more complex behavior
+    Enables the Use of Pandas_Market_Calendars for better whitespace series prediction.
 
-    It is suggested that this module is loaded after creating a window. This allows
-    for a slightly better loading time of this library.
+    It is a slightly larger import, but it should be optimized enough to not be noticeable.
+    This is leftover from when it was't optimized and turning it off may have been desirable.
+    TBD: If even this get removed entirely in favor of a normal module import.
     """
     # pylint: disable-next=global-statement
     global mcal, EXCHANGE_NAMES, ALT_EXCHANGE_NAMES, schedule_error, parse_schedule_error

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
-from fracta.py_window import FrontendObject
 
+from ..window import FrontendObject
 from ..js_cmd import JS_CMD
 from ..util import ID_Dict
 from . import primitive as pr
@@ -19,6 +19,7 @@ log = logging.getLogger("fracta_log")
 class PrimitiveSet(pr.PrimitiveHolder, FrontendObject["ChartingFrame | Indicator"]):
     "A collection of Primitives that share a common seriesAPI parent object"
 
+    ID_KEY: ClassVar[str] = "primitiveSetId"
     __special_id__ = "default_pset"
 
     def __init__(
@@ -34,7 +35,7 @@ class PrimitiveSet(pr.PrimitiveHolder, FrontendObject["ChartingFrame | Indicator
         self._name = name
 
         self._primitives = ID_Dict[pr.PrimitiveBase]("p")
-        self.fwd_queue.put((JS_CMD.ADD_PRIMITIVE_SET, *self.ids, name, pane_index))
+        self.send(JS_CMD.ADD_PRIMITIVE_SET, name, pane_index)
 
     def __del__(self):
         log.debug("Deleteing %s: %s", self.__class__.__name__, self.js_id)
@@ -47,12 +48,12 @@ class PrimitiveSet(pr.PrimitiveHolder, FrontendObject["ChartingFrame | Indicator
         "Attach a primitive to this PrimitiveSet"
         # TODO: Fix improper handling of primitive private variables once ID update method is known.
         primitive._js_id = self._associate_primitive(primitive)
-        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *primitive.ids, primitive._type, primitive._opts))
+        self.send(JS_CMD.CREATE_PRIMITIVE, primitive._type, primitive._opts)
 
     def detach_primitive(self, primitive: pr.PrimitiveBase):
         "Detach a primitive from this PrimitiveSet"
         self._deassociate_primitive(primitive)
-        self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *primitive.ids))
+        primitive.remove()
 
     def move_primitive(self, primitive: pr.PrimitiveBase):
         "Move the given primitive from another holder to this one."

@@ -22,15 +22,19 @@ async def main():
     the use of a [ if __name__ == "__main__": ] block.
     """
 
-    window = fta.Window(log_level="INFO", debug=True, frameless=False)
-    window.events.data_request += csv.data_request_handler
-    window.events.symbol_search += csv.symbol_search_handler
-    window.events.open_socket += csv.socket_request_handler
+    server = fta.FractaServer(log_level="INFO", debug=True)
+    server.events.data_request += csv.data_request_handler
+    server.events.symbol_search += csv.symbol_search_handler
+    server.events.open_socket += csv.socket_request_handler
 
-    window.set_search_filters("asset_class", ["Crypto", "Equity"])
-    window.set_search_filters("source", ["Local", "Alpaca"])
-    window.set_search_filters("exchange", [])
-    window.set_layout_favs(
+    server.set_search_filters(
+        {
+            "asset_class": ["Crypto", "Equity"],
+            "source": ["Local", "Alpaca"],
+            "exchange": [],
+        }
+    )
+    server.set_layout_favs(
         [
             fta.Layouts.SINGLE,
             fta.Layouts.DOUBLE_VERT,
@@ -38,7 +42,7 @@ async def main():
             fta.Layouts.QUAD_SQ_H,
         ]
     )
-    window.set_series_favs(
+    server.set_series_favs(
         [
             fta.SeriesType.Candlestick,
             fta.SeriesType.Rounded_Candle,
@@ -46,11 +50,11 @@ async def main():
             fta.SeriesType.Area,
         ]
     )
-    window.set_timeframes(
+    server.set_timeframes(
         favs=[fta.TF(1, "m"), fta.TF(5, "m"), fta.TF(30, "m")],
     )
 
-    window.new_tab()
+    window = server.new_window()
     main_frame = window.container(0).frame(0)
     df = pd.read_csv("examples/data/ohlcv.csv")
 
@@ -61,7 +65,7 @@ async def main():
         sma20 = fta.indicators.SMA(main_frame)
         fta.indicators.SMA(sma20)
 
-    await window.await_close()  # Useful to make Ctrl-C in the terminal kill the window.
+    await server.serve()  # Useful to make Ctrl-C in the terminal kill the window.
 
 
 if __name__ == "__main__":

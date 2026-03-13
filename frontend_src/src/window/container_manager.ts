@@ -65,6 +65,13 @@ export class container_manager {
     }
 
     /**
+     * @api Get a container by its ID.
+     */
+    get_container(id: string): container | undefined {
+        return this.containers.get(id)
+    }
+
+    /**
      * Changes which container is displayed by the app.
      */
     set_active_container(id: string) {
@@ -74,12 +81,12 @@ export class container_manager {
         if (tab_el) this.tab_manager.setCurrentTab(tab_el)
 
         if (window.activeContainer) {
-            window.activeContainer.onHide()     // Allow Sub-classes to inject behavior
+            window.activeContainer.onHide()      // Allow Sub-classes to inject behavior
         }
 
         window.activeContainer = container_obj
         container_obj.onShow()                   // Allow Sub-classes to inject behavior
-        container_obj.refreshSize()                   // Non-Active Containers aren't resized
+        container_obj.refreshSize()              // Non-Active Containers aren't resized
     }
 
     /**

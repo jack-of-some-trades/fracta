@@ -1,9 +1,11 @@
 alpaca-py>=0.39.1
 dotenv>=0.9.9
+fastapi>=0.115.0
 pandas>=2.2.2
 pandas-market-calendars>=4.6.0
 psyscale>=0.1.1
-pywebview>=5.1
+pydantic>=2.11.3
+uvicorn[standard]>=0.34.0
 
 [dist]
 setuptools>=80.7.1

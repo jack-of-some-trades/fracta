@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from asyncio import create_task, iscoroutinefunction
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,25 +13,19 @@ from typing import (
     TypeAlias,
 )
 
-from .js_cmd import JS_CMD
-
 if TYPE_CHECKING:
-    from multiprocessing import Queue
     from .indicators.timeseries.events import (
         Data_Request_Protocol,
         Socket_Close_Protocol,
         Socket_Open_Protocol,
         Symbol_Search_Protocol,
     )
-    from .py_window import Window
 
 
 class Events:
     "A Super Object that is a Collection of Emitters"
 
-    def __init__(self, window: "Window"):
-        self.exec_js = partial(_js_command_sender, window._fwd_queue)
-        self.exec_js.__doc__ = _js_command_sender.__doc__
+    def __init__(self):
         self.window_callback = Emitter[Callback_Protocol](single_emit=False)
 
         # Provides typing information for these events since they are built in.
@@ -60,11 +53,6 @@ class Callback_async(Protocol):
 Callback_Protocol: TypeAlias = Callback_sync | Callback_async
 
 
-def _js_command_sender(queue: "Queue", /, cmd: str):
-    "Send JS as a string to the window and execute it in the global namespace"
-    queue.put((JS_CMD.JS_CODE, cmd))
-
-
 # endregion
 
 
@@ -75,7 +63,7 @@ class Emitter[T: Callable](list[T]):
     Emitter is a list of Sync/Async Callables. It should be instantiated with a Protocol,
     or a union of Protocols, that define the input and output args of the stored callables.
 
-    Emittion Responders can be added via the '+=' operatior. By default the Emitters are single
+    Emission responders can be added via the '+=' operator. By default the Emitters are single
     emitters. This limits the length of the responder's list to 1 function. When True, only the
     last responder function appended to the list though the '+=' operator will be called.
 

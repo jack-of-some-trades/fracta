@@ -1,7 +1,7 @@
 [project]
 name = "fracta"
 version = "0.0.0"
-description = "Python based web-app for Viewing & Manipulating Timeseries Data."
+description = "Python & Typescript based web-app for Viewing & Manipulating Timeseries Data."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "jack_of_some_trades" }]
 license = { text = "TBD" }
@@ -9,10 +9,12 @@ requires-python = ">=3.12"
 dependencies = [
     "alpaca-py>=0.39.1",
     "dotenv>=0.9.9",
+    "fastapi>=0.115.0",
     "pandas>=2.2.2",
     "pandas-market-calendars>=4.6.0",
     "psyscale>=0.1.1",
-    "pywebview>=5.1",
+    "pydantic>=2.11.3",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [tool.setuptools]

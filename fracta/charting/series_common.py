@@ -8,12 +8,12 @@ Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeri
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import Any, ClassVar, Literal, Optional, TYPE_CHECKING
 
 import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype
 
-from ..py_window import FrontendObject
+from ..window import FrontendObject
 from ..js_cmd import JS_CMD
 from ..types import JS_Color, Time
 from ..util import ID_Dict
@@ -168,6 +168,8 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
     Docs: https://tradingview.github.io/lightweight-charts/docs/api/interfaces/ISeriesApi
     """
 
+    ID_KEY: ClassVar[str] = "seriesId"
+
     def __init__(
         self,
         parent: "Indicator",
@@ -211,7 +213,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             if "close" not in arg_map:
                 self._value_map["close"] = "value"
 
-        self.fwd_queue.put((JS_CMD.ADD_SERIES, *self.ids, self._series_type, name))
+        self.send(JS_CMD.ADD_SERIES, self._series_type, name)
         self.apply_options(self._options)
 
     def __del__(self):
@@ -219,6 +221,10 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
 
     def __contains__(self, item: str) -> bool:
         return item in self._markers or item in self._pricelines or item in self._primitives
+
+    def remove(self):
+        "Remove this series from the parent object"
+        self.send(JS_CMD.REMOVE_SERIES)
 
     def get(self, _js_id: str) -> Marker | PriceLine | pr.PrimitiveBase:
         "Return the object that matches either given js_id"
@@ -239,7 +245,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         if reset_options:  # TBD if this is actually a functionality that is desired.
             self.apply_options(self.__init_options__)
 
-        self.fwd_queue.put((JS_CMD.CLEAR_SERIES_DATA, *self.ids))
+        self.send(JS_CMD.CLEAR_SERIES_DATA)
         self.remove_all_markers()
         self.remove_all_pricelines()
 
@@ -339,7 +345,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         "Sets the Data of the Series to the given data set. All irrlevant data is ignored"
         # Set display type so data.json() only passes relevant information
         xfer_df = self._to_transfer_dataframe_(data)
-        self.fwd_queue.put((JS_CMD.SET_SERIES_DATA, *self.ids, xfer_df))
+        self.send(JS_CMD.SET_SERIES_DATA, xfer_df)
 
     def update_data(
         self, data: sd.AnySeriesData
@@ -356,7 +362,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
                 data_dict["value"] = data_dict["close"]
             data = self._series_data_cls.from_dict(data_dict)
 
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: AnySeriesOptions | dict):
         """
@@ -369,7 +375,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             self._options = options.as_dict
         else:
             self._options = options
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_OPTS, *self.ids, options))
+        self.send(JS_CMD.UPDATE_SERIES_OPTS, options)
 
     def apply_scale_options(self, options: PriceScaleOptions | dict):
         """
@@ -379,7 +385,7 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         The Argument can be a PriceScaleOptions instance or a dict formatted to the lwc api spec.
         https://tradingview.github.io/lightweight-charts/docs/api/interfaces/PriceScaleOptions
         """
-        self.fwd_queue.put((JS_CMD.UPDATE_PRICE_SCALE_OPTS, *self.ids, options))
+        self.send(JS_CMD.UPDATE_PRICE_SCALE_OPTS, options)
 
     def change_series_type(
         self,
@@ -392,13 +398,10 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         self._series_data_cls = self._series_type.cls
         self._series_ohlc_derived = sd.SeriesType.OHLC_Derived(self._series_type)
 
-        self.fwd_queue.put(
-            (
-                JS_CMD.CHANGE_SERIES_TYPE,
-                *self.ids,
-                series_type,
-                self._to_transfer_dataframe_(data),
-            )
+        self.send(
+            JS_CMD.CHANGE_SERIES_TYPE,
+            series_type,
+            self._to_transfer_dataframe_(data),
         )
 
     # TODO: Multi-pane implementation
@@ -416,12 +419,12 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             primitive._js_id = self._primitives.affix_id(js_id, primitive)
 
         # TODO: adjust this to a MOVE_PRIMITIVE command when necessary, probably adding a new command type
-        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *self.ids, primitive.js_id, primitive._type, primitive._args))
+        self.send(JS_CMD.CREATE_PRIMITIVE, primitive.js_id, primitive._type, primitive._args)
 
     def detach_primitive(self, primitive: pr.PrimitiveBase):
         if primitive.js_id is not None and primitive.js_id in self._primitives:
             self._primitives.pop(primitive.js_id)
-            self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self.ids, primitive.js_id))
+            self.send(JS_CMD.REMOVE_PRIMITIVE, primitive.js_id)
 
     def move_primitive(self, primitive: pr.PrimitiveBase):
         raise NotImplementedError("Primitive Move Functionality is not yet implemented")
@@ -452,13 +455,13 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         else:
             marker._js_id = self._markers.generate_id(marker)
 
-        self.fwd_queue.put((JS_CMD.ADD_SERIES_MARKER, *self.ids, marker._js_id, marker))
+        self.send(JS_CMD.ADD_SERIES_MARKER, marker._js_id, marker)
 
     def remove_marker(self, marker: Marker):
         "Remove the given Marker from the series"
         if marker._js_id is not None and marker._js_id in self._markers:
             self._markers.pop(marker._js_id)
-            self.fwd_queue.put((JS_CMD.REMOVE_SERIES_MARKER, *self.ids, marker._js_id))
+            self.send(JS_CMD.REMOVE_SERIES_MARKER, marker._js_id)
 
     def update_marker(self, marker: Marker):
         "Update the Options of the given Marker"
@@ -470,13 +473,10 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             )
             self.add_marker(marker)
         else:
-            self.fwd_queue.put(
-                (
-                    JS_CMD.UPDATE_SERIES_MARKER,
-                    *self.ids,
-                    marker._js_id,
-                    marker,
-                )
+            self.send(
+                JS_CMD.UPDATE_SERIES_MARKER,
+                marker._js_id,
+                marker,
             )
 
     def filter_markers(self, key: MarkerSelectors, value: Any):
@@ -486,12 +486,12 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         for k in keys:
             self._markers.pop(k)
 
-        self.fwd_queue.put((JS_CMD.FILTER_SERIES_MARKERS, *self.ids, keys))
+        self.send(JS_CMD.FILTER_SERIES_MARKERS, keys)
 
     def remove_all_markers(self):
         "Remove All Markers from this series. Cannot be undone."
         self._markers.clear()
-        self.fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_MARKERS, *self.ids))
+        self.send(JS_CMD.REMOVE_ALL_SERIES_MARKERS)
 
     # endregion
 
@@ -519,13 +519,13 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         else:
             priceline._js_id = self._pricelines.generate_id(priceline)
 
-        self.fwd_queue.put((JS_CMD.ADD_SERIES_PRICELINE, *self.ids, priceline._js_id, priceline))
+        self.send(JS_CMD.ADD_SERIES_PRICELINE, priceline._js_id, priceline)
 
     def remove_priceline(self, priceline: PriceLine):
         "Remove the given Priceline from the series"
         if priceline._js_id is not None and priceline._js_id in self._pricelines:
             self._pricelines.pop(priceline._js_id)
-            self.fwd_queue.put((JS_CMD.REMOVE_SERIES_PRICELINE, *self.ids, priceline._js_id))
+            self.send(JS_CMD.REMOVE_SERIES_PRICELINE, priceline._js_id)
 
     def update_priceline(self, priceline: PriceLine):
         "Update the Options of the given Priceline"
@@ -537,13 +537,10 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
             )
             self.add_priceline(priceline)
         else:
-            self.fwd_queue.put(
-                (
-                    JS_CMD.UPDATE_SERIES_PRICELINE,
-                    *self.ids,
-                    priceline._js_id,
-                    priceline,
-                )
+            self.send(
+                JS_CMD.UPDATE_SERIES_PRICELINE,
+                priceline._js_id,
+                priceline,
             )
 
     def filter_pricelines(self, key: PriceLineSelectors, value: Any):
@@ -553,12 +550,12 @@ class SeriesCommon(pr.PrimitiveHolder, FrontendObject["Indicator"]):
         for k in keys:
             self._pricelines.pop(k)
 
-        self.fwd_queue.put((JS_CMD.FILTER_SERIES_PRICELINES, *self.ids, keys))
+        self.send(JS_CMD.FILTER_SERIES_PRICELINES, keys)
 
     def remove_all_pricelines(self):
         "Remove All Pricelines from this series. Cannot be undone."
         self._pricelines.clear()
-        self.fwd_queue.put((JS_CMD.REMOVE_ALL_SERIES_PRICELINES, *self.ids))
+        self.send(JS_CMD.REMOVE_ALL_SERIES_PRICELINES)
 
     # pylint: enable=protected-access
     # endregion
@@ -594,7 +591,7 @@ class LineSeries(SeriesCommon):
         return LineStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.LineData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: LineStyleOptions | dict):
         super().apply_options(options)
@@ -631,7 +628,7 @@ class HistogramSeries(SeriesCommon):
         return HistogramStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: HistogramStyleOptions | dict):
         super().apply_options(options)
@@ -668,7 +665,7 @@ class AreaSeries(SeriesCommon):
         return AreaStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.AreaData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: AreaStyleOptions | dict):
         super().apply_options(options)
@@ -705,7 +702,7 @@ class BaselineSeries(SeriesCommon):
         return BaselineStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.BaselineData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: BaselineStyleOptions | dict):
         super().apply_options(options)
@@ -742,7 +739,7 @@ class BarSeries(SeriesCommon):
         return BarStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: BarStyleOptions | dict):
         super().apply_options(options)
@@ -779,7 +776,7 @@ class CandlestickSeries(SeriesCommon):
         return CandlestickStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: CandlestickStyleOptions | dict):
         super().apply_options(options)
@@ -816,7 +813,7 @@ class RoundedCandleSeries(SeriesCommon):
         return RoundedCandleStyleOptions(**self._options)
 
     def update_data(self, data: sd.WhitespaceData | sd.SingleValueData | sd.HistogramData):
-        self.fwd_queue.put((JS_CMD.UPDATE_SERIES_DATA, *self.ids, data))
+        self.send(JS_CMD.UPDATE_SERIES_DATA, data)
 
     def apply_options(self, options: RoundedCandleStyleOptions | dict):
         super().apply_options(options)

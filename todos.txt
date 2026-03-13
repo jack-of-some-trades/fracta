@@ -55,14 +55,6 @@ Backend-Backend (Python):
 	- Series_DF : Implement a 'Time is EXT Trade Hours' check.
 				: Fix the Whitespace Extension DF? Currently it errors when given ETH since it is always expecting RTH
 
-	- Disable GIL : Experiment with Disabling the GIL in Python 3.13. This implmentation would replace the multi-processing
-					behavior with multi-threading. This *could* be a decent performance increase seeing as how the memory space
-					between Core A and Core B would be shared. Modules wouldn't need to load twice on start-up and,
-					more importantly, all objects that traverse the Queue wouldn't need to be pickled. They could just reference
-					the memory location of the relevant object which would be far more efficient. In additon, without pickling, 
-					bound functions could be passed through the queue potentially allowing for more direct communication between
-					indicators / series / primitive / etc. objects and the window.
-
 Cross-Architecture:
 	- Primitives : 
 			Figure out Final structure for primitive ownership
@@ -74,7 +66,7 @@ Cross-Architecture:
 
 	- Series Objects / Series_DFs : Create an 'infinite-history' system as described by :
 			https://tradingview.github.io/lightweight-charts/tutorials/demos/infinite-history
-			This would help lighten the load on the fwd_queue preventing future bottlenecks
+			This would help lighten a lot of the unnecessary data-transfer
 
 	- Trade-Execution: Add support for trade buy/sell execution events to the window event manager. 
 						Indicators already have access to the Event system for this reason.

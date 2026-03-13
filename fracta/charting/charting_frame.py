@@ -7,9 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 
-
 from .. import util
-from .. import py_window as win
+from .. import window as win
 from ..py_cmd import PY_CMD, register_py_cmd
 from ..js_cmd import JS_CMD
 from ..types import TF, Ticker
@@ -53,25 +52,25 @@ class ChartingFrame(win.Frame, ps.PrimitiveSetHolder):
     # region ------------- Dunder Control Functions ------------- #
 
     def __set_whitespace__(self, data: pd.DataFrame, curr_time: "SingleValueData"):
-        self.fwd_queue.put((JS_CMD.SET_WHITESPACE_DATA, self._js_id, data, curr_time))
+        self.send(JS_CMD.SET_WHITESPACE_DATA, data, curr_time)
 
     def __clear_whitespace__(self):
-        self.fwd_queue.put((JS_CMD.CLEAR_WHITESPACE_DATA, self._js_id))
+        self.send(JS_CMD.CLEAR_WHITESPACE_DATA)
 
     def __update_whitespace__(self, data: "AnyBasicData", curr_time: "SingleValueData"):
-        self.fwd_queue.put((JS_CMD.UPDATE_WHITESPACE_DATA, self._js_id, data, curr_time))
+        self.send(JS_CMD.UPDATE_WHITESPACE_DATA, data, curr_time)
 
     def __set_displayed_symbol__(self, symbol: Ticker):
         "*Does not change underlying data Symbol*"
-        self.fwd_queue.put((JS_CMD.SET_FRAME_SYMBOL, self._js_id, symbol))
+        self.send(JS_CMD.SET_FRAME_SYMBOL, symbol)
 
     def __set_displayed_timeframe__(self, timeframe: TF):
         "*Does not change underlying data TF*"
-        self.fwd_queue.put((JS_CMD.SET_FRAME_TIMEFRAME, self._js_id, timeframe))
+        self.send(JS_CMD.SET_FRAME_TIMEFRAME, timeframe)
 
     def __set_displayed_series_type__(self, series_type: "SeriesType"):
         "*Does not change underlying data Type*"
-        self.fwd_queue.put((JS_CMD.SET_FRAME_SERIES_TYPE, self._js_id, series_type))
+        self.send(JS_CMD.SET_FRAME_SERIES_TYPE, series_type)
 
     # endregion
 
@@ -81,7 +80,7 @@ class ChartingFrame(win.Frame, ps.PrimitiveSetHolder):
 
     def autoscale_timeaxis(self):
         "Autoscale the Time axis of all panes owned by this Charting Frame"
-        self.fwd_queue.put((JS_CMD.AUTOSCALE_TIME_AXIS, self._js_id))
+        self.send(JS_CMD.AUTOSCALE_TIME_AXIS)
 
     # region ------------- Indicator Functions ------------- #
 

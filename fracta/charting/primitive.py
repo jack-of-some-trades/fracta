@@ -7,7 +7,6 @@ from copy import deepcopy
 from dataclasses import asdict, dataclass
 from logging import getLogger
 from typing import Any, ClassVar, Optional, Protocol, Type, TYPE_CHECKING
-from weakref import ref
 
 from ..types import Color
 from ..util import ID_Dict
@@ -21,7 +20,7 @@ from .series_options import (
     CanvasTextBaseline,
     LineStyleEXT,
 )
-from .. import py_window as win
+from .. import window as win
 
 if TYPE_CHECKING:
     from . import series_common as sc
@@ -81,6 +80,8 @@ class PrimitiveOptions(metaclass=ABCMeta):
 class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | ps.PrimitiveSet"]):
     "Base Class for Charting Primitives."
 
+    ID_KEY: ClassVar[str] = "primitiveId"
+
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
 
@@ -112,16 +113,21 @@ class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | p
         self.__init_state__ = asdict(self._opts)
         self._type = self.__class__.__name__
 
-        self.fwd_queue.put((JS_CMD.CREATE_PRIMITIVE, *self.ids, self._type, self._opts))
+        self.send(JS_CMD.CREATE_PRIMITIVE, self._type, self._opts)
 
     def reset(self):
         "Reset the state back to how it existed at the time initialization"
         self.apply_options(self.__init_state__)
 
+    def remove(self):
+        "Remove the primitive from the parent series/set"
+        self.send(JS_CMD.REMOVE_PRIMITIVE)
+
     def delete(self):
         "Remove the Object from the screen"
         self.parent.detach_primitive(self)
-        self.fwd_queue.put((JS_CMD.REMOVE_PRIMITIVE, *self.ids))
+        self.send(JS_CMD.REMOVE_PRIMITIVE)
+        # TODO: determine a better function schemeing between delete & remove.
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name not in self.__options_cls__.__fields__:
@@ -129,9 +135,8 @@ class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | p
 
         # Handle _opts specific fields.
         self._opts[name] = value  # Will error if invalid property.
-        self.fwd_queue.put(  # Immediately pass the update to the window.
-            (JS_CMD.UPDATE_PRIMITIVE_OPTS, *self.ids, {name: value})
-        )
+        # Immediately pass the update to the window.
+        self.send(JS_CMD.UPDATE_PRIMITIVE_OPTS, **{name: value})
 
     def __getattr__(self, name: str) -> None:
         if name in self.__options_cls__.__fields__:
@@ -170,7 +175,7 @@ class PrimitiveBase[T: PrimitiveOptions](win.FrontendObject["sc.SeriesCommon | p
         else:
             self._opts = opts
 
-        self.fwd_queue.put((JS_CMD.UPDATE_PRIMITIVE_OPTS, *self.ids, self._opts))
+        self.send(JS_CMD.UPDATE_PRIMITIVE_OPTS, self._opts)
 
     def __sync_options__(self, opts: dict[str, Any]):
         "Hook for UI Inputs to sync the changed options back to python"

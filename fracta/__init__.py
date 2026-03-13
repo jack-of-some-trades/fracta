@@ -11,12 +11,20 @@ TradingView Lightweight Charts™
 Copyright (с) 2023 TradingView, Inc. https://www.tradingview.com/
 """
 
-import logging
+from importlib.metadata import version, metadata, PackageNotFoundError
 
+try:
+    __version__ = version("fracta")
+    __description__ = metadata("fracta")["Summary"]
+except PackageNotFoundError:
+    __version__ = "unknown"
+    __description__ = "Python & Typescript based web-app for Viewing & Manipulating Timeseries Data."
+
+import logging
 from .util import LazyModule
 
 from .types import TF, Color, JS_Color, Ticker
-from .py_window import Window, Container, Frame, Layouts
+from .window import Window, Container, Frame, Layouts
 from .charting import *
 from .charting.indicator import Indicator, IndicatorOptions
 from .charting.series_dtypes import (
@@ -35,18 +43,23 @@ from .charting.series_dtypes import (
 )
 from . import indicators
 from . import broker_apis
+from .server import FractaServer, ServerParams, ServerProtocol
+
 
 __all__ = (
     "Window",
     "Container",
     "Frame",
     "ChartingFrame",
+    "FractaServer",
     #
     # Types
     "TF",
     "Color",
     "JS_Color",
     "Ticker",
+    "ServerParams",
+    "ServerProtocol",
     "Indicator",
     "IndicatorOptions",
     #

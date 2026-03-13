@@ -3,9 +3,9 @@ pyproject.toml
 fracta/__init__.py
 fracta/events.py
 fracta/js_cmd.py
-fracta/js_window.py
 fracta/py_cmd.py
 fracta/py_window.py
+fracta/server.py
 fracta/types.py
 fracta/util.py
 fracta.egg-info/PKG-INFO
@@ -22,7 +22,8 @@ fracta/charting/chart_options.py
 fracta/charting/charting_frame.py
 fracta/charting/indicator.py
 fracta/charting/indicator_meta.py
-fracta/charting/primative.py
+fracta/charting/primitive.py
+fracta/charting/primitive_set.py
 fracta/charting/series_common.py
 fracta/charting/series_dtypes.py
 fracta/charting/series_options.py

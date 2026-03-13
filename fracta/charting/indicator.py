@@ -24,7 +24,7 @@ import pandas as pd
 from ..js_cmd import JS_CMD
 from ..types import Color
 from ..util import ID_Dict, is_dunder
-from ..py_window import FrameTypes, FrontendObject
+from ..window import FrameTypes, FrontendObject
 
 from . import charting_frame as cf
 from . import primitive as pr
@@ -363,6 +363,8 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
     indicators dictionary.
     """
 
+    ID_KEY: ClassVar[str] = "indicatorId"
+
     _fwd_queue: Queue  # Patch fix to get class ind_pkg cls methods to work.
     # Optional Definition of an Options Dataclass; set by User
     __options__: Optional[type[IndicatorOptions]] = None
@@ -400,12 +402,6 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
             pane_index = 0
         self._pane_index = pane_index
 
-        if getattr(self, "_populate_ind_pkgs", None) is None:
-            # The first indicator since being launched is being initilized. Set the Indicator Menu
-            # Patch fix to get class ind_pkg cls methods to work.
-            Indicator._fwd_queue = self.parent.fwd_queue
-            self.__populate_ind_pkgs__()
-
         # ---- Setup Indicator Observer Structures ----
         self._watcher = Watcher(self)
         self._observers: list[Watcher] = []
@@ -420,15 +416,20 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
         self._series = ID_Dict[sc.SeriesCommon]("s")
         self._primitive_sets = ID_Dict[ps.PrimitiveSet]("ps")
 
-        self.fwd_queue.put(
-            (
-                JS_CMD.CREATE_INDICATOR,
-                *self.ids,
-                self.__exposed_outputs__,
-                self.cls_name,
-                display_name,
-            )
+        self.send(
+            JS_CMD.CREATE_INDICATOR,
+            self.__exposed_outputs__,
+            self.cls_name,
+            display_name,
         )
+
+    @staticmethod
+    def _update_indicator_pkg_listing(pkg_key: str = "__user_indicators"):
+        "Update the metadata for an indicator package"
+        # This method is overwritten once a WindowManager is initialized. It's called from IndicatorMeta.__new__
+        # It's an ugly design that breaks encapsulation and doesn't work with multiple Managers. Thing is, multiple
+        # managers isn't planned and this allows for indicators to auto update the UI without requiring the user to
+        # manually refresh the indicators listings, or those listings to constantly poll for updates.
 
     @property
     def pane_index(self) -> int:
@@ -503,7 +504,7 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
             p_set.delete()
 
         self.parent._indicators.pop(self._js_id)
-        self.fwd_queue.put((JS_CMD.REMOVE_INDICATOR, *self.ids))
+        self.send(JS_CMD.REMOVE_INDICATOR)
 
     # endregion
 
@@ -579,23 +580,6 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
         """
         self._watcher.link_args(args, self)
 
-    @classmethod
-    def __populate_ind_pkgs__(cls):
-        "Transfer all indicator package metadata to the window."
-        cls._fwd_queue.put((JS_CMD.POPULATE_IND_PKGS, cls.__registered_indicators__))
-
-    @classmethod
-    def __update_ind_pkg__(cls, pkg_key: str):
-        "Transfer all indicator package metadata to the window."
-        if pkg_key not in cls.__registered_indicators__:
-            log.warning(
-                "Cannot update indicator package metadata. Package key '%s' is unknown.",
-                pkg_key,
-            )
-            return
-
-        cls._fwd_queue.put((JS_CMD.UPDATE_IND_PKG, pkg_key, cls.__registered_indicators__[pkg_key]))
-
     def request_indicator(self, pkg_key: str, ind_key: str):
         "Request that an Indicator instance be loaded and connected to this Indicator Object"
         cls = retrieve_indicator_cls(pkg_key, ind_key)
@@ -608,13 +592,10 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
             log.error("Cannot set Menu, %s needs an options Class", self.cls_name)
             return
 
-        self.fwd_queue.put(
-            (
-                JS_CMD.SET_INDICATOR_MENU,
-                *self.ids,
-                self.__options__.__menu_struct__,
-                opts.to_dict(),
-            )
+        self.send(
+            JS_CMD.SET_INDICATOR_MENU,
+            self.__options__.__menu_struct__,
+            opts.to_dict(),
         )
 
     def update_menu(self, opts: IndicatorOptions):
@@ -623,11 +604,11 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
             log.error("Cannot set Menu, %s needs an options Class", self.cls_name)
             return
 
-        self.fwd_queue.put((JS_CMD.SET_INDICATOR_OPTIONS, *self.ids, opts.to_dict()))
+        self.send(JS_CMD.SET_INDICATOR_OPTIONS, opts.to_dict())
 
     def set_label(self, label: str):
         "Set the label text for this indicator in the pane's Legend. Raw HTML Accepted"
-        self.fwd_queue.put((JS_CMD.SET_LEGEND_LABEL, *self.ids, label))
+        self.send(JS_CMD.SET_LEGEND_LABEL, label)
 
     # region ------------- Primitive Functions ------------- #
 
@@ -666,8 +647,8 @@ class Indicator(FrontendObject["cf.ChartingFrame"], ps.PrimitiveSetHolder, metac
     def _deassociate_series(self, series: sc.SeriesCommon):
         "Remove a Series from this Indicator"
         if series.js_id is not None and series.js_id in self._series:
-            self._series.pop(series.js_id)
-            self.fwd_queue.put((JS_CMD.REMOVE_SERIES, *self.ids, series.js_id))
+            ser = self._series.pop(series.js_id)
+            ser.remove()
 
     def get_series_of_type[T: sc.SeriesCommon](self, _type: type[T] = sc.SeriesCommon) -> dict[str, T]:
         """

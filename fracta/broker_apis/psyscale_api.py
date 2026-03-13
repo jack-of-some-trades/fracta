@@ -61,16 +61,20 @@ class PsyscaleAPI:
         if getattr(self, "alpaca_api", None) is not None:
             await self.alpaca_api.shutdown()
 
-    def setup_window(self, window: fta.Window):
+    def setup_server(self, server: fta.ServerProtocol):
         "Setup the window will appropriate search filters and event responders."
-        window.events.data_request += self.get_series
-        window.events.symbol_search += self.search_symbols
-        window.events.open_socket += self.open_socket
-        window.events.close_socket += self.close_socket
+        server.events.data_request += self.get_series
+        server.events.symbol_search += self.search_symbols
+        server.events.open_socket += self.open_socket
+        server.events.close_socket += self.close_socket
 
-        window.set_search_filters("source", self.db.distinct_sources())
-        window.set_search_filters("exchange", self.db.distinct_exchanges())
-        window.set_search_filters("asset_class", self.db.distinct_asset_classes())
+        server.set_search_filters(
+            {
+                "source": self.db.distinct_sources(),
+                "exchange": self.db.distinct_exchanges(),
+                "asset_class": self.db.distinct_asset_classes(),
+            }
+        )
 
     def search_symbols(self, symbol: str, **filters) -> list[fta.Ticker]:
         "Search the Database's stored Symbols, returning matches as Ticker Objs"

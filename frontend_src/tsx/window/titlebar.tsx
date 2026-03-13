@@ -5,7 +5,7 @@
  * coupling with all of the Containers and what container is being actively displayed.
  */
 
-import { createSignal, JSX, mergeProps, onMount, Show, splitProps } from "solid-js"
+import { createSignal, JSX, mergeProps, onMount, splitProps } from "solid-js"
 import { container_manager } from "../../src/window/container_manager"
 import { Icon, icon_props, icons } from '../generic_elements/icons'
 import { LAYOUT_SECTIONS } from "./wrapper"
@@ -17,11 +17,9 @@ interface title_bar_props extends JSX.HTMLAttributes<HTMLDivElement> {
 
 export function TitleBar(props: title_bar_props) {
     let tab_div: HTMLDivElement | undefined
-    const [frameless, setFrameless] = createSignal(false)
-    const [fullscreen, setFullscreen] = createSignal(false)
-
-    //Expose set function to global window so Python can access it.
-    window.api.setFrameless = setFrameless
+    // Eww Dead Code. Might want to implement when proper app (electron?) interface is implemented though.
+    // const [frameless, setFrameless] = createSignal(false)
+    // const [fullscreen, setFullscreen] = createSignal(false)
 
     onMount(() => {
         if (tab_div) window.container_manager = new container_manager(tab_div)
@@ -56,7 +54,7 @@ export function TitleBar(props: title_bar_props) {
 
 
             {/**** Frameless Window Controls ****/}
-            <Show when={frameless()}>
+            {/* <Show when={frameless()}>
                 <div class="titlebar_separator" />
                 <Icon icon={icons.minimize} classList={{ window_btn: true }} style={{ padding: '3px' }} width={16} height={16}
                     onClick={() => { window.api.minimize() }} />
@@ -66,7 +64,7 @@ export function TitleBar(props: title_bar_props) {
                     onClick={() => { setFullscreen(true); window.api.maximize() }} /> </Show>
                 <Icon icon={icons.close} classList={{ window_btn: true }} style={{ padding: '3px' }} width={16} height={16}
                     onClick={() => { window.api.close() }} />
-            </Show>
+            </Show> */}
         </div>
     </div>
 }

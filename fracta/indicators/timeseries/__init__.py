@@ -2,12 +2,12 @@
 
 from .timeseries import Timeseries, BarState
 from .mkt_calendars import CALENDARS, enable_market_calendars
-from .events import setup_window_events
+from .events import setup_events
 
 __all__ = (
     "Timeseries",
     "BarState",
     "CALENDARS",
-    "setup_window_events",
+    "setup_events",
     "enable_market_calendars",
 )

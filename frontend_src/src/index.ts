@@ -3,6 +3,7 @@ import { Wrapper } from "../tsx/window/wrapper";
 import { Series_Type } from './charting_frame/series-plugins/series-base';
 import { PyApi } from "./py_api";
 import { tf } from './types';
+import { WebSocketManager } from './websocket';
 import { container } from "./window/container";
 import { container_manager } from './window/container_manager';
 import { frame } from './window/frame';
@@ -13,6 +14,7 @@ const styles = import.meta.glob('../css/**/*.css', { eager: true });
 //Declare Global interface. All Following declarations will be accessable to the python run_script() function
 declare global {
     var api: PyApi
+    var wsManager: WebSocketManager
     var loaded: boolean
     var container_manager: container_manager
 
@@ -46,13 +48,9 @@ declare module "solid-js" {
     }
 }
 
-// Global Workspace Vars used by Injected JS Commands
-var _ind = undefined //Indicator
-var _ser = undefined //Series
-var _cond = undefined //PrimitiveSet
-
 // Define The global Python <--> Js api interface.
-window.api = new PyApi();
+window.api = new PyApi(); //TODO: Remove 
+window.wsManager = new WebSocketManager();
 //Enums that will be used by Python need to be placed into the Global Scope
 window.Container_Layouts = Container_Layouts
 //Allow Global Control over the Topbar Display. Functions will be overwritten as window is rendered

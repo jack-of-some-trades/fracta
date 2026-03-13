@@ -14,19 +14,19 @@ if TYPE_CHECKING:
 
     from pandas import DataFrame
 
-    from ...py_window import Window
+    from ...server import WindowManager
     from ...types import TF, Ticker
     from .timeseries import Timeseries
 
 
-def setup_window_events(window: "Window"):
+def setup_events(window_manager: "WindowManager"):
     "Setup a Fracta Window to support Timeseries Events"
-    window.events.open_socket = Emitter[Socket_Open_Protocol]()
-    window.events.close_socket = Emitter[Socket_Close_Protocol]()
-    window.events.data_request = Emitter[Data_Request_Protocol](_timeseries_request_responder)
-    window.events.symbol_search = Emitter[Symbol_Search_Protocol](
+    window_manager.events.open_socket = Emitter[Socket_Open_Protocol]()
+    window_manager.events.close_socket = Emitter[Socket_Close_Protocol]()
+    window_manager.events.data_request = Emitter[Data_Request_Protocol](_timeseries_request_responder)
+    window_manager.events.symbol_search = Emitter[Symbol_Search_Protocol](
         _symbol_search_rsp,
-        fwd_queue=window._fwd_queue,
+        socket=window_manager,  # TODO: make this route through the WindowManager to return the correct socket
     )
 
 

@@ -1,8 +1,8 @@
 """Basic Types and TypeAliases"""
 
 import logging
-from inspect import signature
 from math import floor
+from inspect import signature
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any, TypeAlias, Literal, Optional, Self, get_args
@@ -14,6 +14,8 @@ from pandas import Timestamp, Timedelta
 logger = logging.getLogger("fracta_log")
 
 # region ---- ---- ---- ---- ---- ---- Ticker Dataclass ---- ---- ---- ---- ---- ---- #
+
+j_func: TypeAlias = str
 
 
 @dataclass(slots=True)
@@ -93,40 +95,12 @@ def _str_compare(a: Optional[str], b: Optional[str]) -> bool:
 
 # endregion
 
-# region ---- ---- ---- ---- ---- ---- JS Function Literal ---- ---- ---- ---- ---- ---- #
-
-
-class j_func:
-    """
-    String Representation of a Javascript Function.
-
-    This object allows raw python strings to be given to the JavaScript Executor
-    and invoked as anonymous functions. This is intended to be used to provide custom
-    formatters for the various lightweight chart options that take them.
-    """
-
-    def __init__(self, func: str):
-        # Replace '\n' with ';' to ensure command separation,
-        # Replace all internal quotes with ` to avoid json.dumps adding escape characters,
-        # Split and join w/ " " to limit excess whitespace
-        # Add "~" as markers to target trim outer quotes after dumping the string.
-        self.func = func.replace("\n", ";").replace('"', "`").replace("'", "`")
-        self.func = "~" + " ".join(self.func.split()) + "~"
-
-    @staticmethod
-    def format(str_in: str) -> str:
-        "Deletes the Outer Quotes, Call after String has been JSON Dumped."
-        return str_in.replace('"~', "").replace('~"', "")
+# region ---- ---- ---- ---- ---- ---- Color Dataclass ---- ---- ---- ---- ---- ---- #
 
 
 def NumtoHex(num: int):
     "Format a [0,255] number into Hex"
     return hex(num).lstrip("0x").zfill(2)
-
-
-# endregion
-
-# region ---- ---- ---- ---- ---- ---- Color Dataclass ---- ---- ---- ---- ---- ---- #
 
 
 # Note, this object cannot be a dataclass otherwise json.dumps()
@@ -329,20 +303,20 @@ class TF:
 
     def is_ltf(self) -> bool:
         "Check if the given TF is a Long Term Frequency"
-        return self._period in {'s', 'm', 'h'}
+        return self._period in {"s", "m", "h"}
 
     def to_timedelta(self) -> Timedelta:
         "Create a Pandas Timedelta Object from the TF Object"
         if self.is_ltf():
             return Timedelta(f"{self._mult}{self._period}")
-        elif self._period == 'D':
+        elif self._period == "D":
             return Timedelta(f"{self._mult}D")
-        elif self._period == 'W':
+        elif self._period == "W":
             return Timedelta(f"{self._mult * 7}D")
-        elif self._period == 'M':
+        elif self._period == "M":
             # 1 Unix Month = 2629743 Seconds
             return Timedelta(days=self._mult * (2629743 / 86400))
-        elif self._period == 'Y':
+        elif self._period == "Y":
             # 1 Unix Year = 31556926 Seconds
             return Timedelta(days=self._mult * (31556926 / 86400))
         else:

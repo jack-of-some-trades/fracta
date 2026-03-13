@@ -63,9 +63,10 @@ class IndicatorMeta(ABCMeta):
 
         if name != "Indicator":
             analyse_indicator_subclass(cls, name, namespace)
+            getattr(cls, "_update_indicator_pkg_listing", lambda: None)()
             return cls
 
-        # BaseClass Initlization, go ahead and retreive all installed indicator pkg metadata.
+        # BaseClass Initialization, retrieve all installed indicator pkg metadata.
         pkg_details = parse_indicator_pkgs()
         pkg_details |= {  # Merge in the baseline UserIndicators Package Group
             "__user_indicators": IndicatorPackage(
@@ -91,7 +92,7 @@ def parse_indicator_pkgs() -> dict[str, IndicatorPackage]:
 
     for pkg in entry_points(group="fracta.indicator_pkg"):
         # Build the key from the installed package name, not the name given in the meta data to
-        # reduce chance of dupicate package names.
+        # reduce chance of duplicate package names.
         if pkg.dist is None:
             raise ModuleNotFoundError(
                 "Attempted to load Fracta indicator package, but the package doesn't have a distribution?"

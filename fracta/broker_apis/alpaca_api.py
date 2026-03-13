@@ -87,16 +87,20 @@ class AlpacaAPI:
         self._assets = self._assets[self._assets.exchange != "OTC"]
         return self._assets
 
-    def setup_window(self, window: fta.Window):
+    def setup_server(self, server: fta.ServerProtocol):
         "Set a Pychart Window's Event Callbacks & Filters for use with Alpaca"
-        window.events.data_request += self.get_series
-        window.events.symbol_search += self.search_symbols
-        window.events.open_socket += self.open_socket
-        window.events.close_socket += self.close_socket
+        server.events.data_request += self.get_series
+        server.events.symbol_search += self.search_symbols
+        server.events.open_socket += self.open_socket
+        server.events.close_socket += self.close_socket
 
-        window.set_search_filters("asset_class", ["Crypto", "Equity"])
-        window.set_search_filters("source", ["Alpaca"])
-        window.set_search_filters("exchange", [])
+        server.set_search_filters(
+            {
+                "asset_class": ["Crypto", "Equity"],
+                "source": ["Alpaca"],
+                "exchange": [],
+            }
+        )
 
     async def shutdown(self):
         "Turn off the Alpaca Data Streams"
