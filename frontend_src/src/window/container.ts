@@ -102,8 +102,6 @@ export class container {
         //Logging an error instead of throwing one because when thrown nothing is displayed in the console.
         if (type == 1) console.error('Cannot Create an instance of an Abstract Frame')
 
-        console.log(FrameTypes[type])
-
         let new_frame = new FrameTypes[type](new_id, this.updateTab)
         this.frames.push(new_frame)
         return new_frame

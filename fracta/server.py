@@ -46,30 +46,50 @@ APIs = Literal["psyscale", "alpaca"]
 
 log = logging.getLogger("fracta_log")
 
+CHROME_PATHS = [
+    "chrome",
+    "google-chrome",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+]
+EDGE_PATHS = [
+    "msedge",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+]
+FIREFOX_PATHS = [
+    "firefox",
+    r"C:\Program Files\Mozilla Firefox\firefox.exe",
+    r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe",
+]
 
-def open_window_appmode(url: str) -> Optional[subprocess.Popen]:
+
+def open_window_appmode(url: str, devtools: bool = False) -> Optional[subprocess.Popen]:
     """
     Open the browser to the specified URL in app mode.
+    TODO: Fix the devtools flag. No method seems to launch the browser with devtools open.
 
     Args:
         url: The URL to open
     """
-    chrome_paths = [
-        "chrome",
-        "google-chrome",
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    ]
-    edge_paths = [
-        "msedge",
-        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-    ]
-
-    for browser_path in chrome_paths + edge_paths:
+    for browser_path in CHROME_PATHS + EDGE_PATHS:
         try:
+            args = [browser_path, "--auto-open-devtools-for-tabs" if devtools else "", f"--app={url}"]
             return subprocess.Popen(
-                [browser_path, f"--app={url}"],
+                args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except (FileNotFoundError, OSError):
+            continue
+
+    for browser_path in FIREFOX_PATHS:
+        try:
+            args = [browser_path, "-new-window", f"{url}"]
+            if devtools:
+                args.append("-devtools")
+            return subprocess.Popen(
+                args,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -217,10 +237,10 @@ class WindowManager:
         for cmd, payload in self.ui_state.items():
             window.send(cmd, payload)
 
-    def new_window(self, url: str, app_mode=True, js_id: Optional[str] = None) -> Window:
+    def new_window(self, url: str, app_mode=True, devtools=False, js_id: Optional[str] = None) -> Window:
         "Open a new browser window."
         if app_mode:
-            proc = open_window_appmode(url)
+            proc = open_window_appmode(url, devtools)
             app_mode = proc is not None
             if proc:
                 self.app_process.append(proc)
@@ -409,9 +429,9 @@ class FractaServer:
         """Wrap uvicorn.Server.serve."""
         await self.server.serve()
 
-    def new_window(self, app_mode=True) -> "Window":
+    def new_window(self, app_mode=True, devtools=False) -> "Window":
         "Open a new browser window."
-        return self.window_manager.new_window(self.params.url, app_mode)
+        return self.window_manager.new_window(self.params.url, app_mode, devtools)
 
     # region -------- Patch Properties & Methods -------- #
     # These are used to patch the Server class to make it act like a WindowManager
@@ -449,13 +469,22 @@ root = APIRouter()
 
 
 @root.get("/favicon.ico", include_in_schema=False)
-@root.get("/favicon.png", include_in_schema=False)
 async def favicon() -> FileResponse:
     """Serve the favicon."""
     return FileResponse(
-        FRONTEND_PATH / "favicon.png",
+        FRONTEND_PATH / "favicon_dark.ico",
+        media_type="image/x-icon",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@root.get("/favicon.png", include_in_schema=False)
+async def favicon_png() -> FileResponse:
+    """Serve the favicon."""
+    return FileResponse(
+        FRONTEND_PATH / "favicon_dark.png",
         media_type="image/png",
-        headers={"Cache-Control": "no-cache"},  # prevent caching during dev
+        headers={"Cache-Control": "no-cache"},
     )
 
 
@@ -465,7 +494,7 @@ async def svg_defs() -> FileResponse:
     return FileResponse(
         FRONTEND_PATH / "svg-defs.svg",
         media_type="image/svg+xml",
-        headers={"Cache-Control": "no-cache"},  # prevent caching during dev
+        headers={"Cache-Control": "no-cache"},
     )
 
 
@@ -482,12 +511,12 @@ async def websocket_endpoint(websocket: WebSocket):
     manager = websocket.app.state.window_manager
     await manager.dock_socket(websocket)
 
-    with suppress(WebSocketDisconnect):
+    with suppress(WebSocketDisconnect, RuntimeError):
         while not manager.shutdown_event.is_set() and websocket.application_state == WebSocketState.CONNECTED:
             await websocket.receive()  # Ignore all received messages.
 
-    if websocket.application_state == WebSocketState.CONNECTED:
-        await websocket.close()
+        if websocket.application_state == WebSocketState.CONNECTED:
+            await websocket.close()
 
 
 class FractaAPI(FastAPI):

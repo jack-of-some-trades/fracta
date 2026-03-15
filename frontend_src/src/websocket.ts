@@ -45,6 +45,14 @@ export class WebSocketManager {
         this.ws.onerror = this.onError.bind(this);
     }
 
+    private reconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            console.log(`Reconnecting... attempt ${this.reconnectAttempts}`);
+            setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
+        }
+    }
+
     private onOpen() {
         console.log("WebSocket connected");
         this.reconnectAttempts = 0;
@@ -72,15 +80,17 @@ export class WebSocketManager {
 
     private onClose() {
         console.log("WebSocket disconnected");
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            console.log(`Reconnecting... attempt ${this.reconnectAttempts}`);
-            setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
+        try {
+            window.close();
+        } catch (e) {
+            // Window was likely opened by the user so try to reconnect.
+            this.reconnect();
         }
     }
 
     private onError(error: Event) {
         console.error("WebSocket error:", error);
+        this.reconnect();
     }
 }
 
